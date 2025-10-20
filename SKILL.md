@@ -152,6 +152,7 @@ Detailed documentation for each testing aspect:
 - [Unit Testing](references/unit-testing.md) - UnitTestCase patterns, mocking, assertions
 - [Functional Testing](references/functional-testing.md) - FunctionalTestCase, fixtures, database
 - [Acceptance Testing](references/acceptance-testing.md) - Codeception, Selenium, page objects
+- [JavaScript Testing](references/javascript-testing.md) - CKEditor plugins, data-* attributes, frontend tests
 - [Test Runners](references/test-runners.md) - runTests.sh orchestration patterns
 - [CI/CD Integration](references/ci-cd.md) - GitHub Actions, GitLab CI workflows
 - [Quality Tools](references/quality-tools.md) - PHPStan, Rector, php-cs-fixer
