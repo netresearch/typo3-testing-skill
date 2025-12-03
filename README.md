@@ -1,5 +1,7 @@
 # TYPO3 Testing Skill
 
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/netresearch/typo3-testing-skill/releases/tag/v2.0.0)
+
 A comprehensive Claude Code skill for creating and managing TYPO3 extension tests.
 
 ## Features

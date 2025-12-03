@@ -1,13 +1,14 @@
 ---
 name: typo3-testing
-description: "This skill helps developers create, configure, and manage TYPO3 extension tests following official TYPO3 testing framework patterns. Use when setting up tests, writing test cases, configuring PHPUnit, managing fixtures, or integrating CI/CD pipelines. Covers PHPUnit 11/12, TYPO3 v12/v13 LTS, Playwright E2E testing with axe-core accessibility, and comprehensive quality tooling (PHPStan level 10, Rector, php-cs-fixer)."
+version: 2.0.0
+description: "Create, configure, and manage TYPO3 extension tests (unit, functional, E2E) following official TYPO3 testing framework patterns. This skill should be used when setting up test infrastructure, writing test cases, configuring PHPUnit, managing fixtures, or integrating CI/CD pipelines for TYPO3 extensions. Covers PHPUnit 11/12, TYPO3 v12/v13 LTS, Playwright E2E testing with axe-core accessibility, and comprehensive quality tooling (PHPStan level 10, Rector, php-cs-fixer)."
 ---
 
 # TYPO3 Testing Skill
 
-## Purpose
+## Overview
 
-This skill helps developers create, configure, and manage TYPO3 extension tests following official TYPO3 testing framework patterns and community best practices.
+Provides templates, scripts, and reference documentation for implementing comprehensive TYPO3 extension testing following official patterns and community best practices.
 
 ## Quick Start Decision Tree
 
@@ -215,15 +216,15 @@ See `references/ci-cd.md` for GitLab CI example configuration.
 
 ## Test Organization Standards
 
-**When organizing tests**, apply these patterns:
+Apply these patterns when organizing tests:
 1. Group tests by feature or domain, not by test type
 2. Name unit and functional tests with `*Test.php` suffix
 3. Name E2E tests with `*.spec.ts` suffix
 4. Keep fixtures minimal, reusable, and well-documented
-5. Use specific assertions (assertSame, assertInstanceOf) over generic assertEquals
-6. Ensure each test can run independently without side effects
+5. Prefer specific assertions (assertSame, assertInstanceOf) over generic assertEquals
+6. Ensure each test runs independently without side effects
 7. Apply setUp() and tearDown() methods consistently across test classes
-8. Document test strategy in AGENTS.md to explain what each directory tests
+8. Document test strategy in AGENTS.md for each test directory
 
 ## Troubleshooting
 
@@ -243,30 +244,15 @@ See `references/ci-cd.md` for GitLab CI example configuration.
 - Check Playwright config baseURL matches your TYPO3 instance
 - Ensure TYPO3 backend is running and accessible
 
-## Reference Material Usage
+## External References
 
-**When understanding TYPO3 testing patterns**, read [TYPO3 Testing Documentation](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/Testing/) for:
-- Official testing framework usage
-- Best practices and patterns
-- Version-specific requirements
+Consult these resources for additional context:
 
-**When working with test framework internals**, check [TYPO3 Testing Framework](https://github.com/typo3/testing-framework) for:
-- Framework API reference
-- Base test case implementations
-- Fixture handling utilities
-
-**When seeking reference implementations**, study [Tea Extension](https://github.com/TYPO3BestPractices/tea) for:
-- Production-quality test examples
-- Complete testing infrastructure setup
-- Best practice patterns in action
-
-**When writing PHPUnit tests**, consult [PHPUnit Documentation](https://phpunit.de/documentation.html) for:
-- Assertion methods
-- Test doubles and mocking
-- Configuration options
-
-**When implementing E2E tests**, reference [Playwright Documentation](https://playwright.dev/docs/intro) and [TYPO3 Core Playwright Tests](https://github.com/TYPO3/typo3/tree/main/Build/tests/playwright) for:
-- Page Object Model patterns
-- Browser automation
-- Authentication handling
-- Accessibility testing with axe-core
+| Resource | Use For |
+|----------|---------|
+| [TYPO3 Testing Documentation](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/Testing/) | Official framework usage, best practices, version requirements |
+| [TYPO3 Testing Framework](https://github.com/typo3/testing-framework) | Framework API, base test cases, fixture utilities |
+| [Tea Extension](https://github.com/TYPO3BestPractices/tea) | Production-quality examples, complete infrastructure setup |
+| [PHPUnit Documentation](https://phpunit.de/documentation.html) | Assertions, test doubles, configuration |
+| [Playwright Documentation](https://playwright.dev/docs/intro) | Browser automation, Page Object Model |
+| [TYPO3 Core Playwright Tests](https://github.com/TYPO3/typo3/tree/main/Build/tests/playwright) | E2E patterns, authentication, accessibility testing |
