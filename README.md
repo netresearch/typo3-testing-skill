@@ -4,7 +4,9 @@ A comprehensive Claude Code skill for creating and managing TYPO3 extension test
 
 ## Features
 
-- **Test Creation**: Generate Unit, Functional, and Acceptance tests
+- **Test Creation**: Generate Unit, Functional, and E2E tests
+- **E2E Testing**: Playwright-based browser automation (TYPO3 Core standard)
+- **Accessibility Testing**: axe-core integration for WCAG compliance
 - **Infrastructure Setup**: Automated testing infrastructure installation
 - **CI/CD Integration**: GitHub Actions and GitLab CI templates
 - **Quality Tools**: PHPStan, Rector, php-cs-fixer integration
@@ -54,8 +56,8 @@ Fast, isolated tests without external dependencies. Perfect for testing services
 ### Functional Tests
 Tests with database and full TYPO3 instance. Use for repositories, controllers, and integration scenarios.
 
-### Acceptance Tests
-Browser-based end-to-end tests using Codeception and Selenium. For testing complete user workflows.
+### E2E Tests (Playwright)
+Browser-based end-to-end tests using Playwright (TYPO3 Core standard). For testing complete user workflows, backend modules, and accessibility compliance with axe-core.
 
 ## Advanced Testing Patterns
 
@@ -624,7 +626,8 @@ composer ci:tests
 
 - PHP 8.1+
 - Composer
-- Docker (for functional and acceptance tests)
+- Docker (for functional tests)
+- Node.js 22.18+ (for E2E tests)
 - TYPO3 v12 or v13
 
 ## Based On
