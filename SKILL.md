@@ -1,6 +1,5 @@
 ---
 name: typo3-testing
-version: 2.0.0
 description: "Create, configure, and manage TYPO3 extension tests (unit, functional, E2E) following official TYPO3 testing framework patterns. This skill should be used when setting up test infrastructure, writing test cases, configuring PHPUnit, managing fixtures, or integrating CI/CD pipelines for TYPO3 extensions. Covers PHPUnit 11/12, TYPO3 v12/v13 LTS, Playwright E2E testing with axe-core accessibility, and comprehensive quality tooling (PHPStan level 10, Rector, php-cs-fixer)."
 ---
 
