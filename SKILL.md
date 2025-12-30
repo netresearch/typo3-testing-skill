@@ -16,6 +16,7 @@ Templates, scripts, and references for comprehensive TYPO3 extension testing.
 | **Architecture** | Layer constraints, dependency rules (phpat) | Fast (ms) |
 | **E2E (Playwright)** | User workflows, browser, accessibility | Slow (s-min) |
 | **Fuzz** | Security, parsers, malformed input | Manual |
+| **Crypto** | Encryption, secrets, key management | Fast (ms) |
 | **Mutation** | Test quality verification, 70%+ coverage | CI/Release |
 
 ## Commands
@@ -56,6 +57,7 @@ Build/Scripts/runTests.sh -s mutation
 - `references/e2e-testing.md` - Playwright, Page Object Model
 - `references/accessibility-testing.md` - axe-core, WCAG compliance
 - `references/fuzz-testing.md` - nikic/php-fuzzer, security
+- `references/crypto-testing.md` - Encryption, secrets, sodium
 - `references/mutation-testing.md` - Infection, test quality
 - `references/ci-cd.md` - GitHub Actions, GitLab CI
 
