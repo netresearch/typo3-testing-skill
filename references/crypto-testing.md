@@ -386,12 +386,103 @@ final class SecretRepositoryTest extends FunctionalTestCase
 }
 ```
 
+## Algorithm-Specific Nonce Lengths
+
+Different algorithms require different nonce lengths. Using wrong nonce length reduces security.
+
+### The Problem
+
+```php
+// ❌ WRONG - Same nonce length for all algorithms reduces entropy
+private const NONCE_LENGTH = 12;  // AES-GCM length
+
+public function encrypt(string $plaintext): string
+{
+    $nonce = random_bytes(self::NONCE_LENGTH);  // Always 12 bytes!
+
+    // For XChaCha20-Poly1305, this wastes 12 bytes of nonce entropy
+    // (should be 24 bytes)
+    if ($this->algorithm === 'xchacha20') {
+        $nonce = str_pad($nonce, 24, "\0");  // Padding with zeros = BAD!
+    }
+}
+```
+
+### The Fix - Dynamic Nonce Length
+
+```php
+private function getNonceLength(): int
+{
+    return match ($this->algorithm) {
+        'aes-256-gcm' => SODIUM_CRYPTO_AEAD_AES256GCM_NPUBBYTES,        // 12 bytes
+        'xchacha20-poly1305' => SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES,  // 24 bytes
+        default => throw new \InvalidArgumentException('Unknown algorithm'),
+    };
+}
+
+public function encrypt(string $plaintext): string
+{
+    // ✅ CORRECT - Full entropy for each algorithm
+    $nonce = random_bytes($this->getNonceLength());
+}
+```
+
+### Testing Nonce Length
+
+```php
+#[Test]
+public function aesGcmUsesCorrectNonceLength(): void
+{
+    $service = new EncryptionService('aes-256-gcm', $this->key);
+    $encrypted = $service->encrypt('test');
+
+    // Extract nonce from ciphertext
+    $nonce = substr($encrypted, 0, SODIUM_CRYPTO_AEAD_AES256GCM_NPUBBYTES);
+
+    self::assertSame(12, strlen($nonce));
+}
+
+#[Test]
+public function xchachaUsesCorrectNonceLength(): void
+{
+    $service = new EncryptionService('xchacha20-poly1305', $this->key);
+    $encrypted = $service->encrypt('test');
+
+    // Extract nonce from ciphertext
+    $nonce = substr($encrypted, 0, SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES);
+
+    self::assertSame(24, strlen($nonce));
+}
+
+#[Test]
+public function noncesAreFullyRandom(): void
+{
+    // Verify nonce doesn't contain padding zeros
+    $service = new EncryptionService('xchacha20-poly1305', $this->key);
+
+    $nonces = [];
+    for ($i = 0; $i < 10; $i++) {
+        $encrypted = $service->encrypt('test');
+        $nonce = substr($encrypted, 0, 24);
+        $nonces[] = $nonce;
+
+        // No nonce should end with 12 zero bytes (padding pattern)
+        $lastBytes = substr($nonce, 12);
+        self::assertNotSame(str_repeat("\0", 12), $lastBytes);
+    }
+
+    // All nonces should be unique
+    self::assertSame(10, count(array_unique($nonces)));
+}
+```
+
 ## Security Test Checklist
 
 | Test Case | Purpose |
 |-----------|---------|
 | Round-trip encrypt/decrypt | Basic correctness |
 | Different ciphertext for same input | Nonce randomness |
+| Correct nonce length per algorithm | Algorithm compliance |
 | Wrong key fails decryption | Key isolation |
 | Tampered ciphertext fails | Integrity protection |
 | Empty input handling | Edge case security |
