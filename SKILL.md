@@ -53,6 +53,7 @@ Build/Scripts/runTests.sh -s mutation
 - `references/unit-testing.md` - UnitTestCase, mocking, assertions
 - `references/functional-testing.md` - FunctionalTestCase, fixtures, database
 - `references/functional-test-patterns.md` - Container reset, PHPUnit 10+ migration
+- `references/typo3-v14-final-classes.md` - Testing final/readonly classes, interface extraction
 - `references/architecture-testing.md` - phpat rules, layer constraints
 - `references/e2e-testing.md` - Playwright, Page Object Model
 - `references/accessibility-testing.md` - axe-core, WCAG compliance
