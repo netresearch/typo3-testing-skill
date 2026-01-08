@@ -656,6 +656,16 @@ composer ci:tests
 - [TYPO3 Best Practices: tea extension](https://github.com/TYPO3BestPractices/tea)
 - TYPO3 community best practices
 
+## Acknowledgments
+
+This skill stands on the shoulders of the TYPO3 community's exceptional work. We gratefully acknowledge:
+
+- **[TYPO3 Core Development Team](https://typo3.org/community/teams/typo3-development)** — For creating and maintaining the TYPO3 Testing Framework, the `typo3/core-testing-*` Docker images, and establishing the testing patterns that make this skill possible.
+
+- **[TYPO3 Best Practices Team](https://typo3.org/community/teams/best-practices)** — For the exemplary [Tea Extension](https://github.com/TYPO3BestPractices/tea) that serves as the reference implementation for testing infrastructure, demonstrating production-grade PHPUnit configuration, multi-database testing, and runTests.sh orchestration.
+
+- **[TYPO3 Documentation Team](https://typo3.org/community/teams/documentation)** — For the comprehensive testing documentation that guides extension developers toward quality practices.
+
 ## License
 
 GPL-2.0-or-later
