@@ -64,10 +64,10 @@ Build/Scripts/runTests.sh -s mutation
 
 ## Templates
 
+- `templates/Build/Scripts/runTests.sh` - **Docker-based test orchestration (required)**
 - `templates/UnitTests.xml`, `templates/FunctionalTests.xml` - PHPUnit configs
 - `templates/phpat.php` - Architecture test rules
 - `templates/Build/playwright/` - Playwright setup
-- `templates/runTests.sh` - Test orchestration
 - `templates/github-actions-tests.yml` - CI workflow
 
 ## External Resources
