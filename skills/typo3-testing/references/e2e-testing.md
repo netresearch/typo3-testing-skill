@@ -746,6 +746,227 @@ test('handles AJAX timeout gracefully', async ({ page, backend }) => {
 });
 ```
 
+## PHP-Based E2E Testing (Alternative)
+
+For extensions that primarily test API interactions without browser UI, PHP-based E2E tests offer a lightweight alternative to Playwright.
+
+### When to Use PHP E2E Tests
+
+- Testing complete workflows without browser interaction
+- API endpoint verification with mocked HTTP clients
+- Multi-provider integrations (LLM, payment gateways)
+- When Playwright overhead is unnecessary
+
+### Directory Structure
+
+```
+Tests/
+├── E2E/
+│   ├── AbstractE2ETestCase.php
+│   └── Backend/
+│       ├── AbstractBackendE2ETestCase.php
+│       └── ConfigurationWorkflowE2ETest.php
+```
+
+### Base Test Case
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Extension\Tests\E2E;
+
+use GuzzleHttp\Psr7\HttpFactory;
+use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\MockObject\Stub;
+use PHPUnit\Framework\TestCase;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamFactoryInterface;
+
+/**
+ * Base class for PHP-based End-to-End tests.
+ *
+ * E2E tests verify complete workflows from service entry point
+ * through to response handling, using mocked HTTP clients to
+ * simulate external API interactions.
+ */
+abstract class AbstractE2ETestCase extends TestCase
+{
+    protected RequestFactoryInterface $requestFactory;
+    protected StreamFactoryInterface $streamFactory;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->requestFactory = new HttpFactory();
+        $this->streamFactory = new HttpFactory();
+    }
+
+    /**
+     * Create a stub HTTP client that returns sequential responses.
+     *
+     * @param list<ResponseInterface> $responses
+     */
+    protected function createMockHttpClient(array $responses): ClientInterface&Stub
+    {
+        $client = self::createStub(ClientInterface::class);
+        $client->method('sendRequest')
+            ->willReturnOnConsecutiveCalls(...$responses);
+
+        return $client;
+    }
+
+    /**
+     * Create a request-capturing HTTP client.
+     *
+     * @return array{client: ClientInterface&Stub, requests: array<RequestInterface>}
+     */
+    protected function createCapturingHttpClient(ResponseInterface $response): array
+    {
+        $requests = [];
+        $client = self::createStub(ClientInterface::class);
+        $client->method('sendRequest')
+            ->willReturnCallback(function (RequestInterface $request) use ($response, &$requests) {
+                $requests[] = $request;
+                return $response;
+            });
+
+        return ['client' => $client, 'requests' => &$requests];
+    }
+
+    /**
+     * Create a JSON success response.
+     *
+     * @param array<string, mixed> $data
+     */
+    protected function createJsonResponse(array $data, int $status = 200): ResponseInterface
+    {
+        return new Response(
+            status: $status,
+            headers: ['Content-Type' => 'application/json'],
+            body: \json_encode($data, JSON_THROW_ON_ERROR),
+        );
+    }
+}
+```
+
+### E2E Test Example
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Extension\Tests\E2E\Backend;
+
+use Vendor\Extension\Service\ProviderService;
+use Vendor\Extension\Service\ConfigurationService;
+use Vendor\Extension\Tests\E2E\AbstractE2ETestCase;
+
+/**
+ * E2E test for complete provider configuration workflow.
+ */
+final class ConfigurationWorkflowE2ETest extends AbstractE2ETestCase
+{
+    /**
+     * @test
+     * Complete workflow: create provider -> test connection -> save configuration
+     */
+    public function completeProviderConfigurationWorkflow(): void
+    {
+        // Arrange: Mock external API responses
+        $testConnectionResponse = $this->createJsonResponse([
+            'models' => [
+                ['id' => 'gpt-4o', 'name' => 'GPT-4o'],
+                ['id' => 'gpt-4o-mini', 'name' => 'GPT-4o Mini'],
+            ],
+        ]);
+
+        $chatResponse = $this->createJsonResponse([
+            'id' => 'chatcmpl-123',
+            'choices' => [
+                ['message' => ['content' => 'Test successful']],
+            ],
+        ]);
+
+        $httpClient = $this->createMockHttpClient([
+            $testConnectionResponse,
+            $chatResponse,
+        ]);
+
+        // Create services with mocked HTTP client
+        $providerService = new ProviderService($httpClient, $this->requestFactory);
+        $configService = new ConfigurationService($providerService);
+
+        // Act: Execute complete workflow
+        // Step 1: Test connection
+        $connectionResult = $providerService->testConnection('sk-test-key');
+        self::assertTrue($connectionResult->isSuccessful());
+        self::assertCount(2, $connectionResult->getModels());
+
+        // Step 2: Configure provider
+        $config = $configService->createProviderConfiguration(
+            name: 'Production OpenAI',
+            apiKey: 'sk-test-key',
+            model: 'gpt-4o',
+        );
+        self::assertNotNull($config->getId());
+
+        // Step 3: Verify configuration works
+        $testResult = $providerService->sendTestMessage($config, 'Hello');
+        self::assertSame('Test successful', $testResult->getContent());
+    }
+
+    /**
+     * @test
+     * Workflow handles connection failure gracefully
+     */
+    public function workflowHandlesConnectionFailure(): void
+    {
+        // Arrange: Mock failed connection
+        $errorResponse = $this->createJsonResponse(
+            ['error' => ['message' => 'Invalid API key']],
+            401
+        );
+
+        $httpClient = $this->createMockHttpClient([$errorResponse]);
+        $providerService = new ProviderService($httpClient, $this->requestFactory);
+
+        // Act & Assert
+        $result = $providerService->testConnection('invalid-key');
+
+        self::assertFalse($result->isSuccessful());
+        self::assertStringContainsString('Invalid API key', $result->getErrorMessage());
+    }
+}
+```
+
+### Combining PHP E2E with Playwright
+
+For comprehensive testing, use both approaches:
+
+| Test Type | PHP E2E | Playwright E2E |
+|-----------|---------|----------------|
+| API workflows | ✓ | |
+| HTTP request/response | ✓ | |
+| Multi-provider logic | ✓ | |
+| Browser UI interactions | | ✓ |
+| JavaScript behavior | | ✓ |
+| Accessibility (axe-core) | | ✓ |
+| Visual regression | | ✓ |
+
+```bash
+# Run PHP E2E tests (fast, no browser)
+Build/Scripts/runTests.sh -s unit  # Or separate e2e-php suite
+
+# Run Playwright E2E tests (browser-based)
+Build/Scripts/runTests.sh -s e2e
+```
+
 ## Resources
 
 - [Playwright Documentation](https://playwright.dev/docs/intro)
@@ -753,3 +974,4 @@ test('handles AJAX timeout gracefully', async ({ page, backend }) => {
 - [Playwright Test API](https://playwright.dev/docs/api/class-test)
 - [Page Object Model](https://playwright.dev/docs/pom)
 - [Playwright Network Mocking](https://playwright.dev/docs/mock)
+- [PSR-18 HTTP Client](https://www.php-fig.org/psr/psr-18/) - For PHP E2E tests
