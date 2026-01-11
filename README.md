@@ -1,6 +1,6 @@
 # TYPO3 Testing Skill
 
-[![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)](https://github.com/netresearch/typo3-testing-skill/releases/tag/v2.4.0)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/netresearch/typo3-testing-skill/releases/tag/v3.0.0)
 
 A comprehensive Claude Code skill for creating and managing TYPO3 extension tests.
 
@@ -640,7 +640,7 @@ composer ci:tests
 
 - [SKILL.md](SKILL.md) - Main workflow guide with decision trees
 - [references/](references/) - Detailed testing documentation
-- [templates/](templates/) - PHPUnit configs, AGENTS.md, examples
+- [assets/](skills/typo3-testing/assets/) - PHPUnit configs, AGENTS.md, examples
 
 ## Requirements
 

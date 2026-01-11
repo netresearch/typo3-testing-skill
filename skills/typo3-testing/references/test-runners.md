@@ -15,7 +15,7 @@ Extensions **MUST** have a Docker-based `Build/Scripts/runTests.sh` that:
 
 ## Template
 
-Use `templates/Build/Scripts/runTests.sh` as starting point. Customize:
+Use `assets/Build/Scripts/runTests.sh` as starting point. Customize:
 
 1. `NETWORK` variable: Replace `my-extension` with your extension key
 2. `COMPOSER_ROOT_VERSION`: Set to your extension version
