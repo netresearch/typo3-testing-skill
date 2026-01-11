@@ -55,11 +55,14 @@ Build/Scripts/runTests.sh -s mutation
 - `references/functional-test-patterns.md` - Container reset, PHPUnit 10+ migration
 - `references/typo3-v14-final-classes.md` - Testing final/readonly classes, interface extraction
 - `references/architecture-testing.md` - phpat rules, layer constraints
-- `references/e2e-testing.md` - Playwright, Page Object Model
+- `references/e2e-testing.md` - Playwright, Page Object Model, PHP E2E
 - `references/accessibility-testing.md` - axe-core, WCAG compliance
 - `references/fuzz-testing.md` - nikic/php-fuzzer, security
 - `references/crypto-testing.md` - Encryption, secrets, sodium
 - `references/mutation-testing.md` - Infection, test quality
+- `references/performance-testing.md` - Benchmarks, memory leak detection
+- `references/integration-testing.md` - HTTP client testing, API mocking
+- `references/quality-tools.md` - PHPStan, PHP-CS-Fixer, Rector
 - `references/ci-cd.md` - GitHub Actions, GitLab CI
 
 ## Templates
@@ -67,6 +70,12 @@ Build/Scripts/runTests.sh -s mutation
 - `templates/Build/Scripts/runTests.sh` - **Docker-based test orchestration (required)**
 - `templates/UnitTests.xml`, `templates/FunctionalTests.xml` - PHPUnit configs
 - `templates/phpat.php` - Architecture test rules
+- `templates/phpat.neon` - PHPat PHPStan integration
+- `templates/phpstan.neon` - PHPStan configuration (level 10)
+- `templates/phpstan-baseline.neon` - PHPStan baseline for migrations
+- `templates/.php-cs-fixer.dist.php` - Code style configuration
+- `templates/rector.php` - Rector automated refactoring
+- `templates/Makefile` - Development command shortcuts
 - `templates/Build/playwright/` - Playwright setup
 - `templates/github-actions-tests.yml` - CI workflow
 
