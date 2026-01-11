@@ -23,8 +23,8 @@ TYPO3 Core uses **Playwright** exclusively for end-to-end and accessibility test
     "npm": ">=11.5.2"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1",
-    "@axe-core/playwright": "^4.9.0"
+    "@playwright/test": "^1.57.0",
+    "@axe-core/playwright": "^4.10.0"
   },
   "scripts": {
     "playwright:install": "playwright install",
@@ -75,10 +75,10 @@ export default defineConfig({
   expect: {
     timeout: 10000,
   },
-  fullyParallel: false,
+  fullyParallel: false, // Tests within file run sequentially (safer for state)
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 4 : undefined, // CI: 4 workers, Local: half of CPUs
   reporter: [
     ['list'],
     ['html', { outputFolder: '../typo3temp/var/tests/playwright-reports' }],
@@ -336,14 +336,66 @@ npx playwright test --debug
 npm run playwright:report
 ```
 
-## DDEV Integration
+## runTests.sh Integration (Recommended)
+
+The recommended approach is to run E2E tests via `runTests.sh`, which handles Docker networking automatically:
+
+```bash
+# Start TYPO3 with ddev, then run E2E tests
+ddev start && ./Build/Scripts/runTests.sh -s e2e
+
+# Or with custom TYPO3 URL
+TYPO3_BASE_URL=https://my-typo3.local ./Build/Scripts/runTests.sh -s e2e
+```
+
+### Playwright Docker Image
+
+Use the official Playwright Docker image with pre-installed browsers:
+
+```bash
+IMAGE_PLAYWRIGHT="mcr.microsoft.com/playwright:v1.57.0-noble"
+```
+
+**Important**: Keep versions synced between `package.json` and `runTests.sh`:
+- `package.json`: `"@playwright/test": "^1.57.0"`
+- `runTests.sh`: `IMAGE_PLAYWRIGHT="mcr.microsoft.com/playwright:v1.57.0-noble"`
+
+### ddev Network Integration
+
+When ddev is running, `runTests.sh` automatically:
+1. Detects ddev and gets the router IP
+2. Connects Playwright container to `ddev_default` network
+3. Adds `--add-host` entries for ddev hostname resolution
+
+```bash
+# In runTests.sh e2e section:
+ROUTER_IP=$(docker inspect ddev-router --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+DDEV_PARAMS="--network ddev_default"
+DDEV_PARAMS="${DDEV_PARAMS} --add-host my-extension.ddev.site:${ROUTER_IP}"
+```
+
+### Permission Handling
+
+Pre-create `node_modules` and detect root-owned files:
+
+```bash
+mkdir -p node_modules
+
+if [ "$(find node_modules -maxdepth 1 -user root 2>/dev/null | head -1)" ]; then
+    echo "Error: node_modules contains root-owned files."
+    echo "Please remove: sudo rm -rf node_modules"
+    exit 1
+fi
+```
+
+## DDEV Integration (Alternative)
 
 ```yaml
 # .ddev/docker-compose.playwright.yaml
 services:
   playwright:
     container_name: ddev-${DDEV_SITENAME}-playwright
-    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    image: mcr.microsoft.com/playwright:v1.57.0-noble
     volumes:
       - ../:/var/www/html
     working_dir: /var/www/html/Build
