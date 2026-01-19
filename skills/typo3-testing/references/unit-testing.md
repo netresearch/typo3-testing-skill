@@ -1018,9 +1018,419 @@ final class MyDataHandlerHookTest extends UnitTestCase
 5. **Reset Singletons**: Always set `protected bool $resetSingletonInstances = true;`
 6. **Constructor DI**: Inject all dependencies via constructor (TYPO3 13+ best practice)
 
+## Testing Time-Dependent Code
+
+Time-dependent code (scheduled tasks, cache expiration, date validation) requires special testing patterns to ensure determinism and avoid flaky tests.
+
+### The Problem
+
+```php
+// ❌ Non-deterministic - test results depend on when tests run
+public function isExpired(): bool
+{
+    return time() > $this->expiresAt;
+}
+
+public function getAge(): int
+{
+    return (new \DateTimeImmutable())->diff($this->createdAt)->days;
+}
+```
+
+### Solution 1: Clock Interface (Recommended)
+
+Create an injectable clock dependency for deterministic time control.
+
+**The Interface:**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Extension\Service;
+
+interface ClockInterface
+{
+    public function now(): \DateTimeImmutable;
+}
+```
+
+**Production Implementation:**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Extension\Service;
+
+final class SystemClock implements ClockInterface
+{
+    public function now(): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable();
+    }
+}
+```
+
+**Test Implementation (FakeClock):**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Extension\Tests\Unit\Service;
+
+use Vendor\Extension\Service\ClockInterface;
+
+final class FakeClock implements ClockInterface
+{
+    private \DateTimeImmutable $currentTime;
+
+    public function __construct(\DateTimeImmutable $initialTime)
+    {
+        $this->currentTime = $initialTime;
+    }
+
+    public function now(): \DateTimeImmutable
+    {
+        return $this->currentTime;
+    }
+
+    public function setTime(\DateTimeImmutable $time): void
+    {
+        $this->currentTime = $time;
+    }
+
+    public function advance(\DateInterval $interval): void
+    {
+        $this->currentTime = $this->currentTime->add($interval);
+    }
+
+    public function advanceSeconds(int $seconds): void
+    {
+        $this->advance(new \DateInterval("PT{$seconds}S"));
+    }
+
+    public function advanceMinutes(int $minutes): void
+    {
+        $this->advance(new \DateInterval("PT{$minutes}M"));
+    }
+
+    public function advanceHours(int $hours): void
+    {
+        $this->advance(new \DateInterval("PT{$hours}H"));
+    }
+
+    public function advanceDays(int $days): void
+    {
+        $this->advance(new \DateInterval("P{$days}D"));
+    }
+}
+```
+
+**Using the Clock in Production Code:**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Extension\Domain\Model;
+
+use Vendor\Extension\Service\ClockInterface;
+
+final class Token
+{
+    private \DateTimeImmutable $expiresAt;
+
+    public function __construct(
+        private readonly ClockInterface $clock,
+        int $ttlSeconds = 3600,
+    ) {
+        $this->expiresAt = $this->clock->now()->modify("+{$ttlSeconds} seconds");
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->clock->now() > $this->expiresAt;
+    }
+
+    public function getSecondsRemaining(): int
+    {
+        $diff = $this->expiresAt->getTimestamp() - $this->clock->now()->getTimestamp();
+        return max(0, $diff);
+    }
+}
+```
+
+**Testing with FakeClock:**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Extension\Tests\Unit\Domain\Model;
+
+use PHPUnit\Framework\Attributes\Test;
+use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
+use Vendor\Extension\Domain\Model\Token;
+use Vendor\Extension\Tests\Unit\Service\FakeClock;
+
+final class TokenTest extends UnitTestCase
+{
+    private FakeClock $clock;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Start at a known, fixed time
+        $this->clock = new FakeClock(new \DateTimeImmutable('2026-01-15 10:00:00'));
+    }
+
+    #[Test]
+    public function newTokenIsNotExpired(): void
+    {
+        $token = new Token($this->clock, ttlSeconds: 3600);
+
+        self::assertFalse($token->isExpired());
+    }
+
+    #[Test]
+    public function tokenExpiresAfterTtl(): void
+    {
+        $token = new Token($this->clock, ttlSeconds: 3600);
+
+        // Advance time past expiration
+        $this->clock->advanceSeconds(3601);
+
+        self::assertTrue($token->isExpired());
+    }
+
+    #[Test]
+    public function tokenNotExpiredJustBeforeTtl(): void
+    {
+        $token = new Token($this->clock, ttlSeconds: 3600);
+
+        // Advance time to just before expiration
+        $this->clock->advanceSeconds(3599);
+
+        self::assertFalse($token->isExpired());
+    }
+
+    #[Test]
+    public function getSecondsRemainingReturnsCorrectValue(): void
+    {
+        $token = new Token($this->clock, ttlSeconds: 3600);
+
+        $this->clock->advanceSeconds(1000);
+
+        self::assertSame(2600, $token->getSecondsRemaining());
+    }
+
+    #[Test]
+    public function getSecondsRemainingReturnsZeroWhenExpired(): void
+    {
+        $token = new Token($this->clock, ttlSeconds: 3600);
+
+        $this->clock->advanceSeconds(7200);
+
+        self::assertSame(0, $token->getSecondsRemaining());
+    }
+}
+```
+
+### Solution 2: Symfony Clock Component (PHP 8.3+)
+
+For projects using Symfony components, use `symfony/clock`:
+
+```bash
+composer require symfony/clock
+```
+
+**Using PSR-20 Clock Interface:**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Extension\Service;
+
+use Psr\Clock\ClockInterface;
+
+final class CacheService
+{
+    public function __construct(
+        private readonly ClockInterface $clock,
+        private readonly int $ttlSeconds = 3600,
+    ) {}
+
+    public function isValid(\DateTimeImmutable $cachedAt): bool
+    {
+        $expiresAt = $cachedAt->modify("+{$this->ttlSeconds} seconds");
+        return $this->clock->now() < $expiresAt;
+    }
+}
+```
+
+**Testing with MockClock:**
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Extension\Tests\Unit\Service;
+
+use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\Clock\MockClock;
+use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
+use Vendor\Extension\Service\CacheService;
+
+final class CacheServiceTest extends UnitTestCase
+{
+    #[Test]
+    public function cacheIsValidWithinTtl(): void
+    {
+        $clock = new MockClock('2026-01-15 10:00:00');
+        $service = new CacheService($clock, ttlSeconds: 3600);
+
+        $cachedAt = new \DateTimeImmutable('2026-01-15 09:30:00');
+
+        self::assertTrue($service->isValid($cachedAt));
+    }
+
+    #[Test]
+    public function cacheIsInvalidAfterTtl(): void
+    {
+        $clock = new MockClock('2026-01-15 12:00:00');
+        $service = new CacheService($clock, ttlSeconds: 3600);
+
+        $cachedAt = new \DateTimeImmutable('2026-01-15 09:30:00');
+
+        self::assertFalse($service->isValid($cachedAt));
+    }
+
+    #[Test]
+    public function clockCanBeAdvanced(): void
+    {
+        $clock = new MockClock('2026-01-15 10:00:00');
+        $service = new CacheService($clock, ttlSeconds: 3600);
+
+        $cachedAt = $clock->now();
+
+        // Initially valid
+        self::assertTrue($service->isValid($cachedAt));
+
+        // Advance past TTL
+        $clock->modify('+2 hours');
+
+        // Now invalid
+        self::assertFalse($service->isValid($cachedAt));
+    }
+}
+```
+
+### Solution 3: Carbon (For Legacy Code)
+
+If your project uses Carbon for date manipulation:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Extension\Tests\Unit\Service;
+
+use Carbon\Carbon;
+use PHPUnit\Framework\Attributes\Test;
+use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
+use Vendor\Extension\Service\ScheduleService;
+
+final class ScheduleServiceTest extends UnitTestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Set a fixed "now" for all Carbon instances
+        Carbon::setTestNow('2026-01-15 10:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        // CRITICAL: Always reset Carbon after tests
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
+    #[Test]
+    public function isBusinessHoursReturnsTrueDuringWorkday(): void
+    {
+        Carbon::setTestNow('2026-01-15 14:00:00'); // Wednesday 2pm
+
+        $service = new ScheduleService();
+
+        self::assertTrue($service->isBusinessHours());
+    }
+
+    #[Test]
+    public function isBusinessHoursReturnsFalseOnWeekend(): void
+    {
+        Carbon::setTestNow('2026-01-18 14:00:00'); // Saturday 2pm
+
+        $service = new ScheduleService();
+
+        self::assertFalse($service->isBusinessHours());
+    }
+}
+```
+
+**Warning**: Carbon's `setTestNow()` uses global state. Always reset in `tearDown()` to prevent test pollution.
+
+### Comparison of Approaches
+
+| Approach | Pros | Cons | Best For |
+|----------|------|------|----------|
+| **Clock Interface (DI)** | No global state, explicit, testable | Requires refactoring | New code, clean architecture |
+| **Symfony Clock** | PSR-20 standard, well-tested | Adds dependency | Symfony-based projects |
+| **Carbon setTestNow** | Quick, no code changes | Global state, must reset | Legacy code, quick fixes |
+
+### Best Practices
+
+1. **Always use fixed times** - Never rely on `time()` or `new \DateTime()` in tests
+2. **Use meaningful dates** - Choose dates that make test intent clear (weekday vs weekend, etc.)
+3. **Reset global state** - If using Carbon or other global mocks, always reset in `tearDown()`
+4. **Test edge cases**:
+   - Exactly at boundary (e.g., exactly when TTL expires)
+   - One second before/after boundary
+   - Timezone transitions (if applicable)
+   - Leap years, daylight saving time
+
+5. **Document time dependencies** - Add comments explaining why specific times are chosen:
+
+```php
+#[Test]
+public function schedulerRunsAtMidnight(): void
+{
+    // Use 23:59:59 to verify job doesn't run early
+    $this->clock->setTime(new \DateTimeImmutable('2026-01-15 23:59:59'));
+    self::assertFalse($this->scheduler->shouldRun());
+
+    // Advance to exactly midnight
+    $this->clock->advanceSeconds(1);
+    self::assertTrue($this->scheduler->shouldRun());
+}
+```
+
 ## Resources
 
 - [TYPO3 Unit Testing Documentation](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/Testing/UnitTests.html)
 - [PHPUnit Documentation](https://phpunit.de/documentation.html)
 - [PHPUnit 11 Migration Guide](https://phpunit.de/announcements/phpunit-11.html)
 - [TYPO3 DataHandler Hooks](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/ApiOverview/Hooks/DataHandler/Index.html)
+- [Symfony Clock Component](https://symfony.com/doc/current/clock.html)
+- [PSR-20 Clock Interface](https://www.php-fig.org/psr/psr-20/)
