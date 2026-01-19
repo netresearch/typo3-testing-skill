@@ -1,6 +1,6 @@
 {
   "name": "typo3-testing",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "TYPO3 extension testing (unit, functional, E2E, architecture, mutation)",
   "repository": "https://github.com/netresearch/typo3-testing-skill",
   "license": "MIT",
