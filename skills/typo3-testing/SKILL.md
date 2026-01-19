@@ -1,6 +1,6 @@
 ---
 name: typo3-testing
-description: "Agent Skill: TYPO3 extension testing (unit, functional, E2E, architecture, mutation). Use when setting up test infrastructure, writing tests, configuring PHPUnit, or CI/CD. By Netresearch."
+description: "Agent Skill: TYPO3 extension testing (unit, functional, E2E, architecture, mutation). This skill should be used when setting up test infrastructure, writing tests, configuring PHPUnit, testing time-dependent code, mocking dependencies, or configuring CI/CD for TYPO3 extensions. By Netresearch."
 ---
 
 # TYPO3 Testing Skill
@@ -123,6 +123,8 @@ steps:
 ### Core Testing References
 
 When writing unit tests, consult `references/unit-testing.md` for UnitTestCase patterns, mocking strategies, and assertion examples.
+
+When testing time-dependent code (schedulers, cache expiration, TTL), consult `references/unit-testing.md` for FakeClock patterns, Symfony Clock component usage, and Carbon setTestNow() for deterministic time testing.
 
 When writing functional tests, consult `references/functional-testing.md` for FunctionalTestCase setup, CSV fixtures, and database testing patterns.
 
