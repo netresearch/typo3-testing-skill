@@ -383,6 +383,104 @@ final class UserServiceTest extends UnitTestCase
 > **Note:** TYPO3 13+ with PHPUnit 11/12 uses `createMock()` instead of Prophecy.
 > Prophecy is deprecated and should not be used in new tests.
 
+## PHPUnit 12 Compatibility
+
+PHPUnit 12 introduces stricter defaults. Follow these patterns to avoid notices and deprecations.
+
+### Mock Objects Without Expectations
+
+PHPUnit 12 triggers notices when mocks are created but no expectations are set. When using mocks purely as stubs (only `->method()->willReturn()`, no `->expects()`), add the class-level attribute:
+
+```php
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Test;
+
+#[AllowMockObjectsWithoutExpectations]
+#[CoversClass(MyController::class)]
+final class MyControllerTest extends TestCase
+{
+    private MyController $subject;
+    private SomeDependency&MockObject $dependencyMock;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // This mock is used as a stub - no expects() calls
+        $this->dependencyMock = $this->createMock(SomeDependency::class);
+        $this->dependencyMock->method('getValue')->willReturn('test');
+
+        $this->subject = new MyController($this->dependencyMock);
+    }
+}
+```
+
+**When to use `#[AllowMockObjectsWithoutExpectations]`:**
+- Mock uses only `->method()->willReturn()` (stub behavior)
+- No `->expects()` calls on the mock
+- Mock is just satisfying a type hint for dependency injection
+
+**When NOT to use it:**
+- You have `->expects(self::once())` or similar expectations
+- You need to verify method calls occurred
+
+### Deprecated Type Assertions
+
+PHPUnit 12 deprecates generic `isType()` in favor of specific methods:
+
+| Deprecated | Use Instead |
+|------------|-------------|
+| `$this->isType('string')` | `$this->isString()` |
+| `$this->isType('int')` | `$this->isInt()` |
+| `$this->isType('array')` | `$this->isArray()` |
+| `$this->isType('bool')` | `$this->isBool()` |
+| `$this->isType('float')` | `$this->isFloat()` |
+| `$this->isType('null')` | `$this->isNull()` |
+| `$this->isType('object')` | `$this->isInstanceOf(ClassName::class)` |
+
+### Constructor Dependency Drift
+
+When a class constructor gains new dependencies, all tests instantiating it will fail with `TypeError`. Use a factory method pattern to centralize instantiation:
+
+```php
+final class MyControllerTest extends TestCase
+{
+    private MyController $subject;
+    private DependencyA&MockObject $depAMock;
+    private DependencyB&MockObject $depBMock;
+    private DependencyC&MockObject $depCMock; // Added later
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->depAMock = $this->createMock(DependencyA::class);
+        $this->depBMock = $this->createMock(DependencyB::class);
+        $this->depCMock = $this->createMock(DependencyC::class);
+
+        // Single point of instantiation - update here when constructor changes
+        $this->subject = $this->createSubject();
+    }
+
+    /**
+     * Factory method - single place to update when dependencies change.
+     */
+    private function createSubject(): MyController
+    {
+        return new MyController(
+            $this->depAMock,
+            $this->depBMock,
+            $this->depCMock, // Add new dependencies here
+        );
+    }
+}
+```
+
+**Benefits:**
+- One place to update when constructor signature changes
+- Tests clearly show all dependencies
+- Easy to create subject with custom mocks in specific tests
+
 ## Assertions
 
 ### Common Assertions
