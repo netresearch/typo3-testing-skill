@@ -8,15 +8,21 @@ mechanical:
   # === PHPUNIT CONFIGURATION ===
   - id: TT-01
     type: file_exists
-    target: phpunit.xml
+    target: "{phpunit.xml,Build/phpunit.xml}"
     severity: warning
-    desc: "phpunit.xml should exist in project root (alternative: Build/UnitTests.xml)"
+    desc: "phpunit.xml should exist in project root or Build/ directory"
 
   - id: TT-02
     type: file_exists
     target: Build/UnitTests.xml
     severity: info
     desc: "Build/UnitTests.xml alternative PHPUnit config location"
+
+  - id: TT-02b
+    type: file_exists
+    target: Build/Scripts/runTests.sh
+    severity: info
+    desc: "runTests.sh provides alternative to separate PHPUnit XML configs"
 
   - id: TT-03
     type: file_exists
@@ -103,9 +109,9 @@ mechanical:
   # === PHPSTAN CONFIGURATION ===
   - id: TT-30
     type: file_exists
-    target: phpstan.neon
+    target: "{phpstan.neon,Build/phpstan.neon}"
     severity: warning
-    desc: "phpstan.neon configuration should exist"
+    desc: "phpstan.neon configuration should exist in project root or Build/ directory"
 
   - id: TT-31
     type: file_exists
@@ -115,14 +121,14 @@ mechanical:
 
   - id: TT-32
     type: regex
-    target: phpstan.neon
+    target: "{phpstan.neon,Build/phpstan.neon}"
     pattern: "level:\\s*[6-9]|level:\\s*max"
     severity: warning
     desc: "PHPStan should use level 6 or higher"
 
   - id: TT-33
     type: contains
-    target: phpstan.neon
+    target: "{phpstan.neon,Build/phpstan.neon}"
     pattern: "saschaegerer/phpstan-typo3"
     severity: warning
     desc: "PHPStan should include TYPO3 extension"
