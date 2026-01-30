@@ -33,14 +33,14 @@ mechanical:
   - id: TT-04
     type: regex
     target: "{phpunit.xml,Build/phpunit.xml}"
-    pattern: "<testsuite.*name=\"unit\""
+    pattern: '<testsuite.*name="unit"'
     severity: warning
     desc: "PHPUnit config should define unit test suite"
 
   - id: TT-05
     type: regex
     target: "{phpunit.xml,Build/phpunit.xml}"
-    pattern: "<testsuite.*name=\"functional\""
+    pattern: '<testsuite.*name="functional"'
     severity: info
     desc: "PHPUnit config should define functional test suite"
 
@@ -60,14 +60,14 @@ mechanical:
   - id: TT-12
     type: regex
     target: Tests/Unit/**/*Test.php
-    pattern: "class.*Test.*extends.*TestCase"
+    pattern: 'class.*Test.*extends.*TestCase'
     severity: error
     desc: "Unit tests must extend TestCase"
 
   - id: TT-13
     type: regex
     target: Tests/Functional/**/*Test.php
-    pattern: "class.*Test.*extends.*FunctionalTestCase"
+    pattern: 'class.*Test.*extends.*FunctionalTestCase'
     severity: warning
     desc: "Functional tests should extend FunctionalTestCase"
 
@@ -81,28 +81,28 @@ mechanical:
   - id: TT-21
     type: regex
     target: .github/workflows/*.yml
-    pattern: "phpunit|composer.*test|runTests"
+    pattern: 'phpunit|composer.*test|runTests'
     severity: error
     desc: "CI workflow must execute tests"
 
   - id: TT-22
     type: regex
     target: .github/workflows/*.yml
-    pattern: "php-version.*\\[.*8\\.[1-9]"
+    pattern: 'php-version.*\[.*8\.[1-9]'
     severity: warning
     desc: "CI should test multiple PHP versions"
 
   - id: TT-23
     type: regex
     target: .github/workflows/*.yml
-    pattern: "typo3/core.*\\[.*1[2-4]"
+    pattern: 'typo3/core.*\[.*1[2-4]'
     severity: warning
     desc: "CI should test multiple TYPO3 versions"
 
   - id: TT-24
     type: regex
     target: .github/workflows/*.yml
-    pattern: "uses:.*@[a-f0-9]{40}"
+    pattern: 'uses:.*@[a-f0-9]{40}'
     severity: error
     desc: "GitHub Actions must be pinned to SHA"
 
@@ -122,7 +122,7 @@ mechanical:
   - id: TT-32
     type: regex
     target: "{phpstan.neon,Build/phpstan.neon}"
-    pattern: "level:\\s*[6-9]|level:\\s*max"
+    pattern: 'level:\s*[6-9]|level:\s*max'
     severity: warning
     desc: "PHPStan should use level 6 or higher"
 
@@ -136,7 +136,7 @@ mechanical:
   - id: TT-34
     type: regex
     target: .github/workflows/*.yml
-    pattern: "phpstan|composer.*stan|composer.*analyze"
+    pattern: 'phpstan|composer.*stan|composer.*analyze'
     severity: warning
     desc: "CI should run PHPStan analysis"
 
@@ -150,14 +150,14 @@ mechanical:
   - id: TT-41
     type: regex
     target: .github/workflows/*.yml
-    pattern: "codecov/codecov-action"
+    pattern: 'codecov/codecov-action'
     severity: warning
     desc: "CI should upload coverage to Codecov"
 
   - id: TT-42
     type: regex
     target: .github/workflows/*.yml
-    pattern: "coverage.*clover|XDEBUG_MODE.*coverage|--coverage"
+    pattern: 'coverage.*clover|XDEBUG_MODE.*coverage|--coverage'
     severity: warning
     desc: "CI should generate code coverage"
 
@@ -178,21 +178,21 @@ mechanical:
   - id: TT-51
     type: regex
     target: Build/Scripts/runTests.sh
-    pattern: "TYPO3_VERSION|typo3/core"
+    pattern: 'TYPO3_VERSION|typo3/core'
     severity: info
     desc: "runTests.sh should support TYPO3 version selection"
 
   - id: TT-52
     type: regex
     target: Build/Scripts/runTests.sh
-    pattern: "PHP_VERSION|php.*version"
+    pattern: 'PHP_VERSION|php.*version'
     severity: info
     desc: "runTests.sh should support PHP version selection"
 
   - id: TT-53
     type: regex
     target: Build/Scripts/runTests.sh
-    pattern: "-s\\s*unit|-s\\s*functional|--suite"
+    pattern: '-s\s*unit|-s\s*functional|--suite'
     severity: info
     desc: "runTests.sh should support test suite selection"
 
