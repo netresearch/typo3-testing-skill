@@ -32,14 +32,14 @@ mechanical:
 
   - id: TT-04
     type: regex
-    target: phpunit.xml
+    target: "{phpunit.xml,Build/phpunit.xml}"
     pattern: "<testsuite.*name=\"unit\""
     severity: warning
     desc: "PHPUnit config should define unit test suite"
 
   - id: TT-05
     type: regex
-    target: phpunit.xml
+    target: "{phpunit.xml,Build/phpunit.xml}"
     pattern: "<testsuite.*name=\"functional\""
     severity: info
     desc: "PHPUnit config should define functional test suite"
@@ -220,11 +220,11 @@ mechanical:
 
   # === NEGATIVE CHECKS (should NOT exist) ===
   - id: TT-70
-    type: not_contains
+    type: contains
     target: .gitignore
     pattern: "composer.lock"
     severity: error
-    desc: "TYPO3 extensions should NOT commit composer.lock (causes PHP version conflicts in CI)"
+    desc: "composer.lock should be in .gitignore (TYPO3 extensions should not commit it)"
 
 llm_reviews:
   # === TEST QUALITY REVIEWS ===
