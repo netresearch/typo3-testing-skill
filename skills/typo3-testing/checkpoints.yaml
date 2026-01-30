@@ -1,0 +1,288 @@
+# Checkpoints for typo3-testing skill
+# Focuses on PHPUnit, test structure, CI, PHPStan, and code coverage
+
+version: 1
+skill_id: typo3-testing
+
+mechanical:
+  # === PHPUNIT CONFIGURATION ===
+  - id: TT-01
+    type: file_exists
+    target: phpunit.xml
+    severity: warning
+    desc: "phpunit.xml should exist in project root (alternative: Build/UnitTests.xml)"
+
+  - id: TT-02
+    type: file_exists
+    target: Build/UnitTests.xml
+    severity: info
+    desc: "Build/UnitTests.xml alternative PHPUnit config location"
+
+  - id: TT-03
+    type: file_exists
+    target: Build/FunctionalTests.xml
+    severity: info
+    desc: "Build/FunctionalTests.xml for functional test configuration"
+
+  - id: TT-04
+    type: regex
+    target: phpunit.xml
+    pattern: "<testsuite.*name=\"unit\""
+    severity: warning
+    desc: "PHPUnit config should define unit test suite"
+
+  - id: TT-05
+    type: regex
+    target: phpunit.xml
+    pattern: "<testsuite.*name=\"functional\""
+    severity: info
+    desc: "PHPUnit config should define functional test suite"
+
+  # === TEST DIRECTORY STRUCTURE ===
+  - id: TT-10
+    type: file_exists
+    target: Tests/Unit/
+    severity: error
+    desc: "Tests/Unit/ directory must exist"
+
+  - id: TT-11
+    type: file_exists
+    target: Tests/Functional/
+    severity: warning
+    desc: "Tests/Functional/ directory should exist"
+
+  - id: TT-12
+    type: regex
+    target: Tests/Unit/**/*Test.php
+    pattern: "class.*Test.*extends.*TestCase"
+    severity: error
+    desc: "Unit tests must extend TestCase"
+
+  - id: TT-13
+    type: regex
+    target: Tests/Functional/**/*Test.php
+    pattern: "class.*Test.*extends.*FunctionalTestCase"
+    severity: warning
+    desc: "Functional tests should extend FunctionalTestCase"
+
+  # === CI WORKFLOW WITH TEST EXECUTION ===
+  - id: TT-20
+    type: file_exists
+    target: .github/workflows/ci.yml
+    severity: warning
+    desc: "CI workflow should exist (ci.yml, ci.yaml, or tests.yml)"
+
+  - id: TT-21
+    type: regex
+    target: .github/workflows/*.yml
+    pattern: "phpunit|composer.*test|runTests"
+    severity: error
+    desc: "CI workflow must execute tests"
+
+  - id: TT-22
+    type: regex
+    target: .github/workflows/*.yml
+    pattern: "php-version.*\\[.*8\\.[1-9]"
+    severity: warning
+    desc: "CI should test multiple PHP versions"
+
+  - id: TT-23
+    type: regex
+    target: .github/workflows/*.yml
+    pattern: "typo3/core.*\\[.*1[2-4]"
+    severity: warning
+    desc: "CI should test multiple TYPO3 versions"
+
+  - id: TT-24
+    type: regex
+    target: .github/workflows/*.yml
+    pattern: "uses:.*@[a-f0-9]{40}"
+    severity: error
+    desc: "GitHub Actions must be pinned to SHA"
+
+  # === PHPSTAN CONFIGURATION ===
+  - id: TT-30
+    type: file_exists
+    target: phpstan.neon
+    severity: warning
+    desc: "phpstan.neon configuration should exist"
+
+  - id: TT-31
+    type: file_exists
+    target: phpstan-baseline.neon
+    severity: info
+    desc: "phpstan-baseline.neon for gradual adoption"
+
+  - id: TT-32
+    type: regex
+    target: phpstan.neon
+    pattern: "level:\\s*[6-9]|level:\\s*max"
+    severity: warning
+    desc: "PHPStan should use level 6 or higher"
+
+  - id: TT-33
+    type: contains
+    target: phpstan.neon
+    pattern: "saschaegerer/phpstan-typo3"
+    severity: warning
+    desc: "PHPStan should include TYPO3 extension"
+
+  - id: TT-34
+    type: regex
+    target: .github/workflows/*.yml
+    pattern: "phpstan|composer.*stan|composer.*analyze"
+    severity: warning
+    desc: "CI should run PHPStan analysis"
+
+  # === CODE COVERAGE (CODECOV) ===
+  - id: TT-40
+    type: file_exists
+    target: codecov.yml
+    severity: info
+    desc: "codecov.yml configuration for coverage settings"
+
+  - id: TT-41
+    type: regex
+    target: .github/workflows/*.yml
+    pattern: "codecov/codecov-action"
+    severity: warning
+    desc: "CI should upload coverage to Codecov"
+
+  - id: TT-42
+    type: regex
+    target: .github/workflows/*.yml
+    pattern: "coverage.*clover|XDEBUG_MODE.*coverage|--coverage"
+    severity: warning
+    desc: "CI should generate code coverage"
+
+  - id: TT-43
+    type: contains
+    target: README.md
+    pattern: "codecov.io"
+    severity: warning
+    desc: "README should display Codecov badge"
+
+  # === RUNTESTS.SH SCRIPT ===
+  - id: TT-50
+    type: file_exists
+    target: Build/Scripts/runTests.sh
+    severity: info
+    desc: "runTests.sh script for local test execution"
+
+  - id: TT-51
+    type: regex
+    target: Build/Scripts/runTests.sh
+    pattern: "TYPO3_VERSION|typo3/core"
+    severity: info
+    desc: "runTests.sh should support TYPO3 version selection"
+
+  - id: TT-52
+    type: regex
+    target: Build/Scripts/runTests.sh
+    pattern: "PHP_VERSION|php.*version"
+    severity: info
+    desc: "runTests.sh should support PHP version selection"
+
+  - id: TT-53
+    type: regex
+    target: Build/Scripts/runTests.sh
+    pattern: "-s\\s*unit|-s\\s*functional|--suite"
+    severity: info
+    desc: "runTests.sh should support test suite selection"
+
+  # === COMPOSER.JSON TEST DEPENDENCIES ===
+  - id: TT-60
+    type: json_path
+    target: composer.json
+    pattern: '.["require-dev"]["phpunit/phpunit"]'
+    severity: error
+    desc: "composer.json must require phpunit/phpunit in require-dev"
+
+  - id: TT-61
+    type: json_path
+    target: composer.json
+    pattern: '.["require-dev"]["phpstan/phpstan"]'
+    severity: warning
+    desc: "composer.json should require phpstan/phpstan in require-dev"
+
+  - id: TT-62
+    type: json_path
+    target: composer.json
+    pattern: '.scripts.test // .scripts["ci:test"] // .scripts["test:unit"]'
+    severity: warning
+    desc: "composer.json should define test script"
+
+  # === NEGATIVE CHECKS (should NOT exist) ===
+  - id: TT-70
+    type: not_contains
+    target: .gitignore
+    pattern: "composer.lock"
+    severity: error
+    desc: "TYPO3 extensions should NOT commit composer.lock (causes PHP version conflicts in CI)"
+
+llm_reviews:
+  # === TEST QUALITY REVIEWS ===
+  - id: TT-80
+    domain: code-quality
+    prompt: |
+      Review the test directory structure and naming conventions:
+      - Tests should be in Tests/Unit/ and Tests/Functional/
+      - Test class names should end with "Test"
+      - Test methods should start with "test" or use @test annotation
+      - Namespace should mirror Classes/ structure
+
+      Check Tests/ directory and report compliance.
+    severity: warning
+    desc: "Verify test structure follows TYPO3 conventions"
+
+  - id: TT-81
+    domain: code-quality
+    prompt: |
+      Review PHPUnit configuration for best practices:
+      - Bootstrap file should be configured
+      - Test suites should be properly defined
+      - Code coverage filter should exclude Tests/ and vendor/
+      - Fail on warnings/risky should be enabled
+
+      Examine phpunit.xml or Build/UnitTests.xml and report findings.
+    severity: info
+    desc: "Verify PHPUnit configuration follows best practices"
+
+  - id: TT-82
+    domain: code-quality
+    prompt: |
+      Review CI test matrix configuration:
+      - Should test against supported PHP versions (8.1, 8.2, 8.3, 8.4)
+      - Should test against supported TYPO3 versions (v12, v13)
+      - Matrix should use fail-fast: false
+      - Should have reasonable timeout limits
+
+      Examine .github/workflows/*.yml and report matrix coverage.
+    severity: warning
+    desc: "Verify CI matrix covers required PHP and TYPO3 versions"
+
+  - id: TT-83
+    domain: code-quality
+    prompt: |
+      Review PHPStan configuration for TYPO3 extension development:
+      - Should include saschaegerer/phpstan-typo3 extension
+      - Level should be 6 or higher (ideally max)
+      - Should scan Classes/ directory
+      - Baseline file is acceptable for legacy code
+
+      Examine phpstan.neon and report configuration quality.
+    severity: info
+    desc: "Verify PHPStan is properly configured for TYPO3"
+
+  - id: TT-84
+    domain: code-quality
+    prompt: |
+      Review test coverage and quality indicators:
+      - Are there tests for core functionality?
+      - Do tests cover edge cases and error conditions?
+      - Are mocks used appropriately?
+      - Is test isolation maintained?
+
+      Sample Tests/Unit/ and Tests/Functional/ directories and assess quality.
+    severity: info
+    desc: "Assess overall test coverage and quality"
