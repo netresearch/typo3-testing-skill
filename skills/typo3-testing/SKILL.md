@@ -193,6 +193,8 @@ To set up static analysis and code style, use:
 - `assets/.php-cs-fixer.dist.php` - PHP-CS-Fixer code style rules
 - `assets/rector.php` - Rector automated refactoring configuration
 
+**CGL Enforcement:** TYPO3 CGL is strict about alignment (e.g., `binary_operator_spaces` in `setUp()` methods). Always run `composer ci:cgl` or the project's CS fixer before committing. Do not rely on manual formatting.
+
 ### Mutation Testing & Coverage
 
 To configure mutation testing, copy `assets/infection.json5` and adjust mutator settings and MSI thresholds.
