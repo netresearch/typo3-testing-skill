@@ -127,7 +127,7 @@ mechanical:
     desc: "PHPStan should use level 6 or higher"
 
   - id: TT-33
-    type: contains
+    type: regex
     target: "{phpstan.neon,Build/phpstan.neon}"
     pattern: "typo3|TYPO3"
     severity: info
