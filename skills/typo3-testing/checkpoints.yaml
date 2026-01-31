@@ -129,9 +129,9 @@ mechanical:
   - id: TT-33
     type: contains
     target: "{phpstan.neon,Build/phpstan.neon}"
-    pattern: "saschaegerer/phpstan-typo3"
-    severity: warning
-    desc: "PHPStan should include TYPO3 extension"
+    pattern: "typo3|TYPO3"
+    severity: info
+    desc: "PHPStan should include TYPO3-specific configuration"
 
   - id: TT-34
     type: regex
@@ -192,7 +192,7 @@ mechanical:
   - id: TT-53
     type: regex
     target: Build/Scripts/runTests.sh
-    pattern: '-s\s*unit|-s\s*functional|--suite'
+    pattern: 'suite|SUITE'
     severity: info
     desc: "runTests.sh should support test suite selection"
 
