@@ -5,44 +5,48 @@ version: 1
 skill_id: typo3-testing
 
 mechanical:
-  # === PHPUNIT CONFIGURATION ===
+  # === PHPUNIT CONFIGURATION (TYPO3 Extension Convention) ===
+  # TYPO3 extensions MUST use Build/UnitTests.xml and Build/FunctionalTests.xml
+  # Root phpunit.xml is discouraged - use Build/ directory for test configs
+  # Reference: https://github.com/TYPO3/testing-framework
+
   - id: TT-01
     type: file_exists
-    target: "{phpunit.xml,Build/phpunit.xml}"
-    severity: warning
-    desc: "phpunit.xml should exist in project root or Build/ directory"
+    target: Build/UnitTests.xml
+    severity: error
+    desc: "Build/UnitTests.xml must exist (TYPO3 extension convention)"
 
   - id: TT-02
     type: file_exists
-    target: Build/UnitTests.xml
-    severity: info
-    desc: "Build/UnitTests.xml alternative PHPUnit config location"
+    target: Build/FunctionalTests.xml
+    severity: error
+    desc: "Build/FunctionalTests.xml must exist (TYPO3 extension convention)"
 
   - id: TT-02b
     type: file_exists
     target: Build/Scripts/runTests.sh
     severity: info
-    desc: "runTests.sh provides alternative to separate PHPUnit XML configs"
+    desc: "runTests.sh script for Docker-based test execution"
 
   - id: TT-03
-    type: file_exists
-    target: Build/FunctionalTests.xml
-    severity: info
-    desc: "Build/FunctionalTests.xml for functional test configuration"
+    type: file_not_exists
+    target: phpunit.xml
+    severity: warning
+    desc: "phpunit.xml in project root is discouraged; use Build/UnitTests.xml instead"
 
   - id: TT-04
     type: regex
-    target: "{phpunit.xml,Build/phpunit.xml}"
+    target: Build/UnitTests.xml
     pattern: '<testsuite.*name="unit"'
-    severity: warning
-    desc: "PHPUnit config should define unit test suite"
+    severity: error
+    desc: "Build/UnitTests.xml must define unit test suite"
 
   - id: TT-05
     type: regex
-    target: "{phpunit.xml,Build/phpunit.xml}"
+    target: Build/FunctionalTests.xml
     pattern: '<testsuite.*name="functional"'
-    severity: info
-    desc: "PHPUnit config should define functional test suite"
+    severity: error
+    desc: "Build/FunctionalTests.xml must define functional test suite"
 
   # === TEST DIRECTORY STRUCTURE ===
   - id: TT-10
