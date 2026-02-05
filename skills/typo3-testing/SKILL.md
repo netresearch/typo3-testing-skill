@@ -22,6 +22,29 @@ To select the appropriate test type, use this decision table:
 | **Crypto** | Encryption, secrets, key management | Fast (ms) |
 | **Mutation** | Test quality verification, 70%+ coverage | CI/Release |
 
+### Test Organization Rationale
+
+Organize tests **by feature, not by test type**. This improves discoverability and maintainability:
+
+```
+Tests/
+├── Unit/
+│   └── Domain/Model/UserTest.php        # Tests User model logic
+├── Functional/
+│   └── Repository/UserRepositoryTest.php # Tests User persistence
+└── E2E/
+    └── User/Registration.spec.ts         # Tests User registration flow
+```
+
+**Why by feature?**
+- Finding tests: "Where are User tests?" → Look in User-related directories
+- Understanding coverage: All tests for a feature are co-located
+- Maintenance: When changing User logic, related tests are easy to find
+
+**Why NOT by test type alone?**
+- "All unit tests" doesn't help you understand what's tested
+- Scattered tests across unrelated features are hard to maintain
+
 ## Setting Up Test Infrastructure
 
 To initialize testing infrastructure for an extension, run:
@@ -41,6 +64,25 @@ To generate a new test file, run:
 ```bash
 scripts/generate-test.sh <TestType> <ClassName>
 ```
+
+### Test Verification Workflow (MANDATORY)
+
+After creating or modifying a test, you **MUST** verify it works by running the test suite:
+
+1. **Run the new test** to confirm it catches the bug or validates the behavior
+2. **Verify failure state** (if TDD): The test should FAIL before the fix is applied
+3. **Apply the fix** then re-run to confirm the test now PASSES
+4. **Run the full suite** to ensure no regressions
+
+```bash
+# Run only the new test first
+Build/Scripts/runTests.sh -s unit -- --filter UserValidatorTest
+
+# After fix is applied, run the full suite
+Build/Scripts/runTests.sh -s unit
+```
+
+**Why this matters:** A test that never fails provides no value. Always verify your test catches the bug before the fix AND passes after.
 
 ## Running Tests
 
@@ -117,6 +159,60 @@ steps:
 - run: ddev start
 - run: ddev exec vendor/bin/phpunit
 ```
+
+## Troubleshooting Test Failures
+
+### E2E Tests Fail
+
+When E2E tests fail, debug systematically:
+
+| Symptom | Likely Cause | Fix |
+|---------|--------------|-----|
+| **Timeout on page load** | TYPO3 not started, wrong URL | Check `TYPO3_BASE_URL` env var, verify `php -S` is running |
+| **Element not found** | Page not rendered, JS error | Add `await page.waitForLoadState('networkidle')`, check browser console |
+| **Login fails** | Missing fixture, wrong credentials | Verify `be_users.csv` fixture loaded, check password hash |
+| **Screenshot shows blank page** | PHP error, 500 response | Check `var/log/typo3_*.log`, enable debug mode |
+| **Works locally, fails in CI** | See CI debugging section below | Environment differences |
+
+**Debugging steps:**
+
+1. **Capture screenshot on failure** (Playwright does this automatically)
+2. **Check Playwright trace** for network requests: `npx playwright show-trace trace.zip`
+3. **Verify TYPO3 is accessible**: `curl -I $TYPO3_BASE_URL`
+4. **Check TYPO3 logs**: `cat .Build/Web/var/log/typo3_*.log`
+
+### Tests Pass Locally But Fail in CI
+
+This is a common frustration. Use this checklist:
+
+| Check | Local vs CI Difference | Resolution |
+|-------|------------------------|------------|
+| **PHP version** | Local may differ from CI matrix | Ensure local PHP matches CI target |
+| **Database state** | Local has data, CI starts fresh | Add missing fixtures to test setup |
+| **File permissions** | Local user differs from CI runner | Avoid hardcoded paths, use `sys_get_temp_dir()` |
+| **Timing** | Local is fast, CI is slow | Add explicit waits, avoid `sleep()` |
+| **Environment vars** | Local `.env`, CI lacks it | Define all required vars in CI workflow |
+| **Extensions loaded** | Local has extra PHP extensions | Check `php -m` output in CI logs |
+| **Filesystem case** | macOS case-insensitive, Linux case-sensitive | Fix `require 'MyClass.php'` vs `myclass.php` |
+
+**CI debugging workflow:**
+
+```bash
+# 1. Reproduce locally with CI-like conditions
+docker run --rm -it php:8.3-cli php -m  # Check extensions
+
+# 2. Add debug output to failing test
+$this->markTestSkipped('DEBUG: ' . var_export($actualValue, true));
+
+# 3. Check CI logs for environment differences
+# Look for: PHP version, loaded extensions, env vars
+
+# 4. Use GitHub Actions debug logging
+env:
+  ACTIONS_STEP_DEBUG: true
+```
+
+**Golden rule:** If tests pass locally but fail in CI, the bug is in your test's assumptions about the environment, not in the CI.
 
 ## Using Reference Documentation
 
