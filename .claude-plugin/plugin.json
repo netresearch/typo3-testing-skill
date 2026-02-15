@@ -1,6 +1,6 @@
 {
   "name": "typo3-testing",
-  "version": "5.2.1",
+  "version": "5.3.2",
   "description": "TYPO3 extension testing with automated test generation agents",
   "repository": "https://github.com/netresearch/typo3-testing-skill",
   "license": "MIT",
