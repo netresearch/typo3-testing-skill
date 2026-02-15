@@ -1,6 +1,6 @@
 ---
 name: typo3-testing
-description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E/architecture tests, configuring PHPUnit, testing time-dependent code, or configuring CI/CD for TYPO3 extensions."
+description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E/architecture tests, configuring PHPUnit, testing time-dependent code, mutation testing, mocking dependencies, or configuring CI/CD for TYPO3 extensions."
 ---
 
 # TYPO3 Testing Skill
@@ -24,9 +24,9 @@ Templates, scripts, and references for comprehensive TYPO3 extension testing.
 
 ```bash
 # Setup
-scripts/setup-testing.sh [--with-e2e]   # Initialize testing
-scripts/validate-setup.sh               # Validate existing setup
-scripts/generate-test.sh <Type> <Class> # Generate test file
+<skill-dir>/scripts/setup-testing.sh [--with-e2e]   # Initialize testing
+<skill-dir>/scripts/validate-setup.sh               # Validate existing setup
+<skill-dir>/scripts/generate-test.sh <Type> <Class> # Generate test file
 
 # Run tests
 Build/Scripts/runTests.sh -s unit          # Unit tests
