@@ -492,8 +492,158 @@ beforeEach(async () => {
 });
 ```
 
+## JavaScript Migration Testing
+
+When migrating jQuery code to native JavaScript (ES modules), specific testing patterns
+are critical to catch subtle scoping and security bugs that static analysis often misses.
+
+### Variable Scoping Bug in `$.each` to `for...of` Migration
+
+**The Problem:** jQuery's `$.each(array, function(key, value) { ... })` creates a
+**function scope** per iteration. Every `var` declaration inside the callback is unique
+to that iteration. When migrating to native `for (const [key, value] of Object.entries(obj))`,
+the loop body is only a **block scope**. Any `var` declarations are **hoisted** to the
+enclosing function and **shared** across all iterations.
+
+This silently breaks closures that capture loop variables (event handlers, callbacks,
+`setTimeout`, etc.).
+
+**Real-world bug (t3x-rte_ckeditor_image [#633](https://github.com/netresearch/t3x-rte_ckeditor_image/issues/633), [PR #641](https://github.com/netresearch/t3x-rte_ckeditor_image/pull/641)):**
+
+The image dialog's aspect ratio handler iterated over `{width, height}` with `$.each`.
+Inside the callback, `var el` and `var max` were captured by a `constrainDimensions`
+closure attached as an event handler. After converting `$.each` to `for...of` without
+also converting `var` to `let`/`const`, `el` and `max` were shared across width/height
+iterations. The height handler always referenced the width element, so changing width
+never triggered height auto-adjustment.
+
+E2E symptom: `toBeLessThanOrEqual` expected height ratio <=1, received 300 (the raw
+pixel value instead of the computed ratio).
+
+**Before (jQuery -- works correctly):**
+```javascript
+$.each({width: maxWidth, height: maxHeight}, function (dimension, max) {
+    var el = document.getElementById('dimension-' + dimension);
+    var constrainDimensions = function () {
+        // `el` and `max` are unique per iteration (function scope)
+        if (parseInt(el.value) > max) {
+            el.value = max;
+        }
+    };
+    el.addEventListener('input', constrainDimensions);
+});
+```
+
+**After (broken -- `var` hoisted to function scope):**
+```javascript
+for (const [dimension, max] of Object.entries({width: maxWidth, height: maxHeight})) {
+    var el = document.getElementById('dimension-' + dimension);  // BUG: shared!
+    var constrainDimensions = function () {
+        // `el` always points to LAST iteration's element (height)
+        // `max` is always the LAST iteration's value
+    };
+    el.addEventListener('input', constrainDimensions);
+}
+```
+
+**After (fixed -- `let` creates block scope):**
+```javascript
+for (const [dimension, max] of Object.entries({width: maxWidth, height: maxHeight})) {
+    const el = document.getElementById('dimension-' + dimension);  // unique per iteration
+    const constrainDimensions = function () {
+        // `el` and `max` are correctly captured per iteration
+        if (parseInt(el.value) > max) {
+            el.value = max;
+        }
+    };
+    el.addEventListener('input', constrainDimensions);
+}
+```
+
+**Rule:** When migrating `$.each` to `for...of`, convert ALL `var` declarations inside
+the loop body to `let`/`const` at the SAME TIME as the loop conversion. Never split
+these into separate commits.
+
+### Testing Intermediate Commits in Migration PRs
+
+When a jQuery removal PR has multiple commits (e.g., "convert loops" then "convert var
+to let/const"), CI may test intermediate commits where `$.each` is already converted
+but `var` has not yet been changed. This intermediate state has the scoping bug described
+above.
+
+**Best practice:**
+- Squash loop conversion and `var` to `let`/`const` conversion into a single atomic commit
+- If separate commits are needed for review clarity, mark intermediate commits as
+  `[skip ci]` or ensure the PR's merge strategy squashes them
+- E2E tests that exercise closure behavior (event handlers, callbacks) will catch this
+  class of bug -- add them before the migration
+
+### `insertAdjacentHTML` and CodeQL XSS Warnings
+
+When replacing jQuery's `$.append()` or `$.html()` with native DOM methods, avoid
+`insertAdjacentHTML` with template literals:
+
+```javascript
+// TRIGGERS CodeQL js/xss-through-dom
+el.insertAdjacentHTML('beforeend', `<span>${userInput}</span>`);
+```
+
+**Fix:** Use `createElement` + `textContent` for user-controlled content:
+
+```javascript
+// SAFE -- textContent auto-escapes
+const span = document.createElement('span');
+span.textContent = userInput;
+el.appendChild(span);
+```
+
+For static HTML without user input, `insertAdjacentHTML` is acceptable but CodeQL may
+still flag it. Prefer `createElement` chains to avoid false positives and keep the
+codebase consistently safe.
+
+### E2E Test Patterns for JS Migration Verification
+
+When testing that a jQuery-to-native-JS migration preserves behavior, focus on:
+
+1. **Closure-dependent behavior:** Event handlers registered inside loops must still
+   reference the correct variables. Test each iteration's handler independently.
+2. **DOM manipulation timing:** jQuery's `.ready()` vs native `DOMContentLoaded` or
+   ES module top-level execution can shift when code runs.
+3. **Event delegation:** jQuery's `.on(selector, handler)` delegation must be replaced
+   with explicit `addEventListener` on the correct target or a manual delegation pattern.
+4. **AJAX/fetch migration:** jQuery's `$.ajax` coerces responses differently than
+   `fetch`. Verify response parsing in E2E tests.
+
+```typescript
+// E2E test verifying aspect ratio constraint survives migration
+test('changing width auto-adjusts height to maintain aspect ratio', async ({ page }) => {
+    // ... navigate to image dialog ...
+
+    const widthInput = page.locator('#image-width');
+    const heightInput = page.locator('#image-height');
+
+    // Get original dimensions
+    const originalWidth = await widthInput.inputValue();
+    const originalHeight = await heightInput.inputValue();
+    const aspectRatio = parseInt(originalHeight) / parseInt(originalWidth);
+
+    // Change width
+    await widthInput.fill('200');
+    await widthInput.dispatchEvent('input');
+
+    // Height must auto-adjust
+    const newHeight = parseInt(await heightInput.inputValue());
+    const expectedHeight = Math.round(200 * aspectRatio);
+    expect(newHeight).toBeLessThanOrEqual(expectedHeight + 1);
+    expect(newHeight).toBeGreaterThanOrEqual(expectedHeight - 1);
+});
+```
+
 ## References
 
 - [CKEditor 5 Testing](https://ckeditor.com/docs/ckeditor5/latest/framework/guides/contributing/testing-environment.html)
 - [Jest Documentation](https://jestjs.io/docs/getting-started)
 - [TYPO3 RTE CKEditor Image](https://github.com/netresearch/t3x-rte_ckeditor_image)
+- [MDN: var hoisting](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/var#hoisting)
+- [MDN: let block scope](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let)
+- [CodeQL js/xss-through-dom](https://codeql.github.com/codeql-query-help/javascript/js-xss-through-dom/)

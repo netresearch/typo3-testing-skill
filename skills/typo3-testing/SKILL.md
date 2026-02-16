@@ -65,7 +65,7 @@ After creating or modifying a test, **always verify** it fails before the fix an
 - `references/mutation-testing.md` -- Infection config, MSI interpretation
 - `references/performance-testing.md` -- timing, memory, throughput
 - `references/typo3-v14-final-classes.md` -- interface extraction, mock strategies
-- `references/javascript-testing.md` -- Jest, frontend testing
+- `references/javascript-testing.md` -- Jest, frontend testing, jQuery-to-native-JS migration pitfalls
 - `references/quality-tools.md` -- PHPStan, PHP-CS-Fixer, Rector
 - `references/ci-cd.md` -- GitHub Actions, GitLab CI workflows
 - `references/sonarcloud.md` -- quality gate configuration
