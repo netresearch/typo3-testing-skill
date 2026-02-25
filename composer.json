@@ -1,5 +1,8 @@
 {
-  "name": "netresearch/agent-typo3-testing",
+  "name": "netresearch/typo3-testing-skill",
+  "replace": {
+    "netresearch/agent-typo3-testing": "self.version"
+  },
   "description": "Netresearch AI skill for TYPO3 extension testing (unit, functional, E2E)",
   "type": "ai-agent-skill",
   "license": "MIT",
