@@ -1,6 +1,6 @@
 ---
 name: typo3-testing
-description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E/architecture tests, configuring PHPUnit, testing time-dependent code, mutation testing, mocking dependencies, or configuring CI/CD for TYPO3 extensions."
+description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E/architecture tests, configuring PHPUnit, testing time-dependent code, mutation testing, mocking dependencies, configuring CI/CD for TYPO3 extensions, or debugging failing tests in CI (including multi-version TYPO3 v13/v14 test failures)."
 ---
 
 # TYPO3 Testing Skill
@@ -71,6 +71,24 @@ After creating or modifying a test, **always verify** it fails before the fix an
 - `references/sonarcloud.md` -- quality gate configuration
 - `references/enforcement-rules.md` -- E2E CI rules, DDEV prohibition, troubleshooting
 - `references/asset-templates-guide.md` -- infrastructure setup, PHPUnit config, quality tools
+
+## Debugging CI Test Failures
+
+When tests fail in CI across multiple TYPO3 versions, **always check error messages from ALL matrix combinations** (v13 AND v14, all PHP versions). Different TYPO3 versions often fail with completely different errors for the same root cause:
+
+| v13 Error | v14 Error | Root Cause |
+|-----------|-----------|------------|
+| `parseFunc without any configuration` | `No valid attribute "applicationType"` | Missing TSFE bootstrap |
+| Method signature mismatch | Missing interface method | API change between versions |
+| Deprecated function warning | Fatal: undefined method | Removed API |
+
+**Debugging checklist:**
+1. Get error counts per matrix: `gh run view <ID> --log-failed 2>&1 | grep "There were"`
+2. Compare v13 vs v14 errors — different errors = different root causes
+3. Check if failures are only your new tests or if existing tests regressed
+4. If existing tests regressed, your change likely has side effects (e.g., `$GLOBALS` pollution)
+
+See `references/functional-testing.md` for functional test limitations (parseFunc, TSFE).
 
 ## External Resources
 

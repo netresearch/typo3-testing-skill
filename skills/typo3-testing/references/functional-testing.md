@@ -862,6 +862,48 @@ typo3DatabaseDriver=pdo_mysql vendor/bin/phpunit -c Build/phpunit/FunctionalTest
 vendor/bin/phpunit Tests/Functional/Domain/Repository/ProductRepositoryTest.php
 ```
 
+## Functional Test Limitations
+
+The functional test framework provides a database and DI container but does **NOT** provide a full TYPO3 frontend (TSFE) context. This means certain operations are unavailable or require extra setup:
+
+### What Does NOT Work
+
+| Operation | Error (v13) | Error (v14) | Alternative |
+|-----------|-------------|-------------|-------------|
+| `$cObj->parseFunc($html, null, '< lib.parseFunc_RTE')` | `parseFunc without any configuration` | `No valid attribute "applicationType"` | Unit test with mocked cObj + E2E test |
+| TypoScript reference resolution (`< lib.*`) | LogicException | LogicException | Provide inline TS config array instead of reference |
+| `typoLink_URL()` with page UIDs | Missing site config | Missing TSFE | Write YAML site config to filesystem in setUp |
+| `$GLOBALS['TSFE']` access | null | null | Use `FrontendRequestHandler` for full rendering |
+
+### Setting `$GLOBALS['TYPO3_REQUEST']`
+
+**Caution:** Setting `$GLOBALS['TYPO3_REQUEST']` in `setUp()` affects ALL tests in the class and can cause unexpected side effects:
+- v14 requires `applicationType` attribute (use `ApplicationType::FRONTEND`)
+- Existing tests may break because TYPO3 enables additional processing paths when the global is present
+- **Best practice:** Set the global only in specific test methods that need it, with `try/finally` cleanup:
+
+```php
+public function testThatNeedsRequest(): void
+{
+    $GLOBALS['TYPO3_REQUEST'] = $this->request
+        ->withAttribute('applicationType', ApplicationType::FRONTEND);
+
+    try {
+        // test code
+    } finally {
+        unset($GLOBALS['TYPO3_REQUEST']);
+    }
+}
+```
+
+### When to Use Unit Tests Instead
+
+If your code calls `parseFunc()`, `typoLink()`, or any method that requires the full TypoScript/TSFE pipeline, write:
+1. **Unit test** with a mocked `ContentObjectRenderer` to verify your code calls the right method with the right arguments
+2. **E2E test** to verify the actual rendered output in a real TYPO3 frontend
+
+This split gives you fast feedback (unit) plus real-world confidence (E2E) without fighting the functional test framework.
+
 ## Resources
 
 - [TYPO3 Functional Testing Documentation](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/Testing/FunctionalTests.html)
