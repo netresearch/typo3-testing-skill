@@ -49,46 +49,33 @@ After creating or modifying a test, **always verify** it fails before the fix an
 | Architecture tests | **phpat required** for full points |
 | PHPStan | Level 10 (max) |
 
-## Reference Documentation
+## References
 
-- `references/unit-testing.md` -- UnitTestCase, mocking, FakeClock, assertions
-- `references/functional-testing.md` -- FunctionalTestCase, CSV fixtures, DB testing
-- `references/functional-test-patterns.md` -- PHPUnit 10+ migration, container reset
-- `references/integration-testing.md` -- PSR-18 mocking, OAuth flows
-- `references/e2e-testing.md` -- Playwright setup, Page Object Model
-- `references/ddev-testing.md` -- Local-only multi-version matrix, Playwright
-- `references/test-runners.md` -- runTests.sh customization, Docker orchestration
-- `references/architecture-testing.md` -- phpat rules, layer constraints
-- `references/accessibility-testing.md` -- axe-core, WCAG compliance
-- `references/fuzz-testing.md` -- php-fuzzer, malformed input
-- `references/crypto-testing.md` -- sodium testing, key management
-- `references/mutation-testing.md` -- Infection config, MSI interpretation
-- `references/performance-testing.md` -- timing, memory, throughput
-- `references/typo3-v14-final-classes.md` -- interface extraction, mock strategies
-- `references/javascript-testing.md` -- Jest, frontend testing, jQuery-to-native-JS migration pitfalls
-- `references/quality-tools.md` -- PHPStan, PHP-CS-Fixer, Rector
-- `references/ci-cd.md` -- GitHub Actions, GitLab CI workflows
-- `references/sonarcloud.md` -- quality gate configuration
-- `references/enforcement-rules.md` -- E2E CI rules, DDEV prohibition, troubleshooting
-- `references/asset-templates-guide.md` -- infrastructure setup, PHPUnit config, quality tools
+| Reference | Topic |
+|-----------|-------|
+| `unit-testing.md` | UnitTestCase, mocking, FakeClock |
+| `functional-testing.md` | FunctionalTestCase, CSV fixtures, **TSFE limitations** |
+| `functional-test-patterns.md` | PHPUnit 10+ migration, container reset |
+| `integration-testing.md` | PSR-18 mocking, OAuth flows |
+| `e2e-testing.md` | Playwright, Page Object Model |
+| `ddev-testing.md` | Local multi-version matrix |
+| `test-runners.md` | runTests.sh, Docker orchestration |
+| `architecture-testing.md` | phpat, layer constraints |
+| `ci-debugging.md` | **Multi-version CI failure analysis** |
+| `ci-cd.md` | GitHub Actions, GitLab CI |
+| `quality-tools.md` | PHPStan, PHP-CS-Fixer, Rector |
+| `mutation-testing.md` | Infection, MSI |
+| `typo3-v14-final-classes.md` | Interface extraction, mock strategies |
+| `javascript-testing.md` | Jest, frontend testing |
+| `enforcement-rules.md` | E2E CI rules, troubleshooting |
 
-## Debugging CI Test Failures
+All references in `references/` directory.
 
-When tests fail in CI across multiple TYPO3 versions, **always check error messages from ALL matrix combinations** (v13 AND v14, all PHP versions). Different TYPO3 versions often fail with completely different errors for the same root cause:
+### Explicit Content Triggers
 
-| v13 Error | v14 Error | Root Cause |
-|-----------|-----------|------------|
-| `parseFunc without any configuration` | `No valid attribute "applicationType"` | Missing TSFE bootstrap |
-| Method signature mismatch | Missing interface method | API change between versions |
-| Deprecated function warning | Fatal: undefined method | Removed API |
+When debugging CI test failures across TYPO3 versions, load `references/ci-debugging.md` for multi-version error comparison and debugging checklist.
 
-**Debugging checklist:**
-1. Get error counts per matrix: `gh run view <ID> --log-failed 2>&1 | grep "There were"`
-2. Compare v13 vs v14 errors — different errors = different root causes
-3. Check if failures are only your new tests or if existing tests regressed
-4. If existing tests regressed, your change likely has side effects (e.g., `$GLOBALS` pollution)
-
-See `references/functional-testing.md` for functional test limitations (parseFunc, TSFE).
+When writing functional tests that need frontend context (parseFunc, typoLink, TSFE), load `references/functional-testing.md` for known limitations and workarounds.
 
 ## External Resources
 
