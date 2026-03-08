@@ -68,3 +68,114 @@ try {
 ### Test Isolation Between Matrix Entries
 
 Each matrix entry (PHP version × TYPO3 version) runs independently. A test passing on `8.2 + v13` but failing on `8.5 + v14` indicates version-specific behavior, not flakiness.
+
+## Testing-Framework Version Mapping
+
+| testing-framework | PHPUnit | TYPO3 Versions |
+|-------------------|---------|----------------|
+| v8                | 10      | 12.4, 13.4     |
+| v9                | 11      | 13.4, 14.0+    |
+
+## PHPUnit 11 Compatibility Issues
+
+### Final TestCase Constructor
+
+PHPUnit 11 makes `TestCase::__construct()` final. Extensions that override the constructor will fail:
+
+```
+Cannot override final method PHPUnit\Framework\TestCase::__construct()
+```
+
+**Fix:** Replace constructor-based initialization with property declarations:
+
+```php
+// ❌ PHPUnit 11: Fatal error
+abstract class ExtensionTestCase extends FunctionalTestCase
+{
+    public function __construct(string $name = '')
+    {
+        parent::__construct($name);
+        $this->coreExtensionsToLoad = ['install'];
+        $this->testExtensionsToLoad = ['vendor/extension'];
+    }
+}
+
+// ✅ Works with both PHPUnit 10 and 11
+abstract class ExtensionTestCase extends FunctionalTestCase
+{
+    protected array $coreExtensionsToLoad = ['install'];
+    protected array $testExtensionsToLoad = ['vendor/extension'];
+}
+```
+
+### CGL vs PHPStan Conflict for Static Assertions
+
+PHPUnit 11 marks assertion methods (`assertEquals`, `assertSame`, etc.) as non-static, but TYPO3 CGL (php-cs-fixer) enforces `self::assertEquals()` style.
+
+**Resolution:** CGL is authoritative for code style. Suppress PHPStan false positives:
+
+```yaml
+# Build/phpstan/phpstan.neon
+parameters:
+    ignoreErrors:
+        -
+            message: '#Call to an undefined static method .+::(assert|fail|mark)#'
+            reportUnmatched: false
+```
+
+`reportUnmatched: false` is essential — on TYPO3 12.4 with testing-framework v8 (PHPUnit 10), the pattern has no matches.
+
+## Archived TYPO3-CI GitHub Actions
+
+Several TYPO3 CI GitHub Actions have been archived and their Docker images return 403 Forbidden:
+
+| Action | Status | Replacement |
+|--------|--------|-------------|
+| `TYPO3-CI-Xliff-Lint` | Archived (2021) | DIY `xmllint --schema xliff-core-1.2-strict.xsd` or remove if no `.xlf` files |
+| Other `TYPO3-Continuous-Integration/*` | Check individually | May need replacement |
+
+**Before adding an XLIFF linter:** Verify the extension actually has `.xlf` files:
+```bash
+find . -name '*.xlf' -not -path './.Build/*'
+```
+Many extensions don't ship translations and the CI job was added as boilerplate.
+
+## Test Fixture Isolation from TYPO3 Core
+
+When tests depend on TYPO3 core class docblocks (e.g., testing documentation generation), **use local fixture classes** instead:
+
+**Problem:** TYPO3 core changes docblock wording between versions (e.g., "that" → "which"), causing test assertion failures across the matrix.
+
+**Solution:** Create controlled fixture classes in `Tests/Functional/Fixtures/Extensions/`:
+
+```php
+// Local fixture with stable, controlled docblock
+namespace TYPO3Tests\ExampleExtension;
+
+class PropertyExample
+{
+    /**
+     * This is set to the language that is currently running
+     */
+    public string $lang = 'default';
+}
+```
+
+Update test config to reference the fixture class instead of the core class. This decouples tests from core docblock changes across TYPO3 versions.
+
+## phpDocumentor Version Differences in Tests
+
+phpDocumentor v8 and v9 differ in generic type rendering:
+- **v8:** Preserves original spacing: `array<string,string>`
+- **v9:** Normalizes with spaces: `array<string, string>`
+
+**Fix:** Normalize generic type spacing in code that processes phpDoc output:
+
+```php
+// Strip spaces after commas inside angle brackets
+preg_replace_callback('/<[^>]+>/', static function (array $match): string {
+    return str_replace(', ', ',', $match[0]);
+}, $type);
+```
+
+**Related bug:** Never use `explode(' ', $returnComment, 2)` to split type from description when generic types are involved — types like `array<string, string>` contain internal spaces. Use bracket-depth-aware parsing instead.

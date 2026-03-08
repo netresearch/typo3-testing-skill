@@ -153,11 +153,20 @@ protected function setUp(): void
 ### Load Test Extensions
 
 ```php
+// Composer package name format (preferred, works with all setups)
+protected array $testExtensionsToLoad = [
+    'vendor/my-extension',
+    'vendor/dependency-extension',
+];
+
+// Legacy path format (also works)
 protected array $testExtensionsToLoad = [
     'typo3conf/ext/my_extension',
     'typo3conf/ext/dependency_extension',
 ];
 ```
+
+**Note:** Use the composer package name (from `composer.json` `name` field) for reliable resolution across different testing setups.
 
 ### Core Extensions
 
