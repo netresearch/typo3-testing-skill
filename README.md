@@ -668,8 +668,12 @@ This skill stands on the shoulders of the TYPO3 community's exceptional work. We
 
 ## License
 
-GPL-2.0-or-later
+This project uses split licensing:
 
+- **Code** (scripts, workflows, configs): [MIT](LICENSE-MIT)
+- **Content** (skill definitions, documentation, references): [CC-BY-SA-4.0](LICENSE-CC-BY-SA-4.0)
+
+See the individual license files for full terms.
 ## Maintained By
 
 Netresearch DTT GmbH, Leipzig
