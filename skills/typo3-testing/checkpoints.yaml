@@ -236,6 +236,65 @@ mechanical:
     severity: warning
     desc: "composer.json should define test script (test, ci:test, test:unit, or ci:test:php:unit)"
 
+# === ARCHITECTURE TESTING ===
+  - id: TT-14
+    type: file_exists
+    target: Tests/Architecture/
+    severity: info
+    desc: "Tests/Architecture/ directory should exist for phpat architecture tests"
+
+  - id: TT-15
+    type: json_path
+    target: composer.json
+    pattern: '.["require-dev"]["carlosas/phpat"]'
+    severity: info
+    desc: "composer.json should require carlosas/phpat for architecture testing"
+
+  # === E2E TESTING (Playwright) ===
+  - id: TT-16
+    type: file_exists
+    target: Build/playwright.config.ts
+    severity: info
+    desc: "Playwright config should exist for E2E testing"
+
+  - id: TT-17
+    type: file_exists
+    target: Build/package.json
+    severity: info
+    desc: "Build/package.json should exist for Playwright/JS test dependencies"
+
+  # === MUTATION TESTING ===
+  - id: TT-18
+    type: file_exists
+    target: "{infection.json5,infection.json}"
+    severity: info
+    desc: "Infection config should exist for mutation testing"
+
+  # === ADDITIONAL DEV DEPENDENCIES ===
+  - id: TT-63
+    type: json_path
+    target: composer.json
+    pattern: '.["require-dev"]["friendsofphp/php-cs-fixer"] // .["require-dev"]["typo3/coding-standards"]'
+    severity: warning
+    desc: "composer.json should require php-cs-fixer or typo3/coding-standards in require-dev"
+
+  - id: TT-64
+    type: json_path
+    target: composer.json
+    pattern: '.["require-dev"]["rector/rector"]'
+    severity: info
+    desc: "composer.json should require rector/rector in require-dev"
+
+  # === CI MATRIX BEST PRACTICES ===
+  - id: TT-25
+    type: regex
+    target: .github/workflows/*.yml
+    pattern: 'fail-fast:\s*false'
+    severity: info
+    desc: "CI matrix should use fail-fast: false to run all combinations"
+
+  # === NEGATIVE CHECKS (should NOT exist) ===
+
   # === GITIGNORE CHECKS ===
   - id: TT-70
     type: contains
