@@ -225,11 +225,10 @@ mechanical:
     desc: "composer.json must require phpunit/phpunit in require-dev"
 
   - id: TT-61
-    type: json_path
-    target: composer.json
-    pattern: '.["require-dev"]["phpstan/phpstan"]'
+    type: command
+    command: "test -f .Build/bin/phpstan || grep -q phpstan composer.json || grep -rq phpstan .Build/vendor/composer/installed.json 2>/dev/null"
     severity: warning
-    desc: "composer.json should require phpstan/phpstan in require-dev"
+    desc: "PHPStan should be available (directly or transitively via a shared CI package)"
 
   - id: TT-62
     type: json_path
