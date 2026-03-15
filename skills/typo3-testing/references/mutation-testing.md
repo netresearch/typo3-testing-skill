@@ -281,32 +281,46 @@ self::assertSame(
 
 #### LogicalOr to LogicalAnd mutations
 ```php
-// If code has: str_contains($msg, '401') || str_contains($msg, 'Unauthorized')
-// Test each branch individually to kill LogicalAnd mutation:
+// If your code under test has:
+// public function getStatusMessage(\Throwable $e): string {
+//     $msg = $e->getMessage();
+//     if (str_contains($msg, '401') || str_contains($msg, 'Unauthorized')) {
+//         return 'The API key was rejected.';
+//     }
+//     return 'An unknown error occurred.';
+// }
+
+// Test each OR branch individually to kill the LogicalAnd mutation:
 
 #[Test]
 public function recognizes401Code(): void
 {
     // Only "401", no "Unauthorized" — kills LogicalAnd mutation
-    $this->throwException(new RuntimeException('HTTP 401 error'));
-    self::assertStringContainsString('rejected the API key', $result);
+    $result = $this->subject->getStatusMessage(new RuntimeException('HTTP 401 error'));
+    self::assertStringContainsString('API key was rejected', $result);
 }
 
 #[Test]
 public function recognizesUnauthorized(): void
 {
     // Only "Unauthorized", no "401"
-    $this->throwException(new RuntimeException('Request Unauthorized'));
-    self::assertStringContainsString('rejected the API key', $result);
+    $result = $this->subject->getStatusMessage(new RuntimeException('Request Unauthorized'));
+    self::assertStringContainsString('API key was rejected', $result);
 }
 ```
 
 #### GreaterThan to GreaterThanOrEqual mutations
 ```php
-// If code has: $count > 0 ? Severity::Ok : Severity::Error
-// Assert BOTH branches:
+// If code has: $check = $count > 0 ? createOkCheck() : createErrorCheck();
+// You must assert BOTH branches to kill the mutation.
+
+// 1. Test for count > 0 (e.g., count = 1)
+$passingCheck = $this->service->runCheck(1);
 self::assertSame(Severity::Ok, $passingCheck->severity);
-self::assertNull($passingCheck->fixRoute);  // Kills >= mutation
+self::assertNull($passingCheck->fixRoute);
+
+// 2. Test for count = 0. This kills the `>` to `>=` mutation.
+$failingCheck = $this->service->runCheck(0);
 self::assertSame(Severity::Error, $failingCheck->severity);
 self::assertSame('nrllm_providers', $failingCheck->fixRoute);
 ```
