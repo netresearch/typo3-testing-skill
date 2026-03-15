@@ -218,11 +218,10 @@ mechanical:
 
   # === COMPOSER.JSON TEST DEPENDENCIES ===
   - id: TT-60
-    type: json_path
-    target: composer.json
-    pattern: '.["require-dev"]["phpunit/phpunit"]'
+    type: command
+    pattern: 'composer show --dev 2>/dev/null | grep -q phpunit/phpunit'
     severity: error
-    desc: "composer.json must require phpunit/phpunit in require-dev"
+    desc: "phpunit/phpunit must be available as dev dependency (direct or transitive)"
 
   - id: TT-61
     type: json_path
@@ -238,7 +237,7 @@ mechanical:
     severity: warning
     desc: "composer.json should define test script (test, ci:test, test:unit, or ci:test:php:unit)"
 
-  # === NEGATIVE CHECKS (should NOT exist) ===
+  # === GITIGNORE CHECKS ===
   - id: TT-70
     type: contains
     target: .gitignore
