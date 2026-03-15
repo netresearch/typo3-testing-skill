@@ -264,6 +264,74 @@ public function testReturnsCalculatedValue(): void
 }
 ```
 
+### 5. Kill Common TYPO3 Escaped Mutants
+
+#### Concat mutations (string reordering/removal)
+```php
+// WEAK — Concat mutations escape because substring order doesn't matter
+$message = $service->getErrorMessage();
+self::assertStringContainsString('provider', $message);
+self::assertStringContainsString('LLM module', $message);
+
+// STRONG — kills Concat mutations by asserting the exact string
+$message = $service->getErrorMessage();
+self::assertSame(
+    'No LLM provider configured. Create a provider in Admin Tools > LLM > Providers.',
+    $message,
+);
+```
+
+#### LogicalOr to LogicalAnd mutations
+```php
+// Given this code under test:
+//
+// public function getStatusMessage(\Throwable $e): string {
+//     $msg = $e->getMessage();
+//     if (str_contains($msg, '401') || str_contains($msg, 'Unauthorized')) {
+//         return 'The API key was rejected.';
+//     }
+//     return 'An unknown error occurred.';
+// }
+//
+// Test each OR branch individually to kill the LogicalAnd mutation:
+
+#[Test]
+public function recognizes401Code(): void
+{
+    // Only "401", no "Unauthorized" — kills LogicalAnd mutation
+    $result = $this->subject->getStatusMessage(
+        new \RuntimeException('HTTP 401 error'),
+    );
+    self::assertSame('The API key was rejected.', $result);
+}
+
+#[Test]
+public function recognizesUnauthorized(): void
+{
+    // Only "Unauthorized", no "401"
+    $result = $this->subject->getStatusMessage(
+        new \RuntimeException('Request Unauthorized'),
+    );
+    self::assertSame('The API key was rejected.', $result);
+}
+```
+
+#### GreaterThan to GreaterThanOrEqual mutations
+```php
+// If code has: $check = $count > 0 ? createOkCheck() : createErrorCheck();
+// You must assert BOTH branches to kill the mutation.
+
+// 1. Test for count > 0 (e.g., count = 1)
+$passingCheck = $this->service->runCheck(1);
+self::assertSame(Severity::Ok, $passingCheck->severity);
+self::assertNull($passingCheck->fixRoute);
+
+// 2. Test for count = 0. This kills the `>` to `>=` mutation.
+$failingCheck = $this->service->runCheck(0);
+self::assertSame(Severity::Error, $failingCheck->severity);
+self::assertSame('nrllm_providers', $failingCheck->fixRoute);
+```
+
 ## CI Integration
 
 ### GitHub Actions

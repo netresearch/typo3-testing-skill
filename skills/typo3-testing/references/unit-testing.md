@@ -619,6 +619,24 @@ final class ImageControllerTest extends UnitTestCase
 - Prefer testing through public API when the logic is simple
 - Document why reflection testing is used for a specific method
 
+## Coverage Attribution with #[CoversClass]
+
+When `beStrictAboutCoverageMetadata` is enabled (recommended), PHPUnit restricts coverage reporting to classes listed in `#[CoversClass]`. Code executed during a test but not listed in `#[CoversClass]` will not appear in the coverage report for that test.
+
+If your test exercises DTOs or value objects indirectly (e.g., a service test creates DTO instances), add `#[CoversClass]` for ALL exercised classes:
+
+```php
+// DiagnosticServiceTest creates DiagnosticCheck and DiagnosticResult
+// instances via DiagnosticService — list them all for coverage
+#[CoversClass(DiagnosticService::class)]
+#[CoversClass(DiagnosticCheck::class)]
+#[CoversClass(DiagnosticResult::class)]
+#[CoversClass(Severity::class)]
+final class DiagnosticServiceTest extends TestCase
+```
+
+Without this, coverage tools (e.g., codecov) may report 0% for the DTOs even though they are fully exercised by the service test.
+
 ## Configuration
 
 ### PHPUnit XML (Build/phpunit/UnitTests.xml)
