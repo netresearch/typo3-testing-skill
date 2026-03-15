@@ -1,52 +1,68 @@
 # Checkpoints for typo3-testing skill
 # Focuses on PHPUnit, test structure, CI, PHPStan, and code coverage
+#
+# Supports two CI patterns:
+#   1. Traditional: local Build/UnitTests.xml + runTests.sh + direct action usage
+#   2. Shared workflow: netresearch/typo3-ci-workflows (reusable CI, handles
+#      PHPUnit config naming, SHA pinning, coverage, and PHPStan internally)
 
 version: 1
 skill_id: typo3-testing
 
 mechanical:
-  # === PHPUNIT CONFIGURATION (TYPO3 Extension Convention) ===
-  # TYPO3 extensions MUST use Build/UnitTests.xml and Build/FunctionalTests.xml
-  # Root phpunit.xml is discouraged - use Build/ directory for test configs
-  # Reference: https://github.com/TYPO3/testing-framework
+  # === SHARED CI WORKFLOW DETECTION ===
+  # Check first — many later checks can be relaxed when a shared CI workflow
+  # handles PHPUnit config, SHA pinning, coverage, and PHPStan.
+
+  - id: TT-00
+    type: regex
+    target: .github/workflows/*.yml
+    pattern: 'uses:\s*netresearch/typo3-ci-workflows'
+    severity: info
+    desc: "Detects netresearch/typo3-ci-workflows reusable workflow (relaxes TT-01..05, TT-21, TT-24, TT-50..53)"
+
+  # === PHPUNIT CONFIGURATION ===
+  # TYPO3 testing-framework convention: Build/UnitTests.xml + Build/FunctionalTests.xml
+  # netresearch/typo3-ci-workflows also accepts: Build/phpunit.xml + Build/phpunit.functional.xml
+  # When TT-00 passes, either naming convention is valid.
 
   - id: TT-01
     type: file_exists
-    target: Build/UnitTests.xml
+    target: "{Build/UnitTests.xml,Build/phpunit.xml}"
     severity: error
-    desc: "Build/UnitTests.xml must exist (TYPO3 extension convention)"
+    desc: "PHPUnit unit test config must exist (Build/UnitTests.xml or Build/phpunit.xml)"
 
   - id: TT-02
     type: file_exists
-    target: Build/FunctionalTests.xml
+    target: "{Build/FunctionalTests.xml,Build/phpunit.functional.xml}"
     severity: error
-    desc: "Build/FunctionalTests.xml must exist (TYPO3 extension convention)"
+    desc: "PHPUnit functional test config must exist (Build/FunctionalTests.xml or Build/phpunit.functional.xml)"
 
   - id: TT-02b
     type: file_exists
     target: Build/Scripts/runTests.sh
     severity: info
-    desc: "runTests.sh script for Docker-based test execution"
+    desc: "runTests.sh script for Docker-based test execution (optional when using typo3-ci-workflows)"
 
   - id: TT-03
     type: file_not_exists
     target: phpunit.xml
     severity: warning
-    desc: "phpunit.xml in project root is discouraged; use Build/UnitTests.xml instead"
+    desc: "phpunit.xml in project root is discouraged; use Build/ directory instead"
 
   - id: TT-04
     type: regex
-    target: Build/UnitTests.xml
+    target: "{Build/UnitTests.xml,Build/phpunit.xml}"
     pattern: '<testsuite.*name="unit"'
     severity: error
-    desc: "Build/UnitTests.xml must define unit test suite"
+    desc: "PHPUnit config must define unit test suite"
 
   - id: TT-05
     type: regex
-    target: Build/FunctionalTests.xml
+    target: "{Build/FunctionalTests.xml,Build/phpunit.functional.xml}"
     pattern: '<testsuite.*name="functional"'
     severity: error
-    desc: "Build/FunctionalTests.xml must define functional test suite"
+    desc: "PHPUnit config must define functional test suite"
 
   # === TEST DIRECTORY STRUCTURE ===
   - id: TT-10
@@ -85,37 +101,37 @@ mechanical:
   - id: TT-21
     type: regex
     target: .github/workflows/*.yml
-    pattern: 'phpunit|composer.*test|runTests'
+    pattern: 'phpunit|composer.*test|runTests|typo3-ci-workflows'
     severity: error
-    desc: "CI workflow must execute tests"
+    desc: "CI workflow must execute tests (directly or via reusable workflow)"
 
   - id: TT-22
     type: regex
     target: .github/workflows/*.yml
-    pattern: 'php-version.*\[.*8\.[1-9]'
+    pattern: 'php-version.*\[.*8\.[2-9]|php-versions'
     severity: warning
-    desc: "CI should test multiple PHP versions"
+    desc: "CI should test multiple PHP versions (directly or via php-versions input)"
 
   - id: TT-23
     type: regex
     target: .github/workflows/*.yml
-    pattern: 'typo3/core.*\[.*1[2-4]'
+    pattern: 'typo3.*\[.*1[3-4]|typo3-versions'
     severity: warning
     desc: "CI should test multiple TYPO3 versions"
 
   - id: TT-24
     type: regex
     target: .github/workflows/*.yml
-    pattern: 'uses:.*@[a-f0-9]{40}'
+    pattern: 'uses:.*@[a-f0-9]{40}|uses:\s*netresearch/typo3-ci-workflows'
     severity: error
-    desc: "GitHub Actions must be pinned to SHA"
+    desc: "GitHub Actions must be pinned to SHA (or use trusted reusable workflow)"
 
   # === PHPSTAN CONFIGURATION ===
   - id: TT-30
     type: file_exists
-    target: "{phpstan.neon,Build/phpstan.neon}"
+    target: "{phpstan.neon,Build/phpstan.neon,Build/phpstan/phpstan.neon}"
     severity: warning
-    desc: "phpstan.neon configuration should exist in project root or Build/ directory"
+    desc: "phpstan.neon configuration should exist"
 
   - id: TT-31
     type: file_exists
@@ -125,14 +141,14 @@ mechanical:
 
   - id: TT-32
     type: regex
-    target: "{phpstan.neon,Build/phpstan.neon}"
-    pattern: 'level:\s*[6-9]|level:\s*max'
+    target: "{phpstan.neon,Build/phpstan.neon,Build/phpstan/phpstan.neon}"
+    pattern: 'level:\s*([6-9]|10|max)'
     severity: warning
-    desc: "PHPStan should use level 6 or higher"
+    desc: "PHPStan should use level 6 or higher (PHPStan 2.x supports level 10)"
 
   - id: TT-33
     type: regex
-    target: "{phpstan.neon,Build/phpstan.neon}"
+    target: "{phpstan.neon,Build/phpstan.neon,Build/phpstan/phpstan.neon}"
     pattern: "typo3|TYPO3"
     severity: info
     desc: "PHPStan should include TYPO3-specific configuration"
@@ -140,11 +156,11 @@ mechanical:
   - id: TT-34
     type: regex
     target: .github/workflows/*.yml
-    pattern: 'phpstan|composer.*stan|composer.*analyze'
+    pattern: 'phpstan|composer.*stan|composer.*analyze|typo3-ci-workflows'
     severity: warning
-    desc: "CI should run PHPStan analysis"
+    desc: "CI should run PHPStan analysis (directly or via reusable workflow)"
 
-  # === CODE COVERAGE (CODECOV) ===
+  # === CODE COVERAGE ===
   - id: TT-40
     type: file_exists
     target: codecov.yml
@@ -154,14 +170,14 @@ mechanical:
   - id: TT-41
     type: regex
     target: .github/workflows/*.yml
-    pattern: 'codecov/codecov-action'
+    pattern: 'codecov|upload-coverage|typo3-ci-workflows'
     severity: warning
-    desc: "CI should upload coverage to Codecov"
+    desc: "CI should upload coverage (directly or via reusable workflow with upload-coverage: true)"
 
   - id: TT-42
     type: regex
     target: .github/workflows/*.yml
-    pattern: 'coverage.*clover|XDEBUG_MODE.*coverage|--coverage'
+    pattern: 'coverage.*clover|XDEBUG_MODE.*coverage|--coverage|upload-coverage'
     severity: warning
     desc: "CI should generate code coverage"
 
@@ -169,15 +185,15 @@ mechanical:
     type: contains
     target: README.md
     pattern: "codecov.io"
-    severity: warning
+    severity: info
     desc: "README should display Codecov badge"
 
-  # === RUNTESTS.SH SCRIPT ===
+  # === RUNTESTS.SH SCRIPT (optional when using typo3-ci-workflows) ===
   - id: TT-50
     type: file_exists
     target: Build/Scripts/runTests.sh
     severity: info
-    desc: "runTests.sh script for local test execution"
+    desc: "runTests.sh script for local test execution (optional with typo3-ci-workflows)"
 
   - id: TT-51
     type: regex
@@ -218,9 +234,9 @@ mechanical:
   - id: TT-62
     type: json_path
     target: composer.json
-    pattern: '.scripts.test // .scripts["ci:test"] // .scripts["test:unit"]'
+    pattern: '.scripts.test // .scripts["ci:test"] // .scripts["test:unit"] // .scripts["ci:test:php:unit"]'
     severity: warning
-    desc: "composer.json should define test script"
+    desc: "composer.json should define test script (test, ci:test, test:unit, or ci:test:php:unit)"
 
   # === NEGATIVE CHECKS (should NOT exist) ===
   - id: TT-70
@@ -238,7 +254,7 @@ llm_reviews:
       Review the test directory structure and naming conventions:
       - Tests should be in Tests/Unit/ and Tests/Functional/
       - Test class names should end with "Test"
-      - Test methods should start with "test" or use @test annotation
+      - Test methods should start with "test" or use #[Test] attribute
       - Namespace should mirror Classes/ structure
 
       Check Tests/ directory and report compliance.
@@ -254,7 +270,7 @@ llm_reviews:
       - Code coverage filter should exclude Tests/ and vendor/
       - Fail on warnings/risky should be enabled
 
-      Examine phpunit.xml or Build/UnitTests.xml and report findings.
+      Examine phpunit.xml, Build/UnitTests.xml, or Build/phpunit.xml and report findings.
     severity: info
     desc: "Verify PHPUnit configuration follows best practices"
 
@@ -262,9 +278,10 @@ llm_reviews:
     domain: code-quality
     prompt: |
       Review CI test matrix configuration:
-      - Should test against supported PHP versions (8.1, 8.2, 8.3, 8.4)
-      - Should test against supported TYPO3 versions (v12, v13)
-      - Matrix should use fail-fast: false
+      - Should test against supported PHP versions (8.2, 8.3, 8.4, 8.5)
+      - Should test against supported TYPO3 versions (v13, v14)
+      - If using netresearch/typo3-ci-workflows, check that php-versions
+        and typo3-versions inputs are properly configured
       - Should have reasonable timeout limits
 
       Examine .github/workflows/*.yml and report matrix coverage.
@@ -276,11 +293,11 @@ llm_reviews:
     prompt: |
       Review PHPStan configuration for TYPO3 extension development:
       - Should include saschaegerer/phpstan-typo3 extension
-      - Level should be 6 or higher (ideally max)
+      - Level should be 6 or higher (ideally 9/max, or 10 with PHPStan 2.x)
       - Should scan Classes/ directory
       - Baseline file is acceptable for legacy code
 
-      Examine phpstan.neon and report configuration quality.
+      Examine phpstan.neon (root or Build/ directory) and report quality.
     severity: info
     desc: "Verify PHPStan is properly configured for TYPO3"
 
