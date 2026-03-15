@@ -176,8 +176,8 @@ mechanical:
 
   - id: TT-42
     type: regex
-    target: .github/workflows/*.yml
-    pattern: 'coverage.*clover|XDEBUG_MODE.*coverage|--coverage|upload-coverage'
+    target: .github/workflows/ci.yml
+    pattern: 'coverage.*clover|XDEBUG_MODE.*coverage|--coverage|upload-coverage:\s*true|upload-coverage'
     severity: warning
     desc: "CI should generate code coverage"
 
