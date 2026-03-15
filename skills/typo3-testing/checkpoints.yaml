@@ -218,10 +218,11 @@ mechanical:
 
   # === COMPOSER.JSON TEST DEPENDENCIES ===
   - id: TT-60
-    type: command
-    pattern: 'composer show --dev 2>/dev/null | grep -q phpunit/phpunit'
+    type: json_path
+    target: composer.json
+    pattern: '.["require-dev"]["phpunit/phpunit"]'
     severity: error
-    desc: "phpunit/phpunit must be available as dev dependency (direct or transitive)"
+    desc: "composer.json must require phpunit/phpunit in require-dev"
 
   - id: TT-61
     type: command
