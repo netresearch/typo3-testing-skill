@@ -264,6 +264,53 @@ public function testReturnsCalculatedValue(): void
 }
 ```
 
+### 5. Kill Common TYPO3 Escaped Mutants
+
+#### Concat mutations (string reordering/removal)
+```php
+// WEAK — Concat mutations escape because order doesn't matter
+self::assertStringContainsString('provider', $error);
+self::assertStringContainsString('LLM module', $error);
+
+// STRONG — kills Concat mutations
+self::assertSame(
+    'No LLM provider configured. Create a provider in Admin Tools > LLM > Providers.',
+    $failure->message,
+);
+```
+
+#### LogicalOr to LogicalAnd mutations
+```php
+// If code has: str_contains($msg, '401') || str_contains($msg, 'Unauthorized')
+// Test each branch individually to kill LogicalAnd mutation:
+
+#[Test]
+public function recognizes401Code(): void
+{
+    // Only "401", no "Unauthorized" — kills LogicalAnd mutation
+    $this->throwException(new RuntimeException('HTTP 401 error'));
+    self::assertStringContainsString('rejected the API key', $result);
+}
+
+#[Test]
+public function recognizesUnauthorized(): void
+{
+    // Only "Unauthorized", no "401"
+    $this->throwException(new RuntimeException('Request Unauthorized'));
+    self::assertStringContainsString('rejected the API key', $result);
+}
+```
+
+#### GreaterThan to GreaterThanOrEqual mutations
+```php
+// If code has: $count > 0 ? Severity::Ok : Severity::Error
+// Assert BOTH branches:
+self::assertSame(Severity::Ok, $passingCheck->severity);
+self::assertNull($passingCheck->fixRoute);  // Kills >= mutation
+self::assertSame(Severity::Error, $failingCheck->severity);
+self::assertSame('nrllm_providers', $failingCheck->fixRoute);
+```
+
 ## CI Integration
 
 ### GitHub Actions
