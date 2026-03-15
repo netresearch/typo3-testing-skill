@@ -621,7 +621,9 @@ final class ImageControllerTest extends UnitTestCase
 
 ## Coverage Attribution with #[CoversClass]
 
-PHPUnit only attributes coverage to classes listed in `#[CoversClass]`. If your test exercises DTOs or value objects indirectly (e.g., a service test creates DTO instances), add `#[CoversClass]` for ALL exercised classes:
+When `beStrictAboutCoverageMetadata` is enabled (recommended), PHPUnit restricts coverage reporting to classes listed in `#[CoversClass]`. Code executed during a test but not listed in `#[CoversClass]` will not appear in the coverage report for that test.
+
+If your test exercises DTOs or value objects indirectly (e.g., a service test creates DTO instances), add `#[CoversClass]` for ALL exercised classes:
 
 ```php
 // DiagnosticServiceTest creates DiagnosticCheck and DiagnosticResult
@@ -633,7 +635,7 @@ PHPUnit only attributes coverage to classes listed in `#[CoversClass]`. If your 
 final class DiagnosticServiceTest extends TestCase
 ```
 
-Without this, codecov will report 0% coverage for the DTOs even though they're fully exercised by the service test.
+Without this, coverage tools (e.g., codecov) may report 0% for the DTOs even though they are fully exercised by the service test.
 
 ## Configuration
 

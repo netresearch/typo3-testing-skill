@@ -349,7 +349,7 @@ Is the class under test final?
 Backend module controllers depend on `ModuleTemplateFactory` and `ModuleTemplate` which are both `final`. When the controller has private methods with testable logic, use reflection:
 
 ```php
-// Create controller with real (non-final) mocks + uninitialised final dep
+// Create controller with real (non-final) mocks + uninitialized final dep
 $controller = new StatusController(
     $this->createMock(DiagnosticService::class),
     $this->createMock(BackendUriBuilder::class),
@@ -359,6 +359,7 @@ $controller = new StatusController(
 
 // Test private method via reflection
 $method = new \ReflectionMethod(StatusController::class, 'buildFixUrls');
+$method->setAccessible(true); // Required for private methods
 $result = $method->invoke($controller, $checks);
 ```
 
@@ -367,7 +368,7 @@ $result = $method->invoke($controller, $checks);
 `BackendUriBuilder::buildUriFromRoute()` returns `UriInterface` (not string). Mocks must return a proper Uri object:
 
 ```php
-// WRONG — will work in tests but violates the contract
+// WRONG — causes TypeError since buildUriFromRoute() returns UriInterface
 $mock->method('buildUriFromRoute')->willReturn('/typo3/module/path');
 
 // CORRECT
@@ -396,7 +397,7 @@ $reflection = new ReflectionClass(FinalClass::class);
 // ... hack to make it non-final
 ```
 
-> **Exception:** Using `newInstanceWithoutConstructor()` and `ReflectionMethod` is acceptable when testing controllers that depend on final TYPO3 framework classes where no interface exists. This is different from trying to make a class non-final — you're passing an uninitialised instance as a placeholder for a parameter you won't use.
+> **Exception:** Using `newInstanceWithoutConstructor()` and `ReflectionMethod` is acceptable when testing controllers that depend on final TYPO3 framework classes where no interface exists. This is different from trying to make a class non-final — you're passing an uninitialized instance as a placeholder for a parameter you won't use.
 
 ### Don't Copy TYPO3 Classes
 
