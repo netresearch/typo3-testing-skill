@@ -30,25 +30,40 @@ This is an **Agent Skill** following the [open standard](https://agentskills.io)
 
 ## Installation
 
-### Option 1: Via Netresearch Marketplace (Recommended)
+### Marketplace (Recommended)
+
+Add the [Netresearch marketplace](https://github.com/netresearch/claude-code-marketplace) once, then browse and install skills:
 
 ```bash
+# Claude Code
 /plugin marketplace add netresearch/claude-code-marketplace
 ```
 
-Then browse skills with `/plugin`.
+### npx ([skills.sh](https://skills.sh))
 
-### Option 2: Download Release
-
-Download the [latest release](https://github.com/netresearch/typo3-testing-skill/releases/latest) and extract to `~/.claude/skills/typo3-testing/`
-
-### Option 3: Manual Installation
+Install with any [Agent Skills](https://agentskills.io)-compatible agent:
 
 ```bash
-cd ~/.claude/skills
-git clone https://github.com/netresearch/typo3-testing-skill.git typo3-testing
+npx skills add https://github.com/netresearch/typo3-testing-skill --skill typo3-testing
 ```
 
+### Download Release
+
+Download the [latest release](https://github.com/netresearch/typo3-testing-skill/releases/latest) and extract to your agent's skills directory.
+
+### Git Clone
+
+```bash
+git clone https://github.com/netresearch/typo3-testing-skill.git
+```
+
+### Composer (PHP Projects)
+
+```bash
+composer require netresearch/typo3-testing-skill
+```
+
+Requires [netresearch/composer-agent-skill-plugin](https://github.com/netresearch/composer-agent-skill-plugin).
 ## Quick Start
 
 1. **Setup testing infrastructure:**
