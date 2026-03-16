@@ -38,12 +38,6 @@ mechanical:
     severity: error
     desc: "PHPUnit functional test config must exist (Build/FunctionalTests.xml or Build/phpunit.functional.xml)"
 
-  - id: TT-02b
-    type: file_exists
-    target: Build/Scripts/runTests.sh
-    severity: error
-    desc: "Build/Scripts/runTests.sh must exist as the unified test runner for all TYPO3 extensions"
-
   - id: TT-03
     type: file_not_exists
     target: phpunit.xml
@@ -218,16 +212,16 @@ mechanical:
 
   - id: TT-54
     type: command
-    pattern: 'test -x Build/Scripts/runTests.sh'
+    command: 'test -x Build/Scripts/runTests.sh'
     severity: error
     desc: "Build/Scripts/runTests.sh must be executable"
 
   - id: TT-55
     type: regex
     target: composer.json
-    pattern: 'runTests|\.Build/bin/phpunit|\.Build/bin/phpstan'
+    pattern: 'Build/Scripts/runTests\.sh'
     severity: warning
-    desc: "Composer scripts should use runTests.sh or .Build/bin/ tool paths"
+    desc: "Composer scripts should invoke Build/Scripts/runTests.sh directly"
 
   - id: TT-56
     type: regex
