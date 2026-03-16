@@ -16,9 +16,11 @@ Templates, scripts, and references for comprehensive TYPO3 extension testing.
 | **Architecture** | Layer constraints, dependency rules (phpat) | Fast |
 | **E2E (Playwright)** | User workflows, browser, accessibility | Slow |
 | **Integration** | HTTP client, API mocking, OAuth flows | Medium |
-| **Fuzz** | Security, parsers, malformed input | Manual |
-| **Crypto** | Encryption, secrets, key management | Fast |
 | **Mutation** | Test quality verification, 70%+ coverage | CI/Release |
+
+## runTests.sh - Mandatory
+
+**`Build/Scripts/runTests.sh` is mandatory** for all Netresearch TYPO3 extensions. It must be executable and support `-s` (suite) and `-p` (PHP version) flags. CI and local dev must use this script or the same `.Build/bin/` tool paths.
 
 ## Setup and Running Tests
 
@@ -28,17 +30,16 @@ Templates, scripts, and references for comprehensive TYPO3 extension testing.
 <skill-dir>/scripts/validate-setup.sh               # Validate existing setup
 <skill-dir>/scripts/generate-test.sh <Type> <Class> # Generate test file
 
-# Run tests
+# Run tests (always via runTests.sh)
 Build/Scripts/runTests.sh -s unit          # Unit tests
 Build/Scripts/runTests.sh -s functional    # Functional tests
-Build/Scripts/runTests.sh -s architecture  # Architecture tests (phpat)
-Build/Scripts/runTests.sh -s e2e           # E2E tests (Playwright)
-Build/Scripts/runTests.sh -s lint          # Linting
 Build/Scripts/runTests.sh -s phpstan       # Static analysis
+Build/Scripts/runTests.sh -s cgl           # Coding guidelines
 Build/Scripts/runTests.sh -s mutation      # Mutation testing
+Build/Scripts/runTests.sh -s ci            # Full CI suite
 ```
 
-After creating or modifying a test, **always verify** it fails before the fix and passes after. Run the full suite to ensure no regressions.
+After creating or modifying a test, **always verify** it fails before the fix and passes after.
 
 ## Scoring Requirements
 

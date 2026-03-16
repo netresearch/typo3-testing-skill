@@ -19,7 +19,7 @@ mechanical:
     target: .github/workflows/*.yml
     pattern: 'uses:\s*netresearch/typo3-ci-workflows'
     severity: info
-    desc: "Detects netresearch/typo3-ci-workflows reusable workflow (relaxes TT-01..05, TT-21, TT-24, TT-50..53)"
+    desc: "Detects netresearch/typo3-ci-workflows reusable workflow (relaxes TT-01..05, TT-21, TT-24)"
 
   # === PHPUNIT CONFIGURATION ===
   # TYPO3 testing-framework convention: Build/UnitTests.xml + Build/FunctionalTests.xml
@@ -41,8 +41,8 @@ mechanical:
   - id: TT-02b
     type: file_exists
     target: Build/Scripts/runTests.sh
-    severity: info
-    desc: "runTests.sh script for Docker-based test execution (optional when using typo3-ci-workflows)"
+    severity: error
+    desc: "Build/Scripts/runTests.sh must exist as the unified test runner for all TYPO3 extensions"
 
   - id: TT-03
     type: file_not_exists
@@ -188,33 +188,53 @@ mechanical:
     severity: info
     desc: "README should display Codecov badge"
 
-  # === RUNTESTS.SH SCRIPT (optional when using typo3-ci-workflows) ===
+  # === RUNTESTS.SH SCRIPT (mandatory for all Netresearch TYPO3 extensions) ===
   - id: TT-50
     type: file_exists
     target: Build/Scripts/runTests.sh
-    severity: info
-    desc: "runTests.sh script for local test execution (optional with typo3-ci-workflows)"
+    severity: error
+    desc: "Build/Scripts/runTests.sh must exist as the unified test runner for all TYPO3 extensions"
 
   - id: TT-51
     type: regex
     target: Build/Scripts/runTests.sh
     pattern: 'TYPO3_VERSION|typo3/core'
-    severity: info
+    severity: warning
     desc: "runTests.sh should support TYPO3 version selection"
 
   - id: TT-52
     type: regex
     target: Build/Scripts/runTests.sh
     pattern: 'PHP_VERSION|php.*version'
-    severity: info
-    desc: "runTests.sh should support PHP version selection"
+    severity: warning
+    desc: "runTests.sh should support PHP version selection (-p flag)"
 
   - id: TT-53
     type: regex
     target: Build/Scripts/runTests.sh
     pattern: 'suite|SUITE'
+    severity: warning
+    desc: "runTests.sh should support test suite selection (-s flag)"
+
+  - id: TT-54
+    type: command
+    pattern: 'test -x Build/Scripts/runTests.sh'
+    severity: error
+    desc: "Build/Scripts/runTests.sh must be executable"
+
+  - id: TT-55
+    type: regex
+    target: composer.json
+    pattern: 'runTests|\.Build/bin/phpunit|\.Build/bin/phpstan'
+    severity: warning
+    desc: "Composer scripts should use runTests.sh or .Build/bin/ tool paths"
+
+  - id: TT-56
+    type: regex
+    target: Makefile
+    pattern: 'typo3-ci-workflows/Makefile.include'
     severity: info
-    desc: "runTests.sh should support test suite selection"
+    desc: "Makefile should include shared targets from typo3-ci-workflows"
 
   # === COMPOSER.JSON TEST DEPENDENCIES ===
   - id: TT-60
