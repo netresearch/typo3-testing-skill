@@ -9,15 +9,107 @@ Automated code quality and static analysis tools for TYPO3 extensions.
 - **php-cs-fixer**: Code style enforcement (PSR-12, TYPO3 CGL)
 - **phplint**: PHP syntax validation
 
-## PHPStan
+## Centralized CI Tooling: netresearch/typo3-ci-workflows
 
-### Installation
+Netresearch TYPO3 extensions use a centralized dev-dependency package that provides all quality tools, shared configurations, and CI infrastructure.
+
+### What typo3-ci-workflows provides
+
+**Dev-dependencies (transitively installed):**
+- `phpstan/phpstan` + `phpstan-strict-rules` + `phpstan-deprecation-rules` + `phpstan-phpunit`
+- `saschaegerer/phpstan-typo3` (TYPO3-aware PHPStan rules)
+- `phpat/phpat` (architecture testing)
+- `ergebnis/phpstan-rules` (additional strict rules)
+- `friendsofphp/php-cs-fixer` (code style)
+- `rector/rector` + `ssch/typo3-rector` (automated refactoring)
+- `captainhook/captainhook` (git hooks)
+- `phpunit/phpunit` + `typo3/testing-framework`
+- `infection/infection` (mutation testing)
+- `giorgiosironi/eris` (property-based/fuzz testing)
+
+**Shared configurations:**
+- `config/phpstan/phpstan.neon` — shared parameters (level 10, excludePaths, bootstrapFiles, common ignoreErrors)
+- `config/phpstan/includes-no-extension-installer.neon` — explicit PHPStan plugin includes for `--no-plugins` environments (captainhook + git worktree)
+- `.php-cs-fixer.php` — shared code style rules
+- `captainhook.json` — pre-commit hook configuration
+
+**Template scripts:**
+- `assets/Build/Scripts/runTests.sh.dist` — generic test runner (unit, functional, fuzz, mutation, phpstan, cgl, rector)
+
+### Installation (recommended)
 
 ```bash
-composer require --dev phpstan/phpstan phpstan/phpstan-strict-rules saschaegerer/phpstan-typo3
+composer require --dev netresearch/typo3-ci-workflows
 ```
 
-### Configuration
+This single package replaces individual `composer require --dev` for all quality tools.
+
+### PHPStan Configuration with typo3-ci-workflows
+
+Create `Build/phpstan.neon`:
+
+```neon
+includes:
+    - %currentWorkingDirectory%/.Build/vendor/netresearch/typo3-ci-workflows/config/phpstan/phpstan.neon
+    - phpstan-baseline.neon
+
+parameters:
+    paths:
+        - ../Classes
+        - ../Tests/Architecture
+    tmpDir: ../.Build/var/phpstan
+    ignoreErrors:
+        # Extension-specific ignores only — shared ignores are in the included config
+        -
+            message: '#no value type specified in iterable type array#'
+            path: ../Classes/SomeFile.php
+
+services:
+    -
+        class: Vendor\Extension\Tests\Architecture\ArchitectureTest
+        tags:
+            - phpat.test
+```
+
+**Important notes:**
+- The shared `phpstan.neon` sets `level: 10`, `reportUnmatchedIgnoredErrors: true`, common excludePaths, and bootstrapFiles
+- Only add extension-specific ignoreErrors in your local config; shared ignores (ergebnis, test infrastructure, upgrade wizards) are handled centrally
+- Always regenerate baseline after changing config: `.Build/bin/phpstan analyse -c Build/phpstan.neon --generate-baseline Build/phpstan-baseline.neon`
+
+### captainhook + git worktree + explicit PHPStan includes
+
+When using git worktrees with bare repositories, `composer install --no-plugins` is needed for the captainhook workaround. This means `phpstan/extension-installer` cannot auto-register plugins. Use the explicit includes file instead:
+
+```neon
+includes:
+    - %currentWorkingDirectory%/.Build/vendor/netresearch/typo3-ci-workflows/config/phpstan/includes-no-extension-installer.neon
+    - phpstan-baseline.neon
+```
+
+This file explicitly lists all PHPStan plugin neon files that `extension-installer` would auto-load.
+
+**Do NOT mix both approaches** — if `extension-installer` is active AND you include `includes-no-extension-installer.neon`, PHPStan will error about duplicate includes.
+
+### If NOT using typo3-ci-workflows
+
+For extensions that cannot use the centralized package, install tools individually:
+
+```bash
+composer require --dev \
+    phpstan/phpstan \
+    phpstan/phpstan-strict-rules \
+    phpstan/phpstan-deprecation-rules \
+    phpstan/phpstan-phpunit \
+    saschaegerer/phpstan-typo3 \
+    ergebnis/phpstan-rules \
+    friendsofphp/php-cs-fixer \
+    rector/rector \
+    ssch/typo3-rector
+```
+
+## PHPStan
+
+### Configuration (standalone, without typo3-ci-workflows)
 
 Create `Build/phpstan.neon`:
 
@@ -42,16 +134,16 @@ parameters:
 
 ```bash
 # Via runTests.sh
-Build/Scripts/runTests.sh -s phpstan
+Build/Scripts/runTests.sh phpstan
 
 # Directly
-vendor/bin/phpstan analyze --configuration Build/phpstan.neon
+.Build/bin/phpstan analyse -c Build/phpstan.neon
 
 # With baseline (ignore existing errors)
-vendor/bin/phpstan analyze --generate-baseline Build/phpstan-baseline.neon
+.Build/bin/phpstan analyse -c Build/phpstan.neon --generate-baseline Build/phpstan-baseline.neon
 
 # Clear cache
-vendor/bin/phpstan clear-result-cache
+rm -rf .Build/var/phpstan
 ```
 
 ### PHPStan Rule Levels
@@ -116,7 +208,7 @@ parameters:
         - '#deprecated class TYPO3\\CMS\\Frontend\\Controller\\TypoScriptFrontendController#'
         - '#Call to an undefined method TYPO3\\CMS\\Core\\Database\\Query\\QueryBuilder::execute#'
 
-        # Doctrine DBAL 4.x type parameter changes (int → ParameterType enum)
+        # Doctrine DBAL 4.x type parameter changes (int -> ParameterType enum)
         - '~Parameter \\#2 \\$type of method .* expects .*, int given~'
 
         # PHPStan strict rules violations in legacy code
@@ -145,10 +237,10 @@ When configs are in Build/, update CI workflows:
 ```neon
 # Build/phpstan.neon
 includes:
-    - ../vendor/phpstan/phpstan-strict-rules/rules.neon  # ← Note ../
+    - ../vendor/phpstan/phpstan-strict-rules/rules.neon  # <- Note ../
 parameters:
     paths:
-        - ../Classes/     # ← Note ../
+        - ../Classes/     # <- Note ../
         - ../Tests/
     excludePaths:
         - ../vendor/*
@@ -202,11 +294,11 @@ public function allConfigurationsAreArrays(): void
 ```
 
 **When to Use These Ignores:**
-- ✅ Tests validating that implementation matches PHPDoc contracts
-- ✅ Tests checking class hierarchies or type relationships
-- ✅ Tests ensuring configuration structures are correct
-- ❌ Production code (fix the types instead)
-- ❌ Tests where the assertion actually could fail
+- Tests validating that implementation matches PHPDoc contracts
+- Tests checking class hierarchies or type relationships
+- Tests ensuring configuration structures are correct
+- Not in production code (fix the types instead)
+- Not in tests where the assertion actually could fail
 
 **Placement Rules:**
 - **Next-line comment** (`// @phpstan-ignore ...`): Applies to the **next** line
@@ -219,16 +311,16 @@ public function allConfigurationsAreArrays(): void
 // PHPStan understands TYPO3 classes
 $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
     ->getQueryBuilderForTable('pages');
-// ✅ PHPStan knows this returns QueryBuilder
+// PHPStan knows this returns QueryBuilder
 
 // Detects TYPO3 API misuse
 TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(MyService::class);
-// ✅ Checks if MyService is a valid class
+// Checks if MyService is a valid class
 ```
 
 ## Rector
 
-### Installation
+### Installation (if not using typo3-ci-workflows)
 
 ```bash
 composer require --dev rector/rector ssch/typo3-rector
@@ -270,13 +362,14 @@ return RectorConfig::configure()
 
 ```bash
 # Dry run (show changes)
-vendor/bin/rector process --dry-run
+Build/Scripts/runTests.sh rector
 
 # Apply changes
-vendor/bin/rector process
+Build/Scripts/runTests.sh rector:fix
 
-# Via runTests.sh
-Build/Scripts/runTests.sh -s rector
+# Directly
+.Build/bin/rector process --dry-run
+.Build/bin/rector process
 ```
 
 ### Common Refactorings
@@ -310,7 +403,7 @@ public function process(array $data): array
 
 ## php-cs-fixer
 
-### Installation
+### Installation (if not using typo3-ci-workflows)
 
 ```bash
 composer require --dev friendsofphp/php-cs-fixer
@@ -318,7 +411,7 @@ composer require --dev friendsofphp/php-cs-fixer
 
 ### Configuration
 
-Create `Build/php-cs-fixer.php`:
+Create `Build/.php-cs-fixer.php`:
 
 ```php
 <?php
@@ -352,39 +445,40 @@ return (new PhpCsFixer\Config())
 
 ```bash
 # Check only (dry run)
-vendor/bin/php-cs-fixer fix --config Build/php-cs-fixer.php --dry-run --diff
+Build/Scripts/runTests.sh cgl
 
 # Fix files
-vendor/bin/php-cs-fixer fix --config Build/php-cs-fixer.php
+Build/Scripts/runTests.sh cgl:fix
 
-# Via runTests.sh
-Build/Scripts/runTests.sh -s cgl
+# Directly
+.Build/bin/php-cs-fixer fix --config=Build/.php-cs-fixer.php --dry-run --diff
+.Build/bin/php-cs-fixer fix --config=Build/.php-cs-fixer.php
 ```
 
 ### Common Rules
 
 ```php
 // array_syntax: short
-$array = [1, 2, 3]; // ✅
-$array = array(1, 2, 3); // ❌
+$array = [1, 2, 3]; // correct
+$array = array(1, 2, 3); // incorrect
 
 // concat_space: one
-$message = 'Hello ' . $name; // ✅
-$message = 'Hello '.$name; // ❌
+$message = 'Hello ' . $name; // correct
+$message = 'Hello '.$name; // incorrect
 
 // declare_strict_types
 <?php
 
-declare(strict_types=1); // ✅ Required at top of file
+declare(strict_types=1); // Required at top of file
 
 // ordered_imports
-use Vendor\Extension\Domain\Model\Product; // ✅ Alphabetical
+use Vendor\Extension\Domain\Model\Product; // Alphabetical
 use Vendor\Extension\Domain\Repository\ProductRepository;
 ```
 
 ## phplint
 
-### Installation
+### Installation (if not using typo3-ci-workflows)
 
 ```bash
 composer require --dev overtrue/phplint
@@ -413,7 +507,7 @@ extensions:
 vendor/bin/phplint
 
 # Via runTests.sh
-Build/Scripts/runTests.sh -s lint
+Build/Scripts/runTests.sh lint
 
 # Specific directory
 vendor/bin/phplint Classes/
@@ -421,24 +515,21 @@ vendor/bin/phplint Classes/
 
 ## Composer Script Integration
 
+With typo3-ci-workflows, use `Build/Scripts/runTests.sh` as the entry point:
+
 ```json
 {
     "scripts": {
-        "ci:test:php:lint": "phplint",
-        "ci:test:php:phpstan": "phpstan analyze --configuration Build/phpstan.neon --no-progress",
-        "ci:test:php:rector": "rector process --dry-run",
-        "ci:test:php:cgl": "php-cs-fixer fix --config Build/php-cs-fixer.php --dry-run --diff",
-        "ci:test:php:security": "composer audit",
-
-        "fix:cgl": "php-cs-fixer fix --config Build/php-cs-fixer.php",
-        "fix:rector": "rector process",
-
-        "ci:test": [
-            "@ci:test:php:lint",
-            "@ci:test:php:phpstan",
-            "@ci:test:php:rector",
-            "@ci:test:php:cgl",
-            "@ci:test:php:security"
+        "ci:cgl": "Build/Scripts/runTests.sh cgl:fix",
+        "ci:test:php:cgl": "Build/Scripts/runTests.sh cgl",
+        "ci:test:php:phpstan": "Build/Scripts/runTests.sh phpstan",
+        "ci:test:php:unit": "Build/Scripts/runTests.sh unit",
+        "ci:test:php:functional": "Build/Scripts/runTests.sh functional",
+        "ci:test:php:fuzz": "Build/Scripts/runTests.sh fuzz",
+        "ci:mutation": "Build/Scripts/runTests.sh mutation",
+        "ci:test:php:all": [
+            "@ci:test:php:unit",
+            "@ci:test:php:functional"
         ]
     }
 }
@@ -448,7 +539,9 @@ vendor/bin/phplint Classes/
 
 ## Pre-commit Hook
 
-Create `.git/hooks/pre-commit`:
+With typo3-ci-workflows, captainhook handles pre-commit hooks automatically. Configure in `Build/captainhook.json`.
+
+For manual setup, create `.git/hooks/pre-commit`:
 
 ```bash
 #!/bin/sh
@@ -464,12 +557,16 @@ vendor/bin/phpstan analyze --configuration Build/phpstan.neon --error-format=tab
 # Code style
 vendor/bin/php-cs-fixer fix --config Build/php-cs-fixer.php --dry-run --diff || exit 1
 
-echo "✓ All checks passed"
+echo "All checks passed"
 ```
 
 ## CI/CD Integration
 
 ### GitHub Actions
+
+For Netresearch extensions using typo3-ci-workflows, CI is provided by reusable workflows. See the [typo3-ci-workflows repository](https://github.com/netresearch/typo3-ci-workflows) for workflow configuration.
+
+For standalone CI:
 
 ```yaml
 quality:
@@ -491,8 +588,8 @@ quality:
 
 ### PHPStorm
 
-1. **PHPStan**: Settings → PHP → Quality Tools → PHPStan
-2. **php-cs-fixer**: Settings → PHP → Quality Tools → PHP CS Fixer
+1. **PHPStan**: Settings -> PHP -> Quality Tools -> PHPStan
+2. **php-cs-fixer**: Settings -> PHP -> Quality Tools -> PHP CS Fixer
 3. **File Watchers**: Auto-run on file save
 
 ### VS Code
@@ -509,14 +606,15 @@ quality:
 
 ## Best Practices
 
-1. **PHPStan Level 10**: Aim for `level: max` in modern TYPO3 13 projects
-2. **Baseline for Legacy**: Use baselines to track existing issues during migration
-3. **Security Audits**: Run `composer audit` regularly and in CI
-4. **Auto-fix in CI**: Run fixes automatically, fail on violations
-5. **Consistent Rules**: Share config across team
-6. **Pre-commit Checks**: Catch issues before commit (lint, PHPStan, CGL, security)
-7. **Latest PHP**: Run quality tools with latest PHP version (8.4+)
-8. **Regular Updates**: Keep tools and rules updated
+1. **Use typo3-ci-workflows**: Centralized tooling ensures consistency across extensions
+2. **PHPStan Level 10**: Aim for `level: max` in modern TYPO3 13+ projects
+3. **Baseline for Legacy**: Use baselines to track existing issues during migration
+4. **Security Audits**: Run `composer audit` regularly and in CI
+5. **Auto-fix in CI**: Run fixes automatically, fail on violations
+6. **Consistent Rules**: Share config via typo3-ci-workflows
+7. **Pre-commit Checks**: Use captainhook for lint, PHPStan, CGL, security
+8. **Latest PHP**: Run quality tools with latest PHP version (8.4+)
+9. **Regular Updates**: Keep tools and rules updated
 
 ## Resources
 
@@ -524,3 +622,4 @@ quality:
 - [Rector Documentation](https://getrector.com/documentation)
 - [PHP CS Fixer Documentation](https://github.com/PHP-CS-Fixer/PHP-CS-Fixer)
 - [TYPO3 Coding Guidelines](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/CodingGuidelines/)
+- [netresearch/typo3-ci-workflows](https://github.com/netresearch/typo3-ci-workflows)
