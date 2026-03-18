@@ -1,6 +1,6 @@
 ---
 name: typo3-testing
-description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E/architecture tests, configuring PHPUnit, testing time-dependent code, mutation testing, mocking dependencies, configuring CI/CD for TYPO3 extensions, or debugging failing tests in CI (including multi-version TYPO3 v13/v14 test failures)."
+description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E/architecture tests, configuring PHPUnit, mutation testing, mocking dependencies, CI/CD test pipelines, debugging failing CI tests, or multi-version TYPO3 v13/v14 test failures. Also triggers on: coverage, runTests.sh, test generation, phpat."
 ---
 
 # TYPO3 Testing Skill
