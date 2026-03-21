@@ -9,18 +9,23 @@
 
 ## 2. Shared PHP-CS-Fixer config factory
 
-Use the shared factory from `netresearch/typo3-ci-workflows`:
+Use the shared factory from `netresearch/typo3-ci-workflows` in `Build/.php-cs-fixer.php`:
 
 ```php
+<?php
+declare(strict_types=1);
+
+// Build/.php-cs-fixer.php
 $createConfig = require __DIR__ . '/../.Build/vendor/netresearch/typo3-ci-workflows/config/php-cs-fixer/config.php';
+
 return $createConfig(<<<'EOF'
     Copyright header here
-    EOF, __DIR__ . '/..');
+EOF, __DIR__ . '/..');
 ```
 
 - Requires `"netresearch/typo3-ci-workflows": "^1.0"` in `require-dev`
 - Benefits: centralized rules, ext_emconf.php exclusion, consistent formatting
-- **TYPO3 12 compatibility**: `typo3-ci-workflows` requires `saschaegerer/phpstan-typo3 ^2.0 || ^3.0` which needs `typo3/cms-core ^13`. For TYPO3 12 extensions, inline the config instead or pin `phpstan-typo3 ^1.0`
+- **TYPO3 12 compatibility**: `typo3-ci-workflows` may pull in dependencies for TYPO3 13, causing conflicts. For TYPO3 12 extensions, you may need to inline the config or ensure you use compatible dependency versions, such as `saschaegerer/phpstan-typo3: ^2.0`.
 
 ## 3. labeler.yml for TYPO3 extensions
 
@@ -43,14 +48,16 @@ ci:
 
 ## 4. Composer allow-plugins for CI dependencies
 
-When using `typo3-ci-workflows`, rector, or infection, add their installers to `allow-plugins`:
+When using `typo3-ci-workflows`, fractor, or infection, add their installers to `allow-plugins`:
 
 ```json
-"config": {
-    "allow-plugins": {
-        "a9f/fractor-extension-installer": true,
-        "infection/extension-installer": true,
-        "captainhook/hook-installer": true
+{
+    "config": {
+        "allow-plugins": {
+            "a9f/fractor-extension-installer": true,
+            "infection/extension-installer": true,
+            "captainhook/hook-installer": true
+        }
     }
 }
 ```
