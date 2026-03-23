@@ -310,6 +310,13 @@ mechanical:
 
   # === NEGATIVE CHECKS (should NOT exist) ===
 
+  # === GIT HOOKS ===
+  - id: TT-71
+    type: file_exists
+    target: captainhook.json
+    severity: warning
+    desc: "captainhook.json should exist for local git hook automation (pre-commit, commit-msg, pre-push)"
+
   # === GITIGNORE CHECKS ===
   - id: TT-70
     type: contains

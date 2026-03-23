@@ -22,6 +22,10 @@ Templates, scripts, and references for comprehensive TYPO3 extension testing.
 
 **`Build/Scripts/runTests.sh` is mandatory** for all Netresearch TYPO3 extensions. It must be executable and support `-s` (suite) and `-p` (PHP version) flags. CI and local dev must use this script or the same `.Build/bin/` tool paths.
 
+## Git Hooks
+
+CaptainHook auto-configures git hooks on `composer install`. See `references/captainhook-setup.md`.
+
 ## Setup and Running Tests
 
 ```bash
@@ -39,7 +43,7 @@ Build/Scripts/runTests.sh -s mutation      # Mutation testing
 Build/Scripts/runTests.sh -s ci            # Full CI suite
 ```
 
-After creating or modifying a test, **always verify** it fails before the fix and passes after.
+After modifying a test, **always verify** it fails before the fix and passes after.
 
 ## Scoring Requirements
 
@@ -68,15 +72,16 @@ After creating or modifying a test, **always verify** it fails before the fix an
 | `mutation-testing.md` | Infection, MSI |
 | `typo3-v14-final-classes.md` | Interface extraction, mock strategies |
 | `javascript-testing.md` | Jest, frontend testing |
+| `captainhook-setup.md` | CaptainHook git hooks for TYPO3 |
 | `enforcement-rules.md` | E2E CI rules, troubleshooting |
 
 All references in `references/` directory.
 
 ### Explicit Content Triggers
 
-When debugging CI test failures across TYPO3 versions, load `references/ci-debugging.md` for multi-version error comparison and debugging checklist.
+For CI test failures across TYPO3 versions, load `references/ci-debugging.md`.
 
-When writing functional tests that need frontend context (parseFunc, typoLink, TSFE), load `references/functional-testing.md` for known limitations and workarounds.
+For functional tests needing frontend context (parseFunc, typoLink, TSFE), load `references/functional-testing.md`.
 
 ## External Resources
 
