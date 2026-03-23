@@ -5,7 +5,7 @@ description: "Use when setting up TYPO3 extension test infrastructure, writing u
 
 # TYPO3 Testing Skill
 
-Templates, scripts, and references for comprehensive TYPO3 extension testing.
+Scripts and references for TYPO3 extension testing.
 
 ## Test Type Selection
 
@@ -24,7 +24,7 @@ Templates, scripts, and references for comprehensive TYPO3 extension testing.
 
 ## Git Hooks
 
-CaptainHook auto-configures git hooks on `composer install`. See `references/captainhook-setup.md`.
+Verify: `ls captainhook.json .git/hooks/pre-commit 2>/dev/null || echo "Run: composer install"` (see `references/captainhook-setup.md`)
 
 ## Setup and Running Tests
 
@@ -81,7 +81,7 @@ All references in `references/` directory.
 
 For CI test failures across TYPO3 versions, load `references/ci-debugging.md`.
 
-For functional tests needing frontend context (parseFunc, typoLink, TSFE), load `references/functional-testing.md`.
+For functional tests with frontend context (parseFunc, typoLink, TSFE), load `references/functional-testing.md`.
 
 ## External Resources
 
