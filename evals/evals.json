@@ -1,34 +1,11 @@
-[
-  {
-    "name": "setup-unit-tests",
-    "prompt": "Set up unit tests for this TYPO3 extension",
-    "assertions": [
-      {
-        "type": "tool_use",
-        "tool": "Glob",
-        "description": "Scans for existing test infrastructure"
-      },
-      {
-        "type": "content_contains",
-        "value": "phpunit",
-        "description": "References PHPUnit configuration"
-      }
-    ]
-  },
-  {
-    "name": "add-functional-tests",
-    "prompt": "Add functional tests for this repository",
-    "assertions": [
-      {
-        "type": "tool_use",
-        "tool": "Read",
-        "description": "Reads existing code to generate tests"
-      },
-      {
-        "type": "content_contains",
-        "value": "FunctionalTestCase",
-        "description": "Uses TYPO3 FunctionalTestCase base class"
-      }
-    ]
-  }
-]
+{
+  "skill_name": "typo3-testing",
+  "evals": [
+    {
+      "id": 1,
+      "name": "setup-captainhook",
+      "prompt": "I need to set up git hooks for a TYPO3 extension that uses composer ci:test:php:cgl and ci:test:php:phpstan. Give me the config.",
+      "expected_output": "Should provide a captainhook.json with pre-commit running cgl and phpstan"
+    }
+  ]
+}
