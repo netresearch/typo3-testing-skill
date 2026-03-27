@@ -19,8 +19,7 @@ Use `assets/Build/Scripts/runTests.sh` as starting point. Customize:
 
 1. `NETWORK` variable: Replace `my-extension` with your extension key
 2. `COMPOSER_ROOT_VERSION`: Set to your extension version
-3. `TYPO3_BASE_URL`: Set default ddev URL for E2E tests
-4. Add ddev hostnames to `DDEV_PARAMS` for E2E tests
+3. `TYPO3_BASE_URL`: Set the TYPO3 URL for E2E tests (default: `http://localhost:8080`)
 
 ## Basic Usage
 
@@ -43,8 +42,8 @@ Use `assets/Build/Scripts/runTests.sh` as starting point. Customize:
 # Run with specific PHP version
 ./Build/Scripts/runTests.sh -p 8.3 -s unit
 
-# Run E2E tests (requires running TYPO3)
-ddev start && ./Build/Scripts/runTests.sh -s e2e
+# Run E2E tests (PHP built-in server + MySQL container, NOT DDEV)
+./Build/Scripts/runTests.sh -s e2e
 
 # Run quality tools
 ./Build/Scripts/runTests.sh -s lint
@@ -134,30 +133,15 @@ Unit tests are typically fast enough (<1s) that parallelization overhead would b
 
 ## E2E Test Integration
 
-E2E tests require a running TYPO3 instance. The script supports:
-
-1. **ddev integration**: Auto-detects ddev, connects to ddev network
-2. **Custom URL**: Via `TYPO3_BASE_URL` environment variable
+E2E tests use a PHP built-in server + MySQL container. **Do NOT use DDEV for tests.**
+In CI, use the reusable `e2e.yml` workflow from `netresearch/typo3-ci-workflows`.
 
 ```bash
-# Option 1: ddev (recommended)
-ddev start && ./Build/Scripts/runTests.sh -s e2e
+# Run E2E tests locally (starts PHP server + DB automatically)
+./Build/Scripts/runTests.sh -s e2e
 
-# Option 2: Custom URL
-TYPO3_BASE_URL=https://my-typo3.local ./Build/Scripts/runTests.sh -s e2e
-```
-
-### ddev Network Integration
-
-When ddev is running, the script:
-1. Gets the ddev-router IP address
-2. Connects to `ddev_default` network
-3. Adds `--add-host` entries for ddev hostnames
-
-```bash
-ROUTER_IP=$(docker inspect ddev-router --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
-DDEV_PARAMS="--network ddev_default"
-DDEV_PARAMS="${DDEV_PARAMS} --add-host my-extension.ddev.site:${ROUTER_IP}"
+# With custom URL (e.g., if TYPO3 is already running)
+TYPO3_BASE_URL=http://localhost:8080 ./Build/Scripts/runTests.sh -s e2e
 ```
 
 ### Playwright Docker Image

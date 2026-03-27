@@ -173,14 +173,13 @@ Examples:
     # Run functional tests with MariaDB
     ./Build/Scripts/runTests.sh -s functional -d mariadb
 
-    # Run E2E tests (requires ddev or TYPO3_BASE_URL)
-    ddev start && ./Build/Scripts/runTests.sh -s e2e
+    # Run E2E tests (uses PHP built-in server + MySQL container)
+    ./Build/Scripts/runTests.sh -s e2e
 
 E2E Tests:
-    E2E tests require a running TYPO3 instance.
-    Options:
-        1. Start ddev: ddev start && ./Build/Scripts/runTests.sh -s e2e
-        2. Set URL: TYPO3_BASE_URL=https://your-typo3.local ./Build/Scripts/runTests.sh -s e2e
+    E2E tests use a PHP built-in server + MySQL container.
+    Usage: ./Build/Scripts/runTests.sh -s e2e
+    Custom URL: TYPO3_BASE_URL=http://localhost:8080 ./Build/Scripts/runTests.sh -s e2e
 EOF
 }
 
@@ -324,19 +323,9 @@ case ${TEST_SUITE} in
         SUITE_EXIT_CODE=$?
         ;;
     e2e)
-        # CUSTOMIZE: Set your default TYPO3 URL
-        if [ -n "${TYPO3_BASE_URL:-}" ]; then
-            echo "Using TYPO3_BASE_URL from environment: ${TYPO3_BASE_URL}"
-        elif type "ddev" >/dev/null 2>&1 && ddev describe >/dev/null 2>&1; then
-            TYPO3_BASE_URL="https://my-extension.ddev.site"
-            echo "Using ddev TYPO3 URL: ${TYPO3_BASE_URL}"
-        else
-            TYPO3_BASE_URL="https://my-extension.ddev.site"
-            echo "Warning: No TYPO3 instance detected."
-            echo "E2E tests require a running TYPO3 instance."
-            echo "  1. Start ddev: ddev start"
-            echo "  2. Or set: TYPO3_BASE_URL=https://your-typo3.local $0 -s e2e"
-        fi
+        # E2E tests use a PHP built-in server + MySQL container (not DDEV)
+        TYPO3_BASE_URL="${TYPO3_BASE_URL:-http://localhost:8080}"
+        echo "E2E tests using TYPO3_BASE_URL: ${TYPO3_BASE_URL}"
 
         mkdir -p .Build/.cache/npm
         mkdir -p node_modules
@@ -348,20 +337,8 @@ case ${TEST_SUITE} in
             exit 1
         fi
 
-        # Connect to ddev network if available
-        DDEV_PARAMS=""
-        if type "ddev" >/dev/null 2>&1 && ddev describe >/dev/null 2>&1; then
-            ROUTER_IP=$(${CONTAINER_BIN} inspect ddev-router --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null)
-            if [ -n "${ROUTER_IP}" ]; then
-                DDEV_PARAMS="--network ddev_default"
-                # CUSTOMIZE: Add your ddev hostnames
-                DDEV_PARAMS="${DDEV_PARAMS} --add-host my-extension.ddev.site:${ROUTER_IP}"
-                echo "Connecting to ddev network (router IP: ${ROUTER_IP})"
-            fi
-        fi
-
         COMMAND="npm ci && npx playwright test $*"
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} ${DDEV_PARAMS} --name e2e-${SUFFIX} \
+        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name e2e-${SUFFIX} \
             -e TYPO3_BASE_URL="${TYPO3_BASE_URL}" \
             -e CI="${CI:-}" \
             -e npm_config_cache="${ROOT_DIR}/.Build/.cache/npm" \
