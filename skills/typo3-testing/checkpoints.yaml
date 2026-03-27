@@ -333,6 +333,39 @@ mechanical:
     severity: warning
     desc: "captainhook.json should exist for local git hook automation (pre-commit, commit-msg, pre-push)"
 
+  # === ADDITIONAL TEST INFRASTRUCTURE ===
+  - id: TT-100
+    type: file_exists
+    target: "{Build/FunctionalTests.xml,Build/phpunit.functional.xml}"
+    severity: warning
+    desc: "FunctionalTests.xml should exist for functional test configuration"
+
+  - id: TT-101
+    type: file_exists
+    target: "{infection.json5,Build/infection.json5,infection.json}"
+    severity: info
+    desc: "Mutation testing config should exist"
+
+  - id: TT-102
+    type: file_exists
+    target: Tests/Functional/
+    severity: warning
+    desc: "Functional test directory should exist"
+
+  - id: TT-103
+    type: contains
+    target: composer.json
+    pattern: "ci:test:php:functional"
+    severity: warning
+    desc: "Functional test composer script should be defined"
+
+  - id: TT-104
+    type: contains
+    target: composer.json
+    pattern: "ci:test:php:mutation"
+    severity: info
+    desc: "Mutation test composer script should be defined"
+
   # === GITIGNORE CHECKS ===
   - id: TT-70
     type: contains
@@ -494,8 +527,29 @@ llm_reviews:
     severity: info
     desc: "Assess overall test coverage and quality"
 
+  # === TEST COVERAGE COMPLETENESS ===
+  - id: TT-85
+    domain: code-quality
+    prompt: |
+      Check every class in Classes/Service/ has a corresponding test in Tests/Unit/Service/ or Tests/Functional/Service/:
+      1. List all PHP classes in Classes/Service/
+      2. For each class, check if a matching test file exists in Tests/Unit/Service/ or Tests/Functional/Service/
+      3. Flag any service class without a corresponding test
+    severity: warning
+    desc: "Every service class in Classes/Service/ should have a test in Tests/Unit/Service/ or Tests/Functional/Service/"
+
+  - id: TT-86
+    domain: code-quality
+    prompt: |
+      Check every ViewHelper in Classes/ViewHelpers/ has a corresponding test:
+      1. List all ViewHelper classes in Classes/ViewHelpers/ (recursively)
+      2. For each ViewHelper, check if a matching test file exists in Tests/Unit/ViewHelpers/ or Tests/Functional/ViewHelpers/
+      3. Flag any ViewHelper without a corresponding test
+    severity: warning
+    desc: "Every ViewHelper in Classes/ViewHelpers/ should have a corresponding test"
+
+  # === EVENT DISPATCH AND ERROR HANDLING ===
   - id: TT-77
-    type: llm_review
     domain: testing
     prompt: |
       Review test coverage for event dispatch error handling:
@@ -507,14 +561,15 @@ llm_reviews:
     desc: "Event dispatch catch blocks must have dedicated tests that verify exception handling behavior"
 
   - id: TT-78
-    type: llm_review
     domain: testing
     prompt: |
       Review test coverage for PHP error suppression and trigger_error:
       1. Find all uses of @ error suppression operator in production code
       2. Verify each @-suppressed call has tests covering both success and failure paths
-      3. Find functions that trigger PHP warnings (getimagesize, file_get_contents, etc.)
+      3. Find functions that are known to trigger PHP warnings on failure (e.g., getimagesize, file_get_contents, mkdir, unlink, fopen)
       4. Verify tests exist that trigger the warning path (e.g., invalid file input)
       5. Check that tests don't just suppress warnings but explicitly test error handling
+      6. Find all trigger_error() calls in production code and the code paths that rely on them
+      7. Verify tests assert how each triggered error is handled or propagated (e.g., custom error handlers, exceptions, logging)
     severity: warning
-    desc: "Functions with @ suppression or that trigger PHP warnings must have tests covering error paths"
+    desc: "Functions with @ suppression, trigger_error(), or that trigger PHP warnings must have tests covering error paths"

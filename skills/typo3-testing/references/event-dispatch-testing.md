@@ -46,7 +46,10 @@ public function testEventDispatchFailureIsLogged(): void
         ->method('error')
         ->with(
             self::stringContains('Event listener failed'),
-            self::arrayHasKey('exception')
+            self::callback(function (array $context): bool {
+                return array_key_exists('exception', $context)
+                    && $context['exception'] instanceof \Throwable;
+            })
         );
 
     // ... invoke production code, verify it doesn't throw ...
@@ -55,7 +58,7 @@ public function testEventDispatchFailureIsLogged(): void
 
 ## Testing PHP Warning/Error Functions
 
-Functions like `getimagesize()`, `file_get_contents()` with invalid input trigger PHP warnings.
+Functions like `getimagesize()` and `file_get_contents()` can trigger PHP warnings when given invalid input.
 
 ### Pattern: Suppressed Warning with Return Check
 
