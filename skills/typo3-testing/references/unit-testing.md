@@ -1542,6 +1542,161 @@ public function schedulerRunsAtMidnight(): void
 }
 ```
 
+## Test Patterns for TYPO3 Extensions
+
+### Coverage Attributes: #[CoversClass] and #[CoversNothing]
+
+Every test class MUST declare which production class it covers using `#[CoversClass]`. This is enforced when `beStrictAboutCoverageMetadata` is enabled in PHPUnit configuration.
+
+```php
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\UsesClass;
+use Vendor\Extension\Domain\Model\Translation;
+use Vendor\Extension\Domain\Repository\TranslationRepository;
+
+#[CoversClass(TranslationRepository::class)]
+#[UsesClass(Translation::class)]
+final class TranslationRepositoryTest extends UnitTestCase
+{
+    // ...
+}
+```
+
+**`#[CoversNothing]`** is used for tests that do not cover application code -- for example, security-oriented tests that validate PHP/libxml behavior rather than extension logic:
+
+```php
+use PHPUnit\Framework\Attributes\CoversNothing;
+
+#[CoversNothing]
+final class XxeProtectionTest extends UnitTestCase
+{
+    #[Test]
+    public function libxmlDisablesExternalEntityLoading(): void
+    {
+        // This tests PHP/libxml behavior, not application code
+        $previousValue = libxml_disable_entity_loader(true);
+        self::assertTrue($previousValue || true);
+    }
+}
+```
+
+### #[UsesClass] for Domain Model Dependencies
+
+When a test exercises domain models indirectly (e.g., a repository test creates model instances), declare them with `#[UsesClass]` to keep coverage reports accurate:
+
+```php
+#[CoversClass(TranslationService::class)]
+#[UsesClass(Translation::class)]
+#[UsesClass(Language::class)]
+final class TranslationServiceTest extends UnitTestCase
+{
+    // Translation and Language are used by TranslationService but not the
+    // primary subject under test — #[UsesClass] prevents coverage gaps
+}
+```
+
+### Mocking All Repository Dependencies
+
+Always mock repository dependencies with `$this->createMock()`. Repositories interact with the database and cannot function in unit tests:
+
+```php
+#[CoversClass(TranslationService::class)]
+final class TranslationServiceTest extends UnitTestCase
+{
+    private TranslationService $subject;
+
+    /** @var TranslationRepository&MockObject */
+    private TranslationRepository $translationRepositoryMock;
+
+    /** @var LanguageRepository&MockObject */
+    private LanguageRepository $languageRepositoryMock;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        /** @var TranslationRepository&MockObject $translationRepositoryMock */
+        $translationRepositoryMock = $this->createMock(TranslationRepository::class);
+
+        /** @var LanguageRepository&MockObject $languageRepositoryMock */
+        $languageRepositoryMock = $this->createMock(LanguageRepository::class);
+
+        $this->translationRepositoryMock = $translationRepositoryMock;
+        $this->languageRepositoryMock = $languageRepositoryMock;
+
+        $this->subject = new TranslationService(
+            $this->translationRepositoryMock,
+            $this->languageRepositoryMock,
+        );
+    }
+}
+```
+
+### Testing Fluent Setters (return $this)
+
+Domain models with fluent setters (`return $this`) need two assertions: verify the value was set AND verify the setter returns the object itself:
+
+```php
+#[Test]
+public function setValueSetsValueAndReturnsSelf(): void
+{
+    $result = $this->subject->setValue('test-value');
+
+    // Verify the value was actually set
+    self::assertSame('test-value', $this->subject->getValue());
+
+    // Verify fluent interface — setter returns $this
+    self::assertSame($this->subject, $result);
+}
+
+#[Test]
+public function setKeySetsKeyAndReturnsSelf(): void
+{
+    $result = $this->subject->setKey('my-key');
+
+    self::assertSame('my-key', $this->subject->getKey());
+    self::assertSame($this->subject, $result);
+}
+```
+
+**Why test both:** A setter could accidentally return `new self()` instead of `$this`, or return nothing at all. The `assertSame($this->subject, $result)` check catches both bugs.
+
+### Testing Auto-Created Translations
+
+When an extension auto-creates translation stubs (e.g., for missing locale entries), test that the auto-created flag is set and the placeholder value is correct:
+
+```php
+#[Test]
+public function autoCreatedTranslationHasCorrectProperties(): void
+{
+    $translation = Translation::createAutoTranslation(
+        key: 'label.greeting',
+        locale: 'de',
+    );
+
+    // Auto-created flag must be true
+    self::assertTrue($translation->isAutoCreated());
+
+    // Value should contain a placeholder indicating it needs translation
+    self::assertStringContainsString('[TRANSLATE]', $translation->getValue());
+
+    // Key and locale must be preserved
+    self::assertSame('label.greeting', $translation->getKey());
+    self::assertSame('de', $translation->getLocale());
+}
+
+#[Test]
+public function manualTranslationIsNotAutoCreated(): void
+{
+    $translation = new Translation();
+    $translation->setKey('label.greeting');
+    $translation->setValue('Hallo');
+
+    self::assertFalse($translation->isAutoCreated());
+    self::assertSame('Hallo', $translation->getValue());
+}
+```
+
 ## Resources
 
 - [TYPO3 Unit Testing Documentation](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/Testing/UnitTests.html)
