@@ -34,7 +34,7 @@ mechanical:
 
   - id: TT-02
     type: file_exists
-    target: "{Build/FunctionalTests.xml,Build/phpunit.functional.xml}"
+    target: Build/FunctionalTests.xml
     severity: error
     desc: "PHPUnit functional test config must exist (Build/FunctionalTests.xml or Build/phpunit.functional.xml)"
 
@@ -53,7 +53,7 @@ mechanical:
 
   - id: TT-05
     type: regex
-    target: "{Build/FunctionalTests.xml,Build/phpunit.functional.xml}"
+    target: Build/FunctionalTests.xml
     pattern: '<testsuite.*name="functional"'
     severity: error
     desc: "PHPUnit config must define functional test suite"
@@ -336,13 +336,13 @@ mechanical:
   # === ADDITIONAL TEST INFRASTRUCTURE ===
   - id: TT-100
     type: file_exists
-    target: "{Build/FunctionalTests.xml,Build/phpunit.functional.xml}"
+    target: Build/FunctionalTests.xml
     severity: warning
     desc: "FunctionalTests.xml should exist for functional test configuration"
 
   - id: TT-101
     type: file_exists
-    target: "{infection.json5,Build/infection.json5,infection.json}"
+    target: infection.json5
     severity: info
     desc: "Mutation testing config should exist"
 

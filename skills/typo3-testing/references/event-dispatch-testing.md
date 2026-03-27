@@ -26,7 +26,7 @@ public function testEventIsDispatched(): void
     $eventDispatcher->expects(self::once())
         ->method('dispatch')
         ->with(self::isInstanceOf(ImageProcessedEvent::class))
-        ->willReturnArgument(0);
+        ->willReturnArgument(0); // PSR-14: dispatch() returns the (possibly modified) event
 
     // ... invoke production code ...
 }
