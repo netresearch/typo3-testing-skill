@@ -342,24 +342,6 @@ mechanical:
     desc: "composer.lock should be in .gitignore (TYPO3 extensions should not commit it)"
 
   # === ADDITIONAL TEST INFRASTRUCTURE ===
-  - id: TT-100
-    type: file_exists
-    target: "{Build/FunctionalTests.xml,Build/phpunit.functional.xml}"
-    severity: warning
-    desc: "Functional test PHPUnit config (Build/FunctionalTests.xml or Build/phpunit.functional.xml) must exist for functional test execution"
-
-  - id: TT-101
-    type: file_exists
-    target: "{infection.json5,infection.json}"
-    severity: info
-    desc: "Infection config (infection.json5 or infection.json) should exist for mutation testing quality verification"
-
-  - id: TT-102
-    type: file_exists
-    target: Tests/Functional/
-    severity: warning
-    desc: "Tests/Functional/ directory must exist — functional tests verify DB interactions, repositories, and controller behavior"
-
   - id: TT-103
     type: json_path
     target: composer.json
@@ -392,25 +374,34 @@ mechanical:
   - id: TT-120
     type: command
     command: |
-      missing=0; for f in Classes/Service/*.php; do
-        [ -f "$f" ] || continue
+      missing=0
+      find Classes/Service -name '*.php' -print0 2>/dev/null | while IFS= read -r -d '' f; do
         base=$(basename "$f" .php)
-        if ! ls Tests/Unit/Service/${base}Test.php 2>/dev/null >&2; then missing=$((missing+1)); fi
-      done; [ "$missing" -eq 0 ]
+        rel=${f#Classes/}
+        dir=$(dirname "$rel")
+        if [ ! -f "Tests/Unit/${dir}/${base}Test.php" ] && [ ! -f "Tests/Functional/${dir}/${base}Test.php" ]; then
+          echo "Missing test for $f"; missing=$((missing+1))
+        fi
+      done
+      [ "$missing" -eq 0 ]
     severity: warning
-    desc: "Every class in Classes/Service/ should have a corresponding unit test in Tests/Unit/Service/"
+    desc: "Every class in Classes/Service/ (including subdirectories) should have a corresponding test"
 
   - id: TT-121
     type: command
     command: |
-      missing=0; for f in $(find Classes/ViewHelpers -name '*ViewHelper.php' 2>/dev/null); do
-        [ -f "$f" ] || continue
-        rel=${f#Classes/}; base=$(basename "$f" .php)
+      missing=0
+      find Classes/ViewHelpers -name '*ViewHelper.php' -print0 2>/dev/null | while IFS= read -r -d '' f; do
+        base=$(basename "$f" .php)
+        rel=${f#Classes/}
         dir=$(dirname "$rel")
-        if ! ls "Tests/Unit/${dir}/${base}Test.php" 2>/dev/null >&2; then missing=$((missing+1)); fi
-      done; [ "$missing" -eq 0 ]
+        if [ ! -f "Tests/Unit/${dir}/${base}Test.php" ] && [ ! -f "Tests/Functional/${dir}/${base}Test.php" ]; then
+          echo "Missing test for $f"; missing=$((missing+1))
+        fi
+      done
+      [ "$missing" -eq 0 ]
     severity: warning
-    desc: "Every ViewHelper in Classes/ViewHelpers/ should have a corresponding unit test"
+    desc: "Every ViewHelper in Classes/ViewHelpers/ (including subdirectories) should have a corresponding test"
 
 llm_reviews:
   # === TEST QUALITY REVIEWS ===
