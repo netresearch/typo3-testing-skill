@@ -115,36 +115,41 @@ $mock->method('foo')
     });
 ```
 
-### PHPUnit 12: Mock Objects Without Expectations
+### Mock Objects Without Expectations
 
-PHPUnit 12 shows notices when mocks have no configured expectations. Suppress with the attribute:
+PHPUnit 12 shows notices when mocks created with `createMock()` have no configured expectations.
+
+> **WARNING:** `#[AllowMockObjectsWithoutExpectations]` is a PHPUnit 12-only attribute. It does NOT exist in PHPUnit 11 (used on PHP 8.2 CI). Using it causes a fatal error on PHPUnit 11. **Do not use this attribute** in projects that must support PHPUnit 11.
+
+**Solution: Use `createStub()` instead of `createMock()`** when no expectations are needed:
 
 ```php
-use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 
 #[CoversClass(MyService::class)]
-#[AllowMockObjectsWithoutExpectations]  // Suppress "no expectations" notice
 final class MyServiceTest extends FunctionalTestCase
 {
     public function testSomething(): void
     {
-        // Mock created but no expects() configured - that's OK
-        $mock = $this->createMock(DependencyInterface::class);
-        $service = new MyService($mock);
+        // GOOD: createStub() for doubles without expectations
+        $stub = $this->createStub(DependencyInterface::class);
+        $stub->method('getValue')->willReturn('default');
+        $service = new MyService($stub);
 
-        // Test the service behavior
         self::assertTrue($service->isValid());
     }
 }
 ```
 
-**When to use:**
-- Mocks used only for satisfying type hints
-- Fuzz tests where mocks aren't the focus
-- Tests where the mock's behavior is irrelevant
+**When to use `createStub()`:**
+- Test doubles used only for satisfying type hints
+- Fuzz tests where the double's interactions aren't the focus
+- Tests where the double's behavior is irrelevant
 
-**Best practice:** Only use when genuinely appropriate. Most tests should verify mock interactions.
+**When to use `createMock()`:**
+- You need `expects()` to verify call counts or arguments
+
+See [Test Environment Guards](test-environment-guards.md#phpunit-version-compatibility-createmock-vs-createstub) for the full decision guide.
 
 ### PHPUnit 12: Attribute-Based Annotations
 
@@ -182,7 +187,7 @@ final class MyTest extends TestCase
 | `#[Group('slow')]` | Test grouping |
 | `#[DataProvider('dataMethod')]` | Data provider |
 | `#[Depends('testFirst')]` | Test dependencies |
-| `#[AllowMockObjectsWithoutExpectations]` | Suppress mock notices |
+| `#[AllowMockObjectsWithoutExpectations]` | Suppress mock notices (PHPUnit 12 ONLY -- use `createStub()` instead) |
 
 ## Database Credentials for DDEV
 
