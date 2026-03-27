@@ -34,7 +34,7 @@ mechanical:
 
   - id: TT-02
     type: file_exists
-    target: "{Build/FunctionalTests.xml,Build/phpunit.functional.xml}"
+    target: Build/FunctionalTests.xml
     severity: error
     desc: "PHPUnit functional test config must exist (Build/FunctionalTests.xml or Build/phpunit.functional.xml)"
 
@@ -53,7 +53,7 @@ mechanical:
 
   - id: TT-05
     type: regex
-    target: "{Build/FunctionalTests.xml,Build/phpunit.functional.xml}"
+    target: Build/FunctionalTests.xml
     pattern: '<testsuite.*name="functional"'
     severity: error
     desc: "PHPUnit config must define functional test suite"
@@ -281,7 +281,7 @@ mechanical:
   # === MUTATION TESTING ===
   - id: TT-18
     type: file_exists
-    target: "{infection.json5,infection.json}"
+    target: infection.json5
     severity: info
     desc: "Infection config should exist for mutation testing"
 
@@ -484,3 +484,50 @@ llm_reviews:
       Sample Tests/Unit/ and Tests/Functional/ directories and assess quality.
     severity: info
     desc: "Assess overall test coverage and quality"
+
+  # === TEST COVERAGE COMPLETENESS ===
+  - id: TT-87
+    domain: code-quality
+    prompt: |
+      Check every class in Classes/Service/ has a corresponding test in Tests/Unit/Service/ or Tests/Functional/Service/:
+      1. List all PHP classes in Classes/Service/
+      2. For each class, check if a matching test file exists in Tests/Unit/Service/ or Tests/Functional/Service/
+      3. Flag any service class without a corresponding test
+    severity: warning
+    desc: "Every service class in Classes/Service/ should have a test in Tests/Unit/Service/ or Tests/Functional/Service/"
+
+  - id: TT-88
+    domain: code-quality
+    prompt: |
+      Check every ViewHelper in Classes/ViewHelpers/ has a corresponding test:
+      1. List all ViewHelper classes in Classes/ViewHelpers/ (recursively)
+      2. For each ViewHelper, check if a matching test file exists in Tests/Unit/ViewHelpers/ or Tests/Functional/ViewHelpers/
+      3. Flag any ViewHelper without a corresponding test
+    severity: warning
+    desc: "Every ViewHelper in Classes/ViewHelpers/ should have a corresponding test"
+
+  # === EVENT DISPATCH AND ERROR HANDLING ===
+  - id: TT-77
+    domain: testing
+    prompt: |
+      Review test coverage for event dispatch error handling:
+      1. Find all try/catch blocks that wrap EventDispatcherInterface::dispatch() calls
+      2. Verify each catch block has a dedicated test that triggers the exception path
+      3. Check that tests mock the EventDispatcher to throw exceptions and verify the catch behavior
+      4. Flag any event dispatch catch block without corresponding test coverage
+    severity: warning
+    desc: "Event dispatch catch blocks must have dedicated tests that verify exception handling behavior"
+
+  - id: TT-78
+    domain: testing
+    prompt: |
+      Review test coverage for PHP error suppression and trigger_error:
+      1. Find all uses of @ error suppression operator in production code
+      2. Verify each @-suppressed call has tests covering both success and failure paths
+      3. Find functions that are known to trigger PHP warnings on failure (e.g., getimagesize, file_get_contents, mkdir, unlink, fopen)
+      4. Verify tests exist that trigger the warning path (e.g., invalid file input)
+      5. Check that tests don't just suppress warnings but explicitly test error handling
+      6. Find all trigger_error() calls in production code and the code paths that rely on them
+      7. Verify tests assert how each triggered error is handled or propagated (e.g., custom error handlers, exceptions, logging)
+    severity: warning
+    desc: "Functions with @ suppression, trigger_error(), or that trigger PHP warnings must have tests covering error paths"
