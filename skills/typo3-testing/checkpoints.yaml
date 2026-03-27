@@ -281,7 +281,7 @@ mechanical:
   # === MUTATION TESTING ===
   - id: TT-18
     type: file_exists
-    target: "{infection.json5,infection.json}"
+    target: infection.json5
     severity: info
     desc: "Infection config should exist for mutation testing"
 
@@ -332,39 +332,6 @@ mechanical:
     target: captainhook.json
     severity: warning
     desc: "captainhook.json should exist for local git hook automation (pre-commit, commit-msg, pre-push)"
-
-  # === ADDITIONAL TEST INFRASTRUCTURE ===
-  - id: TT-100
-    type: file_exists
-    target: Build/FunctionalTests.xml
-    severity: warning
-    desc: "FunctionalTests.xml should exist for functional test configuration"
-
-  - id: TT-101
-    type: file_exists
-    target: infection.json5
-    severity: info
-    desc: "Mutation testing config should exist"
-
-  - id: TT-102
-    type: file_exists
-    target: Tests/Functional/
-    severity: warning
-    desc: "Functional test directory should exist"
-
-  - id: TT-103
-    type: contains
-    target: composer.json
-    pattern: "ci:test:php:functional"
-    severity: warning
-    desc: "Functional test composer script should be defined"
-
-  - id: TT-104
-    type: contains
-    target: composer.json
-    pattern: "ci:test:php:mutation"
-    severity: info
-    desc: "Mutation test composer script should be defined"
 
   # === GITIGNORE CHECKS ===
   - id: TT-70
@@ -528,7 +495,7 @@ llm_reviews:
     desc: "Assess overall test coverage and quality"
 
   # === TEST COVERAGE COMPLETENESS ===
-  - id: TT-85
+  - id: TT-87
     domain: code-quality
     prompt: |
       Check every class in Classes/Service/ has a corresponding test in Tests/Unit/Service/ or Tests/Functional/Service/:
@@ -538,7 +505,7 @@ llm_reviews:
     severity: warning
     desc: "Every service class in Classes/Service/ should have a test in Tests/Unit/Service/ or Tests/Functional/Service/"
 
-  - id: TT-86
+  - id: TT-88
     domain: code-quality
     prompt: |
       Check every ViewHelper in Classes/ViewHelpers/ has a corresponding test:
