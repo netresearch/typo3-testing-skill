@@ -308,6 +308,22 @@ mechanical:
     severity: info
     desc: "CI matrix should use fail-fast: false to run all combinations"
 
+  # === TEST ENVIRONMENT GUARDS ===
+  - id: TT-75
+    type: regex
+    target: Tests/**/*Test.php
+    pattern: 'tearDown\s*\(\s*\)\s*:\s*void'
+    severity: warning
+    desc: "Test classes creating filesystem artifacts (tempDir, tempFile) must implement tearDown() for cleanup"
+    note: "Check manually: only flag when setUp() creates files/dirs but tearDown() is missing"
+
+  - id: TT-76
+    type: regex
+    target: Tests/**/*Test.php
+    pattern: 'AllowMockObjectsWithoutExpectations'
+    severity: error
+    desc: "#[AllowMockObjectsWithoutExpectations] is PHPUnit 12 only — causes fatal error on PHPUnit 11 (PHP 8.2 CI). Use createStub() instead."
+
   # === NEGATIVE CHECKS (should NOT exist) ===
 
   # === GIT HOOKS ===

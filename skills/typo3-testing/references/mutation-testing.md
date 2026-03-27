@@ -40,11 +40,15 @@ composer require --dev infection/infection:^0.27
 
 ## Configuration
 
-Create `infection.json5` in project root:
+Create `infection.json5` in project root.
+
+> **TYPO3 convention:** When using `.Build/` for vendor dependencies, use the local schema path
+> `".Build/vendor/infection/infection/resources/schema.json"` instead of the remote URL. This
+> works offline and reflects the actual installed version.
 
 ```json5
 {
-    "$schema": "https://raw.githubusercontent.com/infection/infection/master/resources/schema.json",
+    "$schema": ".Build/vendor/infection/infection/resources/schema.json",
     "source": {
         "directories": [
             "Classes"
