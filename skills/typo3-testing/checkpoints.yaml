@@ -341,8 +341,93 @@ mechanical:
     severity: error
     desc: "composer.lock should be in .gitignore (TYPO3 extensions should not commit it)"
 
+  # === ADDITIONAL TEST INFRASTRUCTURE ===
+  - id: TT-100
+    type: file_exists
+    target: "{Build/FunctionalTests.xml,Build/phpunit.functional.xml}"
+    severity: warning
+    desc: "Functional test PHPUnit config (Build/FunctionalTests.xml or Build/phpunit.functional.xml) must exist for functional test execution"
+
+  - id: TT-101
+    type: file_exists
+    target: "{infection.json5,infection.json}"
+    severity: info
+    desc: "Infection config (infection.json5 or infection.json) should exist for mutation testing quality verification"
+
+  - id: TT-102
+    type: file_exists
+    target: Tests/Functional/
+    severity: warning
+    desc: "Tests/Functional/ directory must exist — functional tests verify DB interactions, repositories, and controller behavior"
+
+  - id: TT-103
+    type: json_path
+    target: composer.json
+    pattern: '.scripts["ci:test:php:functional"]'
+    severity: warning
+    desc: "composer.json should define ci:test:php:functional script for running functional tests via composer"
+
+  - id: TT-104
+    type: json_path
+    target: composer.json
+    pattern: '.scripts["ci:test:php:mutation"]'
+    severity: info
+    desc: "composer.json should define ci:test:php:mutation script for running mutation tests via composer"
+
+  # === TEST QUALITY PATTERNS ===
+  - id: TT-110
+    type: regex
+    target: Tests/**/*Test.php
+    pattern: 'assertEquals\s*\(\s*null\s*,'
+    severity: warning
+    desc: "Use assertNull() instead of assertEquals(null, ...) for clearer intent and better failure messages"
+
+  - id: TT-111
+    type: file_exists
+    target: Tests/Functional/Fixtures/
+    severity: info
+    desc: "Tests/Functional/Fixtures/ directory should exist for CSV fixture data used by functional tests"
+
+  # === TEST COVERAGE COMPLETENESS ===
+  - id: TT-120
+    type: command
+    command: |
+      missing=0; for f in Classes/Service/*.php; do
+        [ -f "$f" ] || continue
+        base=$(basename "$f" .php)
+        if ! ls Tests/Unit/Service/${base}Test.php 2>/dev/null >&2; then missing=$((missing+1)); fi
+      done; [ "$missing" -eq 0 ]
+    severity: warning
+    desc: "Every class in Classes/Service/ should have a corresponding unit test in Tests/Unit/Service/"
+
+  - id: TT-121
+    type: command
+    command: |
+      missing=0; for f in $(find Classes/ViewHelpers -name '*ViewHelper.php' 2>/dev/null); do
+        [ -f "$f" ] || continue
+        rel=${f#Classes/}; base=$(basename "$f" .php)
+        dir=$(dirname "$rel")
+        if ! ls "Tests/Unit/${dir}/${base}Test.php" 2>/dev/null >&2; then missing=$((missing+1)); fi
+      done; [ "$missing" -eq 0 ]
+    severity: warning
+    desc: "Every ViewHelper in Classes/ViewHelpers/ should have a corresponding unit test"
+
 llm_reviews:
   # === TEST QUALITY REVIEWS ===
+  - id: TT-85
+    domain: code-quality
+    prompt: |
+      Review test files for incorrect #[CoversClass] attribute usage:
+      - Each #[CoversClass(Foo::class)] must reference a class that the test
+        actually exercises (creates, calls methods on, or asserts behavior of).
+      - Flag any test that declares #[CoversClass] on a class it does not
+        instantiate, mock, or invoke methods on within any test method.
+      - Common mistake: copy-pasting CoversClass from another test file.
+
+      Examine Tests/Unit/**/*Test.php and Tests/Functional/**/*Test.php.
+    severity: warning
+    desc: "Verify #[CoversClass] attributes reference classes the test actually exercises"
+
   - id: TT-80
     domain: code-quality
     prompt: |
