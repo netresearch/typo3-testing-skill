@@ -493,3 +493,28 @@ llm_reviews:
       Sample Tests/Unit/ and Tests/Functional/ directories and assess quality.
     severity: info
     desc: "Assess overall test coverage and quality"
+
+  - id: TT-77
+    type: llm_review
+    domain: testing
+    prompt: |
+      Review test coverage for event dispatch error handling:
+      1. Find all try/catch blocks that wrap EventDispatcherInterface::dispatch() calls
+      2. Verify each catch block has a dedicated test that triggers the exception path
+      3. Check that tests mock the EventDispatcher to throw exceptions and verify the catch behavior
+      4. Flag any event dispatch catch block without corresponding test coverage
+    severity: warning
+    desc: "Event dispatch catch blocks must have dedicated tests that verify exception handling behavior"
+
+  - id: TT-78
+    type: llm_review
+    domain: testing
+    prompt: |
+      Review test coverage for PHP error suppression and trigger_error:
+      1. Find all uses of @ error suppression operator in production code
+      2. Verify each @-suppressed call has tests covering both success and failure paths
+      3. Find functions that trigger PHP warnings (getimagesize, file_get_contents, etc.)
+      4. Verify tests exist that trigger the warning path (e.g., invalid file input)
+      5. Check that tests don't just suppress warnings but explicitly test error handling
+    severity: warning
+    desc: "Functions with @ suppression or that trigger PHP warnings must have tests covering error paths"
