@@ -749,9 +749,109 @@ jobs:
         database: ['mysqli', 'postgres']
 ```
 
+## Netresearch CI Integration
+
+Netresearch TYPO3 extensions use reusable workflows from `netresearch/typo3-ci-workflows` instead of defining CI steps directly in project repositories.
+
+### Core Principle
+
+**NEVER add direct GitHub Actions steps (checkout, setup-php, composer install, etc.) to project workflows.** All CI logic is centralized in reusable workflows provided by `netresearch/typo3-ci-workflows`. Projects only configure inputs and call the shared workflows.
+
+### Single Dev Dependency
+
+```bash
+composer require --dev netresearch/typo3-ci-workflows:^1.1
+```
+
+This single package transitively provides all quality tools (PHPStan, php-cs-fixer, Rector, PHPUnit, Infection, phpat, captainhook, etc.), shared configurations, and reusable GitHub Actions workflows.
+
+### Workflow Configuration (.github/workflows/ci.yml)
+
+```yaml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    uses: netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main
+    with:
+      php-versions: '["8.2", "8.3", "8.4", "8.5"]'
+      typo3-versions: '["^13.4"]'
+```
+
+### Push Trigger: Restrict to main
+
+The `push` trigger MUST be restricted to `branches: [main]` to avoid duplicate CI runs. Without this restriction, pushing to a branch with an open PR triggers both a `push` event and a `pull_request` event, resulting in duplicate workflow runs:
+
+```yaml
+# Correct: push only on main, PR on all branches
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Wrong: push on all branches causes duplicate runs with PRs
+on:
+  push:
+  pull_request:
+```
+
+### Test Matrix
+
+The reusable workflow handles the full test matrix based on inputs:
+
+| Dimension | Values | Notes |
+|-----------|--------|-------|
+| PHP | 8.2, 8.3, 8.4, 8.5 | All versions TYPO3 v13 supports |
+| TYPO3 | ^13.4 | Current LTS |
+| Database | pdo_sqlite (default) | Configurable per project |
+
+### PHPStan Extensions Auto-Discovery
+
+When using `netresearch/typo3-ci-workflows`, PHPStan extensions (phpstan-strict-rules, phpstan-typo3, phpstan-phpunit, etc.) are auto-discovered by `phpstan/extension-installer`. Do NOT manually include extension neon files in your `phpstan.neon`:
+
+```neon
+# Correct: only include shared config and baseline
+includes:
+    - %currentWorkingDirectory%/.Build/vendor/netresearch/typo3-ci-workflows/config/phpstan/phpstan.neon
+    - phpstan-baseline.neon
+
+parameters:
+    paths:
+        - ../Classes
+        - ../Tests/Architecture
+```
+
+```neon
+# Wrong: manual includes cause duplicate registration errors
+includes:
+    - %currentWorkingDirectory%/.Build/vendor/phpstan/phpstan-strict-rules/rules.neon
+    - %currentWorkingDirectory%/.Build/vendor/saschaegerer/phpstan-typo3/extension.neon
+```
+
+**Exception:** When using git worktrees with `composer install --no-plugins`, use the explicit includes file `includes-no-extension-installer.neon` instead (see quality-tools.md for details).
+
+### What the Reusable Workflow Runs
+
+The CI workflow executes these checks (projects do not need to define them):
+
+1. **Linting** -- PHP syntax validation
+2. **Code style** -- php-cs-fixer dry-run
+3. **Static analysis** -- PHPStan at level 10
+4. **Unit tests** -- across PHP version matrix
+5. **Functional tests** -- across PHP version matrix
+6. **Mutation testing** -- Infection PHP
+7. **Architecture tests** -- phpat rules
+8. **Security audit** -- `composer audit`
+
 ## Resources
 
 - [GitHub Actions Documentation](https://docs.github.com/actions)
 - [GitLab CI Documentation](https://docs.gitlab.com/ee/ci/)
 - [TYPO3 Tea Extension CI](https://github.com/TYPO3BestPractices/tea/tree/main/.github/workflows)
 - [shivammathur/setup-php](https://github.com/shivammathur/setup-php)
+- [netresearch/typo3-ci-workflows](https://github.com/netresearch/typo3-ci-workflows)

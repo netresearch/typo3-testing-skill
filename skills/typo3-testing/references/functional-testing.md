@@ -85,20 +85,28 @@ Set via environment or `FunctionalTests.xml`:
 Create fixtures in `Tests/Functional/Fixtures/`:
 
 ```csv
-# pages.csv
-uid,pid,title,doktype
-1,0,"Root",1
-2,1,"Products",1
-3,1,"Services",1
+"pages"
+,"uid","pid","title","doktype"
+,1,0,"Root",1
+,2,1,"Products",1
+,3,1,"Services",1
 ```
 
 ```csv
-# tx_myext_domain_model_product.csv
-uid,pid,title,price,category
-1,2,"Product A",10.00,1
-2,2,"Product B",20.00,1
-3,2,"Product C",15.00,2
+"tx_myext_domain_model_product"
+,"uid","pid","title","price","category"
+,1,2,"Product A",10.00,1
+,2,2,"Product B",20.00,1
+,3,2,"Product C",15.00,2
 ```
+
+**CSV fixture format rules:**
+
+1. **First row is the table name** (quoted): `"pages"`, `"tx_myext_domain_model_product"`
+2. **Second row is the column header** (leading comma, quoted column names): `,"uid","pid","title"`
+3. **Data rows** start with a leading comma: `,1,0,"Root",1`
+4. **Foreign key references must be consistent**: if a product references `pid=2`, a pages fixture must contain `uid=2`. Inconsistent references cause silent test failures where records appear missing.
+5. **Multiple tables can share a single CSV file** by repeating the table-name + header pattern
 
 ### Import Fixtures
 
@@ -153,20 +161,14 @@ protected function setUp(): void
 ### Load Test Extensions
 
 ```php
-// Composer package name format (preferred, works with all setups)
+// Composer package name format — use 'vendor/extension-name' from composer.json
 protected array $testExtensionsToLoad = [
     'vendor/my-extension',
     'vendor/dependency-extension',
 ];
-
-// Legacy path format (also works)
-protected array $testExtensionsToLoad = [
-    'typo3conf/ext/my_extension',
-    'typo3conf/ext/dependency_extension',
-];
 ```
 
-**Note:** Use the composer package name (from `composer.json` `name` field) for reliable resolution across different testing setups.
+**Important:** Always use the `vendor/extension-name` pattern matching the `name` field in the extension's `composer.json`. This is the only format that works reliably across all testing setups (local, CI, DDEV). The legacy `typo3conf/ext/my_extension` path format is deprecated and should not be used in new tests.
 
 ### Core Extensions
 
@@ -578,6 +580,7 @@ public function uploadsFile(): void
     bootstrap="FunctionalTestsBootstrap.php"
     cacheResult="false"
     beStrictAboutTestsThatDoNotTestAnything="true"
+    beStrictAboutOutputDuringTests="false"
     failOnDeprecation="true"
     failOnNotice="true"
     failOnWarning="true">
@@ -589,10 +592,16 @@ public function uploadsFile(): void
     <php>
         <const name="TYPO3_TESTING_FUNCTIONAL_REMOVE_ERROR_HANDLER" value="true" />
         <env name="TYPO3_CONTEXT" value="Testing"/>
-        <env name="typo3DatabaseDriver" value="mysqli"/>
+        <env name="typo3DatabaseDriver" value="pdo_sqlite"/>
     </php>
 </phpunit>
 ```
+
+**Key configuration notes:**
+
+- **`bootstrap="FunctionalTestsBootstrap.php"`**: Always use `FunctionalTestsBootstrap.php` (not the vendor autoload). This bootstrap initializes the TYPO3 testing framework, creates temp directories, and sets up the test instance environment.
+- **`beStrictAboutOutputDuringTests="false"`**: Required when testing ViewHelpers via `StandaloneView`, since rendering output triggers PHPUnit's output-during-tests strictness check. Without this, ViewHelper E2E tests will fail as risky.
+- **`typo3DatabaseDriver` env var**: Use `pdo_sqlite` for fast local/CI testing without requiring a database server. SQLite is sufficient for most functional tests and eliminates external service dependencies. Use `mysqli` or `pdo_mysql` only when testing database-specific behavior.
 
 ### Bootstrap (Build/phpunit/FunctionalTestsBootstrap.php)
 
@@ -912,6 +921,120 @@ If your code calls `parseFunc()`, `typoLink()`, or any method that requires the 
 2. **E2E test** to verify the actual rendered output in a real TYPO3 frontend
 
 This split gives you fast feedback (unit) plus real-world confidence (E2E) without fighting the functional test framework.
+
+## Mocking ExtensionConfiguration with GeneralUtility::addInstance()
+
+In functional tests, `ExtensionConfiguration` is resolved from the DI container. To substitute it with a mock (e.g., to control configuration values without a real `ext_conf_template.txt`), use `GeneralUtility::addInstance()`:
+
+```php
+use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+
+protected function setUp(): void
+{
+    parent::setUp();
+
+    $extensionConfigurationMock = $this->createMock(ExtensionConfiguration::class);
+    $extensionConfigurationMock
+        ->method('get')
+        ->willReturnCallback(function (string $extension, string $key): mixed {
+            return match ($key) {
+                'enableFeature' => true,
+                'timeout' => 30,
+                default => null,
+            };
+        });
+
+    // Register the mock so TYPO3's DI resolves it instead of the real instance
+    GeneralUtility::addInstance(ExtensionConfiguration::class, $extensionConfigurationMock);
+}
+```
+
+**Why this is needed:** Functional tests bootstrap a real TYPO3 instance, so `$this->get(ExtensionConfiguration::class)` returns the actual service. `GeneralUtility::addInstance()` queues a replacement that is consumed on the next `makeInstance()` call for that class.
+
+## Repository Instance Cache Pattern
+
+When a repository maintains an internal object cache (non-static), each test gets a fresh repository instance via `$this->get()`, which means the cache is empty at the start of each test. This eliminates the need for reflection-based cache resets between tests:
+
+```php
+final class TranslationRepository
+{
+    /** @var array<string, Translation> */
+    private array $cache = [];
+
+    public function findByKey(string $key): ?Translation
+    {
+        if (isset($this->cache[$key])) {
+            return $this->cache[$key];
+        }
+
+        // ... query database ...
+        $this->cache[$key] = $result;
+        return $result;
+    }
+}
+```
+
+```php
+// In functional tests — no cache reset needed
+protected function setUp(): void
+{
+    parent::setUp();
+    // Each call to $this->get() returns a fresh instance with empty cache
+    $this->subject = $this->get(TranslationRepository::class);
+}
+```
+
+**Key insight:** Use instance (non-static) properties for repository caches. Static caches persist across tests and require reflection hacks (`ReflectionProperty::setValue(null, [])`) to reset, making tests fragile and coupled to implementation details.
+
+## ViewHelper E2E Tests with StandaloneView
+
+Test Fluid ViewHelpers end-to-end by rendering templates through `StandaloneView`. This verifies the full rendering pipeline including namespace registration, argument handling, and output:
+
+```php
+use TYPO3\CMS\Fluid\View\StandaloneView;
+
+final class MyViewHelperTest extends FunctionalTestCase
+{
+    protected array $testExtensionsToLoad = [
+        'vendor/my-extension',
+    ];
+
+    #[Test]
+    public function viewHelperRendersExpectedOutput(): void
+    {
+        $view = $this->get(StandaloneView::class);
+        $view->setTemplateSource(
+            '{namespace myext=Vendor\MyExtension\ViewHelpers}'
+            . '<myext:myViewHelper argument="value" />'
+        );
+
+        $result = $view->render();
+
+        self::assertStringContainsString('expected output', $result);
+    }
+
+    #[Test]
+    public function viewHelperHandlesEmptyArgument(): void
+    {
+        $view = $this->get(StandaloneView::class);
+        $view->setTemplateSource(
+            '{namespace myext=Vendor\MyExtension\ViewHelpers}'
+            . '<myext:myViewHelper argument="" />'
+        );
+
+        $result = $view->render();
+
+        self::assertSame('', trim($result));
+    }
+}
+```
+
+**Key patterns:**
+
+1. **`setTemplateSource()`**: Inline template string avoids file dependencies. Register the ViewHelper namespace with `{namespace myext=...}` at the start of the template.
+2. **`beStrictAboutOutputDuringTests="false"`**: Required in `FunctionalTests.xml` because `StandaloneView::render()` produces output that PHPUnit's strict mode would flag as risky.
+3. **Test both success and edge cases**: Verify expected output, empty arguments, missing arguments, and invalid input.
 
 ## Resources
 

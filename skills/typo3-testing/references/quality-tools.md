@@ -616,6 +616,91 @@ quality:
 8. **Latest PHP**: Run quality tools with latest PHP version (8.4+)
 9. **Regular Updates**: Keep tools and rules updated
 
+## Mutation Testing with Infection PHP
+
+Mutation testing verifies that your tests actually catch bugs, not just execute code paths. Infection PHP introduces small changes (mutants) to source code and checks whether tests fail.
+
+### Configuration (infection.json5)
+
+Create `infection.json5` in the project root:
+
+```json5
+{
+    "$schema": "https://raw.githubusercontent.com/infection/infection/master/resources/schema.json",
+    "source": {
+        "directories": [
+            "Classes"
+        ]
+    },
+    "phpUnit": {
+        "configDir": "Build/phpunit",
+        "customPath": ".Build/bin/phpunit"
+    },
+    "logs": {
+        "text": ".Build/var/infection/infection.log",
+        "html": ".Build/var/infection/infection.html",
+        "summary": ".Build/var/infection/summary.log"
+    },
+    "tmpDir": ".Build/var/infection",
+    "mutators": {
+        "@default": true
+    },
+    "minMsi": 30,
+    "minCoveredMsi": 60
+}
+```
+
+**Key configuration details:**
+
+- **`source.directories`**: Point at `Classes` (your production code). Never include `Tests/`.
+- **`phpUnit.configDir`**: Directory containing `UnitTests.xml` (Infection auto-detects PHPUnit config files there).
+- **`phpUnit.customPath`**: Path to the PHPUnit binary. When using `typo3-ci-workflows`, the binary is at `.Build/bin/phpunit` (not `vendor/bin/phpunit`).
+- **`minMsi` / `minCoveredMsi`**: Mutation Score Indicator thresholds. Start conservatively (30% MSI, 60% covered MSI) and increase as test coverage improves. Aiming for 80%+ covered MSI is a good long-term target.
+
+### Realistic MSI Thresholds
+
+| Stage | minMsi | minCoveredMsi | Notes |
+|-------|--------|---------------|-------|
+| Initial setup | 30 | 60 | Baseline for new extensions |
+| Growing coverage | 50 | 70 | After addressing low-hanging fruit |
+| Mature test suite | 70 | 80 | Well-tested extension |
+
+### Composer Script Integration
+
+```json
+{
+    "scripts": {
+        "ci:test:php:mutation": [
+            "infection --configuration=infection.json5 --threads=4"
+        ]
+    }
+}
+```
+
+### Installation
+
+When using `netresearch/typo3-ci-workflows`, `infection/infection` is provided transitively -- no separate `composer require` is needed. For standalone setups:
+
+```bash
+composer require --dev infection/infection
+```
+
+### Running Mutation Tests
+
+```bash
+# Via Composer script
+composer ci:test:php:mutation
+
+# Directly with thread control
+infection --configuration=infection.json5 --threads=4
+
+# Only mutate specific directories
+infection --configuration=infection.json5 --filter=Classes/Domain
+
+# Show escaped mutants (mutants that were NOT caught by tests)
+infection --configuration=infection.json5 --show-mutations
+```
+
 ## Resources
 
 - [PHPStan Documentation](https://phpstan.org/user-guide/getting-started)
@@ -623,3 +708,4 @@ quality:
 - [PHP CS Fixer Documentation](https://github.com/PHP-CS-Fixer/PHP-CS-Fixer)
 - [TYPO3 Coding Guidelines](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/CodingGuidelines/)
 - [netresearch/typo3-ci-workflows](https://github.com/netresearch/typo3-ci-workflows)
+- [Infection PHP Documentation](https://infection.github.io/guide/)
