@@ -2,16 +2,17 @@
 
 This skill enforces the following patterns. Violations should be flagged and corrected.
 
-## E2E Testing in CI (MANDATORY)
+## DDEV and Test Execution (MANDATORY)
 
 | Rule | Enforcement |
 |------|-------------|
+| **NEVER use DDEV for running tests** | Not in CI, not in runTests.sh, not in documentation examples |
 | **NEVER use DDEV in CI/CD** | Flag any `.github/workflows/*.yml` or `.gitlab-ci.yml` using `ddev` commands |
-| **Use GitHub Services** | E2E workflows MUST use MariaDB service container |
-| **Use PHP built-in server** | E2E workflows MUST use `php -S` for HTTP, not DDEV |
+| **Use PHP built-in server for E2E** | E2E workflows MUST use `php -S` for HTTP, not DDEV |
+| **Use Docker containers for functional tests** | Functional tests requiring DB MUST use service containers (MariaDB/MySQL) |
 | **Dual-mode Playwright config** | `playwright.config.ts` MUST use `TYPO3_BASE_URL` env var |
 
-**Why:** DDEV in CI is slow (2-3+ min startup), complex (Docker-in-Docker), resource-heavy, and fragile. The TYPO3 community standard is direct PHP or testing containers.
+**Why:** DDEV is for local development environments only. Using DDEV for running tests is slow (2-3+ min startup), complex (Docker-in-Docker in CI), resource-heavy, and fragile. The TYPO3 community standard is direct PHP or testing containers. Use PHP built-in server for E2E tests, Docker containers for functional tests.
 
 **Correct pattern:**
 ```yaml

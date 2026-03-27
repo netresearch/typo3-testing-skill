@@ -262,7 +262,7 @@ mechanical:
     type: json_path
     target: composer.json
     pattern: '.["require-dev"]["carlosas/phpat"]'
-    severity: info
+    severity: warning
     desc: "composer.json should require carlosas/phpat for architecture testing"
 
   # === E2E TESTING (Playwright) ===
@@ -325,6 +325,14 @@ mechanical:
     desc: "#[AllowMockObjectsWithoutExpectations] is PHPUnit 12 only — causes fatal error on PHPUnit 11 (PHP 8.2 CI). Use createStub() instead."
 
   # === NEGATIVE CHECKS (should NOT exist) ===
+
+  - id: TT-90
+    type: regex_not
+    target: .github/workflows/*.yml
+    pattern: 'ddev start|ddev exec|ddev-github-action|setup-ddev'
+    severity: error
+    desc: "DDEV must not be used in CI/CD. Use PHP built-in server or Docker containers."
+    tags: [ci, ddev, e2e]
 
   # === GIT HOOKS ===
   - id: TT-71
@@ -404,6 +412,19 @@ mechanical:
     desc: "Every ViewHelper in Classes/ViewHelpers/ (including subdirectories) should have a corresponding test"
 
 llm_reviews:
+  # === DEPENDENCY FRESHNESS ===
+  - id: TT-19
+    type: llm_review
+    severity: info
+    domain: dependencies
+    prompt: |
+      If package.json exists, check that test framework dependencies
+      (vitest, playwright, jest, jsdom) are not more than 2 major
+      versions behind the latest release. Outdated test tools can
+      cause false positives/negatives and miss new testing features.
+    desc: "npm test dependencies not excessively outdated"
+    tags: [npm, dependencies, testing]
+
   # === TEST QUALITY REVIEWS ===
   - id: TT-85
     domain: code-quality
