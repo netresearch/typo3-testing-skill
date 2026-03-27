@@ -374,32 +374,24 @@ mechanical:
   - id: TT-120
     type: command
     command: |
-      missing=0
-      find Classes/Service -name '*.php' -print0 2>/dev/null | while IFS= read -r -d '' f; do
+      find Classes/Service -name '*.php' 2>/dev/null | while read -r f; do
         base=$(basename "$f" .php)
         rel=${f#Classes/}
         dir=$(dirname "$rel")
-        if [ ! -f "Tests/Unit/${dir}/${base}Test.php" ] && [ ! -f "Tests/Functional/${dir}/${base}Test.php" ]; then
-          echo "Missing test for $f"; missing=$((missing+1))
-        fi
+        [ -f "Tests/Unit/${dir}/${base}Test.php" ] || [ -f "Tests/Functional/${dir}/${base}Test.php" ] || { echo "Missing test for $f"; exit 1; }
       done
-      [ "$missing" -eq 0 ]
     severity: warning
     desc: "Every class in Classes/Service/ (including subdirectories) should have a corresponding test"
 
   - id: TT-121
     type: command
     command: |
-      missing=0
-      find Classes/ViewHelpers -name '*ViewHelper.php' -print0 2>/dev/null | while IFS= read -r -d '' f; do
+      find Classes/ViewHelpers -name '*ViewHelper.php' 2>/dev/null | while read -r f; do
         base=$(basename "$f" .php)
         rel=${f#Classes/}
         dir=$(dirname "$rel")
-        if [ ! -f "Tests/Unit/${dir}/${base}Test.php" ] && [ ! -f "Tests/Functional/${dir}/${base}Test.php" ]; then
-          echo "Missing test for $f"; missing=$((missing+1))
-        fi
+        [ -f "Tests/Unit/${dir}/${base}Test.php" ] || [ -f "Tests/Functional/${dir}/${base}Test.php" ] || { echo "Missing test for $f"; exit 1; }
       done
-      [ "$missing" -eq 0 ]
     severity: warning
     desc: "Every ViewHelper in Classes/ViewHelpers/ (including subdirectories) should have a corresponding test"
 
