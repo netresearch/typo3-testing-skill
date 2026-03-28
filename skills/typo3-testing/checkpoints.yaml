@@ -58,6 +58,14 @@ mechanical:
     severity: error
     desc: "PHPUnit config must define functional test suite"
 
+  # === PHPUNIT DEPRECATED ATTRIBUTES ===
+  - id: TT-06
+    type: regex_not
+    target: "{Build/FunctionalTests.xml,Build/phpunit.xml,Build/UnitTests.xml,Build/phpunit.functional.xml}"
+    pattern: 'displayDetailsOnIncompleteTests|displayDetailsOnSkippedTests'
+    severity: warning
+    desc: "PHPUnit configs must not use displayDetailsOnIncompleteTests or displayDetailsOnSkippedTests (removed in PHPUnit 12)"
+
   # === TEST DIRECTORY STRUCTURE ===
   - id: TT-10
     type: file_exists
@@ -278,12 +286,36 @@ mechanical:
     severity: info
     desc: "Build/package.json should exist for Playwright/JS test dependencies"
 
+  - id: TT-17a
+    type: command
+    command: |
+      cfg=""
+      for f in Build/playwright.config.ts playwright.config.ts; do
+        [ -f "$f" ] && cfg="$f" && break
+      done
+      [ -z "$cfg" ] && exit 0
+      grep -q 'chromium' "$cfg" && grep -q 'firefox' "$cfg" && exit 0
+      echo "FAIL: $cfg should define at least Chromium and Firefox projects"
+      exit 1
+    severity: warning
+    desc: "If playwright.config.ts exists, it should define at least Chromium and Firefox projects for cross-browser E2E coverage"
+
   # === MUTATION TESTING ===
   - id: TT-18
     type: file_exists
     target: infection.json5
     severity: info
     desc: "Infection config should exist for mutation testing"
+
+  - id: TT-18a
+    type: command
+    command: |
+      test -f infection.json5 || exit 0
+      grep -rql 'infection\|mutation\|ci:test:php:mutation' .github/workflows/*.yml 2>/dev/null && exit 0
+      echo "FAIL: infection.json5 exists but mutation testing is not configured in CI"
+      exit 1
+    severity: warning
+    desc: "If infection.json5 exists, mutation testing should be configured in CI (at least as a scheduled job)"
 
   # === ADDITIONAL DEV DEPENDENCIES ===
   - id: TT-63
@@ -552,3 +584,96 @@ llm_reviews:
       7. Verify tests assert how each triggered error is handled or propagated (e.g., custom error handlers, exceptions, logging)
     severity: warning
     desc: "Functions with @ suppression, trigger_error(), or that trigger PHP warnings must have tests covering error paths"
+
+  # === CONTROLLER FUNCTIONAL TEST COVERAGE ===
+  - id: TT-86
+    domain: testing
+    prompt: |
+      Review backend controller test coverage:
+      1. Find all classes in Classes/Controller/ (especially AJAX controllers returning JsonResponse)
+      2. For each controller, check that functional tests exist in Tests/Functional/Controller/
+      3. Verify that functional tests check:
+         a. HTTP status codes (200 for success, 403 for unauthorized, etc.)
+         b. Access control (calling without proper BE user session returns 403/401)
+         c. CSRF token validation (requests without valid token are rejected)
+      4. Flag any backend controller without functional tests covering these three aspects
+    severity: warning
+    desc: "Every backend controller (especially AJAX controllers returning JSON) should have functional tests verifying HTTP status codes, access control, and CSRF"
+
+  # === CI TEST MATRIX COMPLETENESS ===
+  - id: TT-27
+    domain: ci
+    prompt: |
+      Verify that the CI test matrix covers all supported version combinations:
+      1. Read the PHP version constraint from composer.json require.php (e.g., "^8.2")
+      2. Read the TYPO3 core constraint from composer.json require["typo3/cms-core"] (e.g., "^13.4 || ^14.0")
+      3. Determine which PHP minor versions fall in the constraint range (e.g., 8.2, 8.3, 8.4)
+      4. Determine which TYPO3 major versions fall in the constraint range (e.g., 13, 14)
+      5. Check the CI workflow (.github/workflows/*.yml) matrix or reusable workflow inputs
+      6. Flag any PHP version in the supported range that is missing from the CI matrix
+      7. Flag any TYPO3 version in the supported range that is missing from the CI matrix
+      8. If using netresearch/typo3-ci-workflows, check php-versions and typo3-versions inputs
+    severity: warning
+    desc: "CI should test all PHP versions in composer.json require.php range x all TYPO3 versions in require[\"typo3/cms-core\"] range"
+
+  # === E2E MULTI-BROWSER COVERAGE ===
+  - id: TT-17b
+    domain: testing
+    prompt: |
+      If a Playwright config exists (Build/playwright.config.ts or playwright.config.ts):
+      1. Read the projects array in the Playwright config
+      2. Verify it defines at least two browser projects: Chromium and Firefox
+      3. Optionally check for WebKit as a third browser
+      4. Flag if only a single browser is configured, as cross-browser testing catches
+         rendering and API differences that single-browser testing misses
+    severity: warning
+    desc: "If playwright.config.ts exists, it should define at least Chromium and Firefox projects for cross-browser E2E coverage"
+
+  # === PATCH COVERAGE ===
+  - id: TT-89
+    domain: testing
+    prompt: |
+      Review whether new code paths introduced in recent changes have corresponding tests:
+      1. Identify new public methods in Classes/ that were added or significantly changed
+      2. For each new public method, check whether a test exists that calls or exercises it
+      3. Focus on Classes/Service/, Classes/Controller/, and Classes/ViewHelpers/ directories
+      4. Flag any new public method that has no corresponding test coverage
+      5. Ignore getters/setters, constructors, and simple delegation methods
+    severity: warning
+    desc: "New code paths (especially new public methods) should have corresponding unit or functional tests"
+
+  # === TEST UID SETUP ===
+  - id: TT-112
+    domain: testing
+    prompt: |
+      Review test helpers and factories that create entity or model mocks:
+      1. Find helper methods that create domain model instances for testing
+         (e.g., createSecretEntity, createMockRecord, buildFixture)
+      2. For each helper, check whether the production code that consumes
+         these entities guards on UID being set (e.g., `if ($uid !== null)`,
+         `if ($entity->getUid() > 0)`, `$uid ?? throw`)
+      3. If the production code has a UID null-check, verify the test helper
+         sets a UID via `_setProperty('uid', ...)` or `setUid(...)` or reflection
+      4. Flag any test helper that creates entities without setting UID when
+         the consuming production code guards on UID presence
+    severity: warning
+    desc: "Test helpers creating entity mocks must set UID when production code guards with null/zero UID checks"
+
+  # === MOCK CONSTRUCTOR SYNC ===
+  - id: TT-113
+    domain: testing
+    prompt: |
+      Review whether test mocks stay in sync with class constructors:
+      1. Find classes in Classes/ whose constructors have changed recently
+         or have 3+ parameters (likely to drift)
+      2. For each class, find all tests that instantiate it directly
+         (new ClassName(...)) or via createMock/getMockBuilder
+      3. Check that direct instantiations pass the correct number and types
+         of constructor arguments
+      4. For createMock/getMockBuilder, check if disableOriginalConstructor()
+         is used — if not, the mock will call the real constructor and must
+         match its signature
+      5. Flag any test where constructor argument count or types are mismatched
+         with the current class constructor
+    severity: warning
+    desc: "When a class constructor gains new parameters, all tests that instantiate it must be updated to match"
