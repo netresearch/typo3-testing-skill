@@ -79,7 +79,7 @@ When asked to generate tests:
 ### Unit Test Template
 ```php
 #[Test]
-public function methodNameReturnsExpectedResultForValidInput(): void
+public function methodNameForValidInputReturnsExpectedResult(): void
 {
     // Arrange
     $dependency = $this->createStub(DependencyInterface::class);

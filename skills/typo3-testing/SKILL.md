@@ -5,7 +5,7 @@ description: "Use when setting up TYPO3 extension test infrastructure, writing u
 
 # TYPO3 Testing Skill
 
-Scripts and references for TYPO3 extension testing.
+References for TYPO3 extension testing.
 
 ## Test Type Selection
 
@@ -20,7 +20,7 @@ Scripts and references for TYPO3 extension testing.
 
 ## runTests.sh - Mandatory
 
-**`Build/Scripts/runTests.sh` is mandatory** for all Netresearch TYPO3 extensions. It must be executable and support `-s` (suite) and `-p` (PHP version) flags. CI and local dev must use this script or the same `.Build/bin/` tool paths.
+`Build/Scripts/runTests.sh` is mandatory for all Netresearch TYPO3 extensions. Must be executable, support `-s` (suite) and `-p` (PHP version) flags.
 
 ## Git Hooks
 
@@ -43,7 +43,7 @@ Build/Scripts/runTests.sh -s mutation      # Mutation testing
 Build/Scripts/runTests.sh -s ci            # Full CI suite
 ```
 
-After modifying a test, **always verify** it fails before the fix and passes after.
+After modifying a test, verify it fails before the fix and passes after.
 
 ## Scoring Requirements
 

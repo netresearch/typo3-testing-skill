@@ -100,9 +100,7 @@ Each test should:
 ### Arrange-Act-Assert Pattern
 
 ```php
-/**
- * @test
- */
+#[Test]
 public function calculatesTotalPrice(): void
 {
     // Arrange: Set up test data
@@ -147,10 +145,10 @@ Use **camelCase** consistently for test method names. The recommended pattern is
 **Examples:**
 
 ```php
-// CORRECT - clear camelCase with proper word boundaries
-public function setPriorityClampsToHundred(): void
-public function getUserByEmailReturnsNullWhenNotFound(): void
-public function calculateTotalIncludesTaxForDomesticOrders(): void
+// CORRECT - clear camelCase with {method}{Scenario}{ExpectedResult}
+public function setPriorityAboveMaxClampsToHundred(): void
+public function getUserByEmailWhenNotFoundReturnsNull(): void
+public function calculateTotalForDomesticOrdersIncludesTax(): void
 
 // WRONG - inconsistent capitalization at word boundaries
 public function setPriorityClampsTohundred(): void  // "hundred" not capitalized
@@ -161,7 +159,8 @@ public function getuserByEmail(): void               // "user" not capitalized
 - Capitalize every word boundary in camelCase (no lowercase words after the first)
 - Start with the method name being tested when possible
 - Include the scenario/condition and expected outcome
-- Use `#[Test]` attribute (PHPUnit 12) instead of `@test` annotation or `test` prefix
+- Prefer using the `#[Test]` attribute (PHPUnit 12+) instead of the `@test` annotation or `test` prefix in new or updated tests
+- Existing test suites that still use `@test` annotations remain valid on older PHPUnit versions; plan to migrate them when upgrading to PHPUnit 12
 
 ## Testing with Dependency Injection (TYPO3 13+)
 
@@ -451,11 +450,14 @@ $logger->expects(self::once())->method('warning');
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 
 #[CoversClass(MyController::class)]
-final class MyControllerTest extends TestCase
+final class MyControllerTest extends UnitTestCase
 {
     private MyController $subject;
+
+    /** @var SomeDependency&Stub */
     private SomeDependency $dependencyStub;
 
     /** @var LoggerInterface&MockObject */
@@ -486,9 +488,12 @@ final class MyControllerTest extends TestCase
 }
 ```
 
-> **Note:** Stubs created with `createStub()` do not need `MockObject` intersection types in PHPDoc since they are typed as `Stub` internally. Only use `&MockObject` for objects created with `createMock()`.
+> **Note:** Stubs created with `createStub()` do not need `MockObject` intersection types in PHPDoc. The `&MockObject` intersection is only for objects created with `createMock()`. If you want static analysis tools (PHPStan, Psalm) to understand calls like `method()` / `willReturn()` on a stub variable, you can add an explicit intersection with `Stub`, for example:
+> `/** @var SomeDependency&\PHPUnit\Framework\MockObject\Stub $dependencyStub */`.
 
 **Fallback - `#[AllowMockObjectsWithoutExpectations]`:**
+
+> **Warning:** The `#[AllowMockObjectsWithoutExpectations]` attribute is only available in PHPUnit 12+. It does **not** exist in PHPUnit 11 (used in CI for PHP 8.2) and will cause a fatal error. Only use this fallback when the project runs PHPUnit 12 exclusively.
 
 When migrating existing test classes with many mocks, you can temporarily suppress the notice with the class-level attribute instead of converting all mocks to stubs at once:
 
@@ -496,7 +501,7 @@ When migrating existing test classes with many mocks, you can temporarily suppre
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 
 #[AllowMockObjectsWithoutExpectations]
-final class LegacyControllerTest extends TestCase
+final class LegacyControllerTest extends UnitTestCase
 {
     // Existing mocks without expectations are allowed
     // TODO: Migrate createMock() to createStub() where no expects() is used
