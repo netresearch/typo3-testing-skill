@@ -287,9 +287,16 @@ mechanical:
     desc: "Build/package.json should exist for Playwright/JS test dependencies"
 
   - id: TT-17a
-    type: regex
-    target: "{Build/playwright.config.ts,playwright.config.ts}"
-    pattern: "chromium.*firefox|firefox.*chromium"
+    type: command
+    command: |
+      cfg=""
+      for f in Build/playwright.config.ts playwright.config.ts; do
+        [ -f "$f" ] && cfg="$f" && break
+      done
+      [ -z "$cfg" ] && exit 0
+      grep -q 'chromium' "$cfg" && grep -q 'firefox' "$cfg" && exit 0
+      echo "FAIL: $cfg should define at least Chromium and Firefox projects"
+      exit 1
     severity: warning
     desc: "If playwright.config.ts exists, it should define at least Chromium and Firefox projects for cross-browser E2E coverage"
 
@@ -301,12 +308,14 @@ mechanical:
     desc: "Infection config should exist for mutation testing"
 
   - id: TT-18a
-    type: regex
-    target: .github/workflows/*.yml
-    pattern: 'infection|mutation|ci:test:php:mutation'
+    type: command
+    command: |
+      test -f infection.json5 || exit 0
+      grep -rql 'infection\|mutation\|ci:test:php:mutation' .github/workflows/*.yml 2>/dev/null && exit 0
+      echo "FAIL: infection.json5 exists but mutation testing is not configured in CI"
+      exit 1
     severity: warning
     desc: "If infection.json5 exists, mutation testing should be configured in CI (at least as a scheduled job)"
-    note: "Only applicable when infection.json5 exists (TT-18 passes)"
 
   # === ADDITIONAL DEV DEPENDENCIES ===
   - id: TT-63
@@ -597,7 +606,7 @@ llm_reviews:
     prompt: |
       Verify that the CI test matrix covers all supported version combinations:
       1. Read the PHP version constraint from composer.json require.php (e.g., "^8.2")
-      2. Read the TYPO3 core constraint from composer.json require.typo3/cms-core (e.g., "^13.4 || ^14.0")
+      2. Read the TYPO3 core constraint from composer.json require["typo3/cms-core"] (e.g., "^13.4 || ^14.0")
       3. Determine which PHP minor versions fall in the constraint range (e.g., 8.2, 8.3, 8.4)
       4. Determine which TYPO3 major versions fall in the constraint range (e.g., 13, 14)
       5. Check the CI workflow (.github/workflows/*.yml) matrix or reusable workflow inputs
@@ -605,7 +614,7 @@ llm_reviews:
       7. Flag any TYPO3 version in the supported range that is missing from the CI matrix
       8. If using netresearch/typo3-ci-workflows, check php-versions and typo3-versions inputs
     severity: warning
-    desc: "CI should test all PHP versions in composer.json require.php range x all TYPO3 versions in require.typo3/cms-core range"
+    desc: "CI should test all PHP versions in composer.json require.php range x all TYPO3 versions in require[\"typo3/cms-core\"] range"
 
   # === E2E MULTI-BROWSER COVERAGE ===
   - id: TT-17b
