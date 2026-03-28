@@ -136,6 +136,33 @@ protected function tearDown(): void
 }
 ```
 
+### Test Method Naming Convention
+
+Use **camelCase** consistently for test method names. The recommended pattern is:
+
+```
+{methodUnderTest}{Scenario}{ExpectedResult}
+```
+
+**Examples:**
+
+```php
+// CORRECT - clear camelCase with proper word boundaries
+public function setPriorityClampsToHundred(): void
+public function getUserByEmailReturnsNullWhenNotFound(): void
+public function calculateTotalIncludesTaxForDomesticOrders(): void
+
+// WRONG - inconsistent capitalization at word boundaries
+public function setPriorityClampsTohundred(): void  // "hundred" not capitalized
+public function getuserByEmail(): void               // "user" not capitalized
+```
+
+**Guidelines:**
+- Capitalize every word boundary in camelCase (no lowercase words after the first)
+- Start with the method name being tested when possible
+- Include the scenario/condition and expected outcome
+- Use `#[Test]` attribute (PHPUnit 12) instead of `@test` annotation or `test` prefix
+
 ## Testing with Dependency Injection (TYPO3 13+)
 
 Modern TYPO3 13 controllers and services use constructor injection. Here's how to test them:
@@ -387,42 +414,96 @@ final class UserServiceTest extends UnitTestCase
 
 PHPUnit 12 introduces stricter defaults. Follow these patterns to avoid notices and deprecations.
 
-### Mock Objects Without Expectations
+### Mock vs Stub Discipline (PHPUnit 12+)
 
-PHPUnit 12 triggers notices when mocks are created but no expectations are set. When using mocks purely as stubs (only `->method()->willReturn()`, no `->expects()`), add the class-level attribute:
+PHPUnit 12 reports notices when mock objects have no expectations configured. The correct fix is to use the right test double for the job.
+
+**Rule:** Use `createStub()` when you only need return values. Use `createMock()` only when you need to verify method calls with `expects()`.
 
 ```php
-use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+// WRONG - creates a mock but sets no expectations (triggers PHPUnit notice)
+$model = $this->createMock(Model::class);
+$model->method('getName')->willReturn('test');
+
+// CORRECT - use stub when no expectations needed
+$model = $this->createStub(Model::class);
+$model->method('getName')->willReturn('test');
+
+// CORRECT - use mock when verifying calls
+$logger = $this->createMock(LoggerInterface::class);
+$logger->expects(self::once())->method('warning');
+```
+
+**Detection:** Run tests with `--display-phpunit-notices` flag. Any "No expectations were configured for the mock object" notice indicates a mock that should be a stub.
+
+**Decision guide:**
+
+| Scenario | Use | Method |
+|----------|-----|--------|
+| Only need return values (`->method()->willReturn()`) | `createStub()` | No expectations |
+| Satisfying a type hint for DI | `createStub()` | No expectations |
+| Verifying a method was called | `createMock()` | `->expects(self::once())` |
+| Verifying call count or arguments | `createMock()` | `->expects()->with()` |
+
+**Example with stubs and mocks in the same test class:**
+
+```php
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\MockObject\MockObject;
 
-#[AllowMockObjectsWithoutExpectations]
 #[CoversClass(MyController::class)]
 final class MyControllerTest extends TestCase
 {
     private MyController $subject;
-    private SomeDependency&MockObject $dependencyMock;
+    private SomeDependency $dependencyStub;
+
+    /** @var LoggerInterface&MockObject */
+    private LoggerInterface $loggerMock;
 
     protected function setUp(): void
     {
         parent::setUp();
-        // This mock is used as a stub - no expects() calls
-        $this->dependencyMock = $this->createMock(SomeDependency::class);
-        $this->dependencyMock->method('getValue')->willReturn('test');
+        // Stub - only provides return values, no expectations
+        $this->dependencyStub = $this->createStub(SomeDependency::class);
+        $this->dependencyStub->method('getValue')->willReturn('test');
 
-        $this->subject = new MyController($this->dependencyMock);
+        // Mock - will verify method calls in tests
+        /** @var LoggerInterface&MockObject $loggerMock */
+        $loggerMock = $this->createMock(LoggerInterface::class);
+        $this->loggerMock = $loggerMock;
+
+        $this->subject = new MyController($this->dependencyStub, $this->loggerMock);
+    }
+
+    #[Test]
+    public function processLogsWarningOnEmptyInput(): void
+    {
+        $this->loggerMock->expects(self::once())->method('warning');
+
+        $this->subject->process('');
     }
 }
 ```
 
-**When to use `#[AllowMockObjectsWithoutExpectations]`:**
-- Mock uses only `->method()->willReturn()` (stub behavior)
-- No `->expects()` calls on the mock
-- Mock is just satisfying a type hint for dependency injection
+> **Note:** Stubs created with `createStub()` do not need `MockObject` intersection types in PHPDoc since they are typed as `Stub` internally. Only use `&MockObject` for objects created with `createMock()`.
 
-**When NOT to use it:**
-- You have `->expects(self::once())` or similar expectations
-- You need to verify method calls occurred
+**Fallback - `#[AllowMockObjectsWithoutExpectations]`:**
+
+When migrating existing test classes with many mocks, you can temporarily suppress the notice with the class-level attribute instead of converting all mocks to stubs at once:
+
+```php
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+
+#[AllowMockObjectsWithoutExpectations]
+final class LegacyControllerTest extends TestCase
+{
+    // Existing mocks without expectations are allowed
+    // TODO: Migrate createMock() to createStub() where no expects() is used
+}
+```
+
+This attribute should be treated as **technical debt** and removed once the test class is migrated to use `createStub()` properly.
 
 ### Deprecated Type Assertions
 
@@ -659,6 +740,27 @@ Without this, coverage tools (e.g., codecov) may report 0% for the DTOs even tho
 </phpunit>
 ```
 
+### Coverage Exclusion Review
+
+When `phpunit.xml` excludes directories from coverage (like `Domain/Model`), verify the exclusion is justified:
+
+1. **Justified exclusions**: Truly trivial getters/setters, pure data containers (DTOs/Value Objects with no logic)
+2. **Unjustified exclusions**: Models with business logic, validation, computed properties, or state transitions
+3. **Cross-check with mutation testing**: The same exclusion in `infection.json5` / `infection.json.dist` should also be justified
+
+**Audit command:**
+
+```bash
+# Check what's excluded from coverage
+grep -A 5 '<exclude>' Build/phpunit.xml Build/phpunit/UnitTests.xml 2>/dev/null
+
+# Check what's excluded from mutation testing
+grep -A 10 '"excludePaths"' infection.json5 infection.json.dist 2>/dev/null
+
+# Find models with non-trivial logic that might be wrongly excluded
+grep -rn 'function [a-z].*(' Classes/Domain/Model/ | grep -v 'get\|set\|is\|has'
+```
+
 ## Best Practices
 
 1. **One Assert Per Test**: Focus tests on single behavior
@@ -668,6 +770,8 @@ Without this, coverage tools (e.g., codecov) may report 0% for the DTOs even tho
 5. **Test Edge Cases**: Empty strings, null, zero, negative numbers
 6. **Use Data Providers**: Test multiple scenarios efficiently
 7. **Mock External Dependencies**: Keep tests isolated and fast
+8. **Use `createStub()` over `createMock()`**: Default to stubs; only use mocks when verifying calls
+9. **Use `self::` for assertions**: PHPUnit 12 convention (`self::assertSame()`, not `$this->assertSame()`)
 
 ## Testing PHP Syntax Variants
 

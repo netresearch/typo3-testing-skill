@@ -58,7 +58,7 @@ After modifying a test, **always verify** it fails before the fix and passes aft
 
 | Reference | Topic |
 |-----------|-------|
-| `unit-testing.md` | UnitTestCase, mocking, FakeClock |
+| `unit-testing.md` | UnitTestCase, mock vs stub discipline, naming conventions, FakeClock |
 | `functional-testing.md` | FunctionalTestCase, CSV fixtures, **TSFE limitations** |
 | `functional-test-patterns.md` | PHPUnit 10+ migration, container reset |
 | `integration-testing.md` | PSR-18 mocking, OAuth flows |

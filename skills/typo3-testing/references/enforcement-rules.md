@@ -2,6 +2,34 @@
 
 This skill enforces the following patterns. Violations should be flagged and corrected.
 
+## PHPUnit Quality Checks (MANDATORY)
+
+| Rule | Enforcement |
+|------|-------------|
+| **Use `createStub()` for test doubles without expectations** | Flag any `createMock()` call that has no corresponding `expects()` |
+| **Use `createMock()` only when verifying calls** | Mock objects MUST have at least one `expects()` call |
+| **Use `self::` for static assertions** | Flag `$this->assertSame()`, use `self::assertSame()` instead |
+| **Use `#[Test]` attribute** | Flag `@test` annotation and `test` method prefix in new tests |
+| **Use `#[CoversClass()]` attribute** | All test classes MUST declare which class they cover |
+| **camelCase test method names** | Flag inconsistent capitalization at word boundaries |
+
+**Detection:**
+
+```bash
+# Find mocks without expectations (potential createStub candidates)
+grep -rn 'createMock(' Tests/ | while read line; do
+  file=$(echo "$line" | cut -d: -f1)
+  # Check if file also uses expects() - if not, all mocks should be stubs
+  grep -q 'expects(' "$file" || echo "NOTICE: $file uses createMock() but has no expects() calls"
+done
+
+# Find $this-> assertions that should use self::
+grep -rn '\$this->assert' Tests/
+
+# Find legacy @test annotations
+grep -rn '@test' Tests/ | grep -v 'vendor'
+```
+
 ## DDEV and Test Execution (MANDATORY)
 
 | Rule | Enforcement |

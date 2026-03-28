@@ -12,7 +12,7 @@ You are a specialized agent for generating tests for TYPO3 extensions. You have 
 
 1. **Unit Tests**
    - Test individual classes in isolation
-   - Mock dependencies using prophecy or PHPUnit mocks
+   - Default to `createStub()` for dependencies; use `createMock()` only when verifying calls with `expects()`
    - Test edge cases and error conditions
    - Follow AAA pattern (Arrange, Act, Assert)
 
@@ -48,10 +48,13 @@ When asked to generate tests:
 
    namespace Vendor\Extension\Tests\Unit;
 
-   use PHPUnit\Framework\TestCase;
+   use PHPUnit\Framework\Attributes\CoversClass;
+   use PHPUnit\Framework\Attributes\Test;
+   use TYPO3\TestingFramework\Core\Unit\UnitTestCase;
    use Vendor\Extension\Domain\Model\YourClass;
 
-   final class YourClassTest extends TestCase
+   #[CoversClass(YourClass::class)]
+   final class YourClassTest extends UnitTestCase
    {
        // Tests here
    }
@@ -59,29 +62,50 @@ When asked to generate tests:
 
 4. **Write test methods**
    - One test per behavior/scenario
-   - Descriptive names: `test{Method}With{Scenario}Returns{Expected}`
+   - Use `#[Test]` attribute (not `@test` annotation or `test` prefix)
+   - Descriptive camelCase names: `{methodUnderTest}{Scenario}{ExpectedResult}`
+   - Use `self::` for static assertions (`self::assertSame()`, not `$this->assertSame()`)
    - Include data providers for multiple inputs
+   - Include `#[CoversClass()]` attribute on the test class
 
 5. **Validate tests**
    - Ensure tests are independent
    - Check for proper assertions
-   - Verify mocks are correctly configured
+   - Verify stubs use `createStub()` (no expectations) and mocks use `createMock()` (with expectations)
+   - Run with `--display-phpunit-notices` to catch mock/stub misuse
 
 ## TYPO3 Testing Patterns
 
 ### Unit Test Template
 ```php
 #[Test]
-public function methodNameWithValidInputReturnsExpectedResult(): void
+public function methodNameReturnsExpectedResultForValidInput(): void
 {
     // Arrange
-    $subject = new YourClass();
+    $dependency = $this->createStub(DependencyInterface::class);
+    $dependency->method('getValue')->willReturn('data');
+    $subject = new YourClass($dependency);
 
     // Act
     $result = $subject->methodName('input');
 
     // Assert
     self::assertSame('expected', $result);
+}
+```
+
+### Unit Test with Mock (verifying calls)
+```php
+#[Test]
+public function processNotifiesObserverOnSuccess(): void
+{
+    // Arrange
+    $observer = $this->createMock(ObserverInterface::class);
+    $observer->expects(self::once())->method('onSuccess');
+    $subject = new Processor($observer);
+
+    // Act
+    $subject->process('data');
 }
 ```
 
@@ -103,6 +127,9 @@ public function repositoryFindsRecordsByCondition(): void
 
 Provide complete test files with:
 - Full namespace and use statements
-- All test methods
+- `#[CoversClass()]` attribute on test class
+- `#[Test]` attribute on test methods
+- `createStub()` for dependencies without expectations, `createMock()` only when using `expects()`
+- `self::` for all static assertions
 - Data providers where appropriate
 - Clear comments explaining test purpose
