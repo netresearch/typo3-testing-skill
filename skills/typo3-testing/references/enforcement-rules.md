@@ -2,6 +2,42 @@
 
 This skill enforces the following patterns. Violations should be flagged and corrected.
 
+## PHPUnit Quality Checks (MANDATORY)
+
+| Rule | Enforcement |
+|------|-------------|
+| **Use `createStub()` for test doubles without expectations** | Flag any `createMock()` call that has no corresponding `expects()` |
+| **Use `createMock()` only when verifying calls** | Mock objects MUST have at least one `expects()` call |
+| **Use `self::` for static assertions** | Flag `$this->assertSame()`, use `self::assertSame()` instead |
+| **Use `#[Test]` attribute** | Flag `@test` annotation and `test` method prefix in new tests |
+| **Use `#[CoversClass()]` or `#[CoversNothing]` attribute** | All test classes MUST declare either which class they cover or `#[CoversNothing]` for tests that intentionally do not cover application code (e.g. PHP/libxml behavior) |
+| **camelCase test method names** | Flag inconsistent capitalization at word boundaries |
+
+**Detection:**
+
+```bash
+# Find mocks without expectations (per-variable detection)
+grep -rn '\$[A-Za-z_][A-Za-z0-9_]*\s*=\s*\$this->createMock(' Tests/ | while IFS=: read -r file line rest; do
+  # Extract variable name on the left-hand side of the assignment
+  var=$(echo "$rest" | sed -n 's/^\s*\(\$[A-Za-z_][A-Za-z0-9_]*\)\s*=.*/\1/p')
+  if [ -n "$var" ]; then
+    # Check whether this specific mock variable is ever used with expects()
+    if ! grep -q "$var->expects(" "$file"; then
+      echo "NOTICE: $file:$line: mock $var created with createMock() but has no expects() calls"
+    fi
+  fi
+done
+
+# Alternatively, rely on PHPUnit's runtime notice for mocks without expectations:
+# vendor/bin/phpunit --display-notices | grep 'does not set up any expectations'
+
+# Find $this-> assertions that should use self::
+grep -rn '\$this->assert' Tests/
+
+# Find legacy @test annotations
+grep -rn '@test' Tests/ | grep -v 'vendor'
+```
+
 ## DDEV and Test Execution (MANDATORY)
 
 | Rule | Enforcement |
