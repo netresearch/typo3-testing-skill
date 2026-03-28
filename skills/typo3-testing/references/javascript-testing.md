@@ -526,7 +526,7 @@ $.each({width: maxWidth, height: maxHeight}, function (dimension, max) {
     var el = document.getElementById('dimension-' + dimension);
     var constrainDimensions = function () {
         // `el` and `max` are unique per iteration (function scope)
-        if (parseInt(el.value) > max) {
+        if (parseInt(el.value, 10) > max) {
             el.value = max;
         }
     };
@@ -552,7 +552,7 @@ for (const [dimension, max] of Object.entries({width: maxWidth, height: maxHeigh
     const el = document.getElementById('dimension-' + dimension);  // unique per iteration
     const constrainDimensions = function () {
         // `el` and `max` are correctly captured per iteration
-        if (parseInt(el.value) > max) {
+        if (parseInt(el.value, 10) > max) {
             el.value = max;
         }
     };
@@ -625,14 +625,14 @@ test('changing width auto-adjusts height to maintain aspect ratio', async ({ pag
     // Get original dimensions
     const originalWidth = await widthInput.inputValue();
     const originalHeight = await heightInput.inputValue();
-    const aspectRatio = parseInt(originalHeight) / parseInt(originalWidth);
+    const aspectRatio = parseInt(originalHeight, 10) / parseInt(originalWidth, 10);
 
     // Change width
     await widthInput.fill('200');
     await widthInput.dispatchEvent('input');
 
     // Height must auto-adjust
-    const newHeight = parseInt(await heightInput.inputValue());
+    const newHeight = parseInt(await heightInput.inputValue(), 10);
     const expectedHeight = Math.round(200 * aspectRatio);
     expect(newHeight).toBeLessThanOrEqual(expectedHeight + 1);
     expect(newHeight).toBeGreaterThanOrEqual(expectedHeight - 1);

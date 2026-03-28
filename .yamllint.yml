@@ -4,7 +4,5 @@ ignore:
   - "skills/*/assets/"
 
 rules:
-  line-length: disable
-  truthy: disable
-  document-start: disable
+  line-length: {max: 120, level: warning}
   comments-indentation: disable
