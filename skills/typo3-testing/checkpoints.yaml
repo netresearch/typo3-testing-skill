@@ -677,3 +677,80 @@ llm_reviews:
          with the current class constructor
     severity: warning
     desc: "When a class constructor gains new parameters, all tests that instantiate it must be updated to match"
+
+  # === MOCK VALIDITY FOR MULTI-VERSION DEPENDENCIES ===
+  - id: TT-114
+    domain: testing
+    prompt: |
+      Review test mocks for multi-version dependency compatibility:
+      1. Read composer.json require and require-dev for dependencies with
+         multi-major-version constraints (e.g., "^3 || ^4", "^2 || ^3")
+      2. For each such dependency, find all test files that mock its interfaces
+         (grep for createMock/createStub with the dependency's namespace)
+      3. For each mocked method, verify the method exists on the **interface**
+         (not just the concrete class) in ALL supported major versions
+      4. Flag any mock that calls ->method('foo') where foo only exists on
+         a concrete implementation or only in one major version
+      5. Suggest using an adapter interface pattern when version-specific
+         mocking is detected
+    severity: warning
+    desc: "Test mocks on dependency interfaces must reference methods that exist in ALL supported versions of the dependency"
+
+  # === MOCK CALLBACK SIGNATURE VERIFICATION ===
+  - id: TT-115
+    domain: testing
+    prompt: |
+      Review willReturnCallback() usages for signature mismatches:
+      1. Find all willReturnCallback() calls in test files
+      2. For each callback, identify the method being mocked
+      3. Compare the callback's parameter list with the actual method signature
+         in the production class or interface
+      4. Flag callbacks whose parameter count or types do not match the
+         actual method signature
+      5. Flag callbacks that are missing parameters that the production code
+         now passes (e.g., production added a $quality parameter but the
+         callback only accepts $path)
+      6. Suggest using variadic signatures (mixed ...$options) when the
+         method signature may evolve across dependency versions
+    severity: warning
+    desc: "willReturnCallback() signatures must match the actual method signature; stale callbacks silently drop arguments"
+
+  # === TEST ASSERTION SPECIFICITY AFTER REFACTORING ===
+  - id: TT-116
+    domain: testing
+    prompt: |
+      Review whether test assertions maintain equivalent specificity after
+      production code refactoring:
+      1. Find test methods that assert on method calls (expects/method/with)
+      2. Compare these assertions with the current production code paths
+      3. Flag tests where a refactoring changed the production API surface
+         but the test assertion lost specificity. Examples:
+         - Old: expects(never())->method('toWebp') → New: expects(once())->method('save')
+           (lost the "not WebP" assertion)
+         - Old: expects(once())->method('resize')->with(800, 600) → New: just expects(once())->method('process')
+           (lost dimension verification)
+      4. Verify that expects(exactly(N)) with callback assertions include
+         argument-level checks (e.g., asserting path extensions, dimensions)
+      5. Flag generic willReturnCallback() that only provides return values
+         without asserting anything about the arguments
+    severity: warning
+    desc: "After refactoring, test assertions must maintain equivalent specificity — don't trade specific method assertions for generic ones"
+
+  # === ADAPTER PATTERN TESTING ===
+  - id: TT-117
+    domain: testing
+    prompt: |
+      Review whether tests mock third-party library internals directly
+      when an adapter pattern would be more appropriate:
+      1. Find test files that create mocks of third-party library interfaces
+         or classes (namespaces outside the extension's own namespace)
+      2. Check if the mocked third-party class has version-specific APIs
+         (compare composer.json constraints for multi-major-version support)
+      3. Flag tests that create complex mock setups for third-party internals
+         (e.g., mocking DriverInterface + constructing real ImageManager)
+      4. Suggest introducing an adapter interface owned by the extension
+         and mocking that instead, which eliminates version-specific mock setup
+      5. Exception: simple, stable interfaces (like PSR interfaces) are fine
+         to mock directly
+    severity: info
+    desc: "Prefer mocking your own adapter interfaces over third-party library internals to avoid version-specific mock breakage"

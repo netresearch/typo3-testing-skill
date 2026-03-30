@@ -71,6 +71,7 @@ After modifying a test, verify it fails before the fix and passes after.
 | `quality-tools.md` | PHPStan, PHP-CS-Fixer, Rector |
 | `mutation-testing.md` | Infection, MSI |
 | `typo3-v14-final-classes.md` | Interface extraction, mock strategies |
+| `mock-validity.md` | **Multi-version mock validity, callback signatures, adapter testing** |
 | `javascript-testing.md` | Jest, frontend testing |
 | `captainhook-setup.md` | CaptainHook git hooks for TYPO3 |
 | `enforcement-rules.md` | E2E CI rules, troubleshooting |
@@ -82,6 +83,8 @@ All references in `references/` directory.
 For CI test failures across TYPO3 versions, load `references/ci-debugging.md`.
 
 For functional tests with frontend context (parseFunc, typoLink, TSFE), load `references/functional-testing.md`.
+
+For mock failures across dependency versions, `willReturnCallback` signature mismatches, or adapter pattern testing, load `references/mock-validity.md`.
 
 ## External Resources
 
