@@ -752,5 +752,5 @@ llm_reviews:
          and mocking that instead, which eliminates version-specific mock setup
       5. Exception: simple, stable interfaces (like PSR interfaces) are fine
          to mock directly
-    severity: info
+    severity: warning
     desc: "Prefer mocking your own adapter interfaces over third-party library internals to avoid version-specific mock breakage"

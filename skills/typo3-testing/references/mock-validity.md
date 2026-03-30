@@ -7,9 +7,9 @@ When extensions support multiple major versions of a dependency (e.g., `"interve
 Mocking a method that exists on an interface in one version but not another causes silent test failures or runtime errors when CI runs against the other version.
 
 ```php
-// WRONG - encode() exists on Intervention\Image\Interfaces\EncodedImageInterface
-// but the mock references toWebp() which only exists on the concrete Image class
-// in intervention/image v3, not on the interface
+// WRONG - The mock is for Intervention\Image\Interfaces\ImageInterface,
+// but it references toWebp(), which only exists on the concrete Image class
+// in intervention/image v3, not on the interface itself.
 $imageMock = $this->createMock(ImageInterface::class);
 $imageMock->expects(self::once())
     ->method('toWebp')  // Does not exist on ImageInterface in v4!
@@ -78,9 +78,8 @@ public function mockedMethodsExistOnInterface(): void
     $mockedMethods = ['save', 'encode', 'width', 'height'];
 
     foreach ($mockedMethods as $method) {
-        self::assertContains(
-            $method,
-            $methods,
+        self::assertTrue(
+            in_array($method, $methods, true),
             sprintf(
                 'Test mocks %s::%s() but this method does not exist on the interface '
                 . 'in the installed version. Check all supported versions.',
@@ -244,7 +243,7 @@ final class InterventionImageProcessor implements ImageProcessorInterface
     {
         $image = $this->manager->read($sourcePath);
         $image->resize($width, $height);
-        return $image->save($sourcePath)->basePath();
+        return $image->save($sourcePath)->basePath(); // Note: This example overwrites the source file.
     }
 }
 ```
