@@ -7,9 +7,10 @@ When extensions support multiple major versions of a dependency (e.g., `"interve
 Mocking a method that exists on an interface in one version but not another causes silent test failures or runtime errors when CI runs against the other version.
 
 ```php
-// WRONG - The mock is for Intervention\Image\Interfaces\ImageInterface,
-// but it references toWebp(), which only exists on the concrete Image class
-// in intervention/image v3, not on the interface itself.
+// WRONG - The mock targets Intervention\Image\Interfaces\ImageInterface,
+// but it configures toWebp(), which is only implemented on the concrete
+// Image class in intervention/image v3 and is not declared on ImageInterface
+// in any supported version.
 $imageMock = $this->createMock(ImageInterface::class);
 $imageMock->expects(self::once())
     ->method('toWebp')  // Does not exist on ImageInterface in v4!
