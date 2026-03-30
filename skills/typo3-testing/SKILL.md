@@ -20,11 +20,11 @@ References for TYPO3 extension testing.
 
 ## runTests.sh - Mandatory
 
-`Build/Scripts/runTests.sh` is mandatory for all Netresearch TYPO3 extensions. Must be executable, support `-s` (suite) and `-p` (PHP version) flags.
+`Build/Scripts/runTests.sh` is mandatory. Must be executable, support `-s` (suite) and `-p` (PHP version).
 
 ## Git Hooks
 
-Verify: `ls captainhook.json .git/hooks/pre-commit 2>/dev/null || echo "Run: composer install"` (see `references/captainhook-setup.md`)
+Verify: `ls captainhook.json .git/hooks/pre-commit 2>/dev/null` (see `references/captainhook-setup.md`)
 
 ## Setup and Running Tests
 
@@ -84,7 +84,7 @@ For CI test failures across TYPO3 versions, load `references/ci-debugging.md`.
 
 For functional tests with frontend context (parseFunc, typoLink, TSFE), load `references/functional-testing.md`.
 
-For mock failures across dependency versions, `willReturnCallback` signature mismatches, or adapter pattern testing, load `references/mock-validity.md`.
+For mock failures across dependency versions or adapter pattern testing, load `references/mock-validity.md`.
 
 ## External Resources
 
