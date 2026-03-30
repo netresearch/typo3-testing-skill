@@ -408,6 +408,8 @@ final class UserServiceTest extends UnitTestCase
 
 > **Note:** TYPO3 13+ with PHPUnit 11/12 uses `createMock()` instead of Prophecy.
 > Prophecy is deprecated and should not be used in new tests.
+>
+> **Multi-version dependencies:** When mocking interfaces from dependencies with `^major1 || ^major2` constraints, verify mocked methods exist on the interface in all supported versions. See `mock-validity.md` for patterns including callback signature verification and adapter pattern testing.
 
 ## PHPUnit 12 Compatibility
 
