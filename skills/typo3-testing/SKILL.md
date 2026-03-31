@@ -1,40 +1,30 @@
 ---
 name: typo3-testing
-description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit, mutation testing, mocking, CI/CD test pipelines, or debugging CI failures. For existing test suites, run automated-assessment first to identify gaps before manual work. Also triggers on: ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
+description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit, mutation testing, mocking, CI/CD test pipelines, or debugging CI failures. For existing test suites, run the automated-assessment skill first to identify gaps. Also triggers on: ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
 ---
 
 # TYPO3 Testing Skill
 
 ## Assessment-First Rule
 
-**When enhancing an existing test suite** (not setting up from scratch), run automated-assessment FIRST:
+**When enhancing an existing test suite** (not setting up from scratch), run the automated-assessment skill FIRST:
 
 ```bash
-/assess typo3-testing typo3-conformance enterprise-readiness
+automated-assessment typo3-testing
 ```
 
-This generates a structured gap report from 73+ checkpoints covering:
-- PHPUnit configuration and test structure
-- PHPStan level and baseline
-- runTests.sh existence and Docker configuration
-- captainhook git hooks
-- Architecture tests (phpat)
-- Mutation testing thresholds
-- CI matrix coverage
-- Code coverage per class
+> Install additional skills (e.g. `typo3-conformance`, `enterprise-readiness`) for broader assessment coverage.
 
-**Use the assessment report as the task list** instead of discovering gaps manually. Only proceed to manual test writing after all mechanical checkpoint failures are resolved.
+This generates a gap report from 73+ checkpoints covering PHPUnit config, PHPStan level, runTests.sh, CaptainHook hooks, architecture tests, mutation thresholds, CI matrix, and coverage per class.
+
+**Use the assessment report as the task list.** Resolve mechanical checkpoint failures before manual test writing.
 
 ### When This Rule Applies
-- "enhance the test suite" / "improve tests" / "strengthen tests"
-- "increase coverage" / "mutation score"
-- "enterprise grade" / "A+ testing"
-- "add architecture tests" / "fix all findings"
+- "enhance/improve/strengthen tests", "increase coverage/mutation score"
+- "enterprise grade", "A+ testing", "fix all findings"
 
 ### When This Rule Does NOT Apply
-- Setting up test infrastructure from scratch (no existing tests)
-- Writing a specific test for a specific class
-- Debugging a failing test
+- Setting up from scratch, writing a specific test, debugging a failing test
 
 ---
 
@@ -59,24 +49,17 @@ References for TYPO3 extension testing.
 
 Verify: `ls captainhook.json .git/hooks/pre-commit 2>/dev/null` (see `references/captainhook-setup.md`)
 
-## Setup and Running Tests
+## Running Tests
 
 ```bash
-# Setup
-<skill-dir>/scripts/setup-testing.sh [--with-e2e]   # Initialize testing
-<skill-dir>/scripts/validate-setup.sh               # Validate existing setup
-<skill-dir>/scripts/generate-test.sh <Type> <Class> # Generate test file
-
-# Run tests (always via runTests.sh)
 Build/Scripts/runTests.sh -s unit          # Unit tests
 Build/Scripts/runTests.sh -s functional    # Functional tests
 Build/Scripts/runTests.sh -s phpstan       # Static analysis
 Build/Scripts/runTests.sh -s cgl           # Coding guidelines
 Build/Scripts/runTests.sh -s mutation      # Mutation testing
-Build/Scripts/runTests.sh -s ci            # Full CI suite
 ```
 
-After modifying a test, verify it fails before the fix and passes after.
+Setup scripts: `scripts/setup-testing.sh`, `scripts/validate-setup.sh`, `scripts/generate-test.sh`.
 
 ## Scoring Requirements
 
@@ -87,37 +70,15 @@ After modifying a test, verify it fails before the fix and passes after.
 | Architecture tests | **phpat required** for full points |
 | PHPStan | Level 10 (max) |
 
-## References
+## References (in `references/`)
 
-| Reference | Topic |
-|-----------|-------|
-| `unit-testing.md` | UnitTestCase, mock vs stub discipline, naming conventions, FakeClock |
-| `functional-testing.md` | FunctionalTestCase, CSV fixtures, **TSFE limitations** |
-| `functional-test-patterns.md` | PHPUnit 10+ migration, container reset |
-| `integration-testing.md` | PSR-18 mocking, OAuth flows |
-| `e2e-testing.md` | Playwright, Page Object Model |
-| `ddev-testing.md` | Local multi-version matrix |
-| `test-runners.md` | runTests.sh, Docker orchestration |
-| `architecture-testing.md` | phpat, layer constraints |
-| `ci-debugging.md` | **Multi-version CI failure analysis** |
-| `ci-cd.md` | GitHub Actions, GitLab CI |
-| `quality-tools.md` | PHPStan, PHP-CS-Fixer, Rector |
-| `mutation-testing.md` | Infection, MSI |
-| `typo3-v14-final-classes.md` | Interface extraction, mock strategies |
-| `mock-validity.md` | **Multi-version mock validity, callback signatures, adapter testing** |
-| `javascript-testing.md` | Jest, frontend testing |
-| `captainhook-setup.md` | CaptainHook git hooks for TYPO3 |
-| `enforcement-rules.md` | E2E CI rules, troubleshooting |
+`unit-testing.md` | `functional-testing.md` | `functional-test-patterns.md` | `integration-testing.md` | `e2e-testing.md` | `ddev-testing.md` | `test-runners.md` | `architecture-testing.md` | `ci-debugging.md` | `ci-cd.md` | `quality-tools.md` | `mutation-testing.md` | `typo3-v14-final-classes.md` | `mock-validity.md` | `javascript-testing.md` | `captainhook-setup.md` | `enforcement-rules.md`
 
-All references in `references/` directory.
+### Content Triggers
 
-### Explicit Content Triggers
-
-For CI test failures across TYPO3 versions, load `references/ci-debugging.md`.
-
-For functional tests with frontend context (parseFunc, typoLink, TSFE), load `references/functional-testing.md`.
-
-For mock failures across dependency versions or adapter pattern testing, load `references/mock-validity.md`.
+- CI test failures across TYPO3 versions: load `ci-debugging.md`
+- Functional tests with TSFE context: load `functional-testing.md`
+- Mock failures across dependency versions: load `mock-validity.md`
 
 ## External Resources
 
