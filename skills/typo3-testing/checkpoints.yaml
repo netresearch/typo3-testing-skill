@@ -146,7 +146,7 @@ mechanical:
     target: "{phpstan.neon,Build/phpstan.neon,Build/phpstan/phpstan.neon}"
     pattern: 'level:\s*(10|max)'
     severity: warning
-    desc: "PHPStan should use level 10 (max) for projects using typo3-ci-workflows — level 8 acceptable for legacy extensions"
+    desc: "PHPStan must use level 10 (max) — this is the strict check for projects using typo3-ci-workflows"
 
   - id: TT-33
     type: regex
@@ -164,10 +164,10 @@ mechanical:
 
   - id: TT-35
     type: command
-    command: "grep -oP 'level:\\s*\\K[0-9]+|level:\\s*\\Kmax' Build/phpstan.neon 2>/dev/null || grep -oP 'level:\\s*\\K[0-9]+|level:\\s*\\Kmax' phpstan.neon 2>/dev/null || echo 0"
+    command: "grep -oP 'level:\\s*\\K[0-9]+|level:\\s*\\Kmax' Build/phpstan.neon 2>/dev/null || grep -oP 'level:\\s*\\K[0-9]+|level:\\s*\\Kmax' Build/phpstan/phpstan.neon 2>/dev/null || grep -oP 'level:\\s*\\K[0-9]+|level:\\s*\\Kmax' phpstan.neon 2>/dev/null || echo 0"
     expected: "^(10|max)$"
     severity: warning
-    desc: "PHPStan should use level 10 (max) for projects using typo3-ci-workflows — level 8 acceptable for legacy extensions"
+    desc: "PHPStan must use level 10 (max) — this is the strict check for projects using typo3-ci-workflows"
 
   # === CODE COVERAGE ===
   - id: TT-40
@@ -468,7 +468,7 @@ mechanical:
   - id: TT-131
     type: regex_not
     target: Tests/**/*Test.php
-    pattern: 'createMock\(.*\\\\ImageManager::class\)'
+    pattern: 'createMock\(.*ImageManager::class\)'
     severity: warning
     desc: "Do not mock final classes (e.g., Intervention ImageManager) — use real instances or interface mocks"
 
