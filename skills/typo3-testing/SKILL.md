@@ -1,9 +1,42 @@
 ---
 name: typo3-testing
-description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit, mutation testing, mocking, CI/CD test pipelines, or debugging CI failures. Also triggers on: ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
+description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit, mutation testing, mocking, CI/CD test pipelines, or debugging CI failures. For existing test suites, run automated-assessment first to identify gaps before manual work. Also triggers on: ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
 ---
 
 # TYPO3 Testing Skill
+
+## Assessment-First Rule
+
+**When enhancing an existing test suite** (not setting up from scratch), run automated-assessment FIRST:
+
+```bash
+/assess typo3-testing typo3-conformance enterprise-readiness
+```
+
+This generates a structured gap report from 73+ checkpoints covering:
+- PHPUnit configuration and test structure
+- PHPStan level and baseline
+- runTests.sh existence and Docker configuration
+- captainhook git hooks
+- Architecture tests (phpat)
+- Mutation testing thresholds
+- CI matrix coverage
+- Code coverage per class
+
+**Use the assessment report as the task list** instead of discovering gaps manually. Only proceed to manual test writing after all mechanical checkpoint failures are resolved.
+
+### When This Rule Applies
+- "enhance the test suite" / "improve tests" / "strengthen tests"
+- "increase coverage" / "mutation score"
+- "enterprise grade" / "A+ testing"
+- "add architecture tests" / "fix all findings"
+
+### When This Rule Does NOT Apply
+- Setting up test infrastructure from scratch (no existing tests)
+- Writing a specific test for a specific class
+- Debugging a failing test
+
+---
 
 References for TYPO3 extension testing.
 
