@@ -144,9 +144,9 @@ mechanical:
   - id: TT-32
     type: regex
     target: "{phpstan.neon,Build/phpstan.neon,Build/phpstan/phpstan.neon}"
-    pattern: 'level:\s*([6-9]|10|max)'
+    pattern: 'level:\s*(10|max)'
     severity: warning
-    desc: "PHPStan should use level 6 or higher (PHPStan 2.x supports level 10)"
+    desc: "PHPStan must use level 10 (max) — this is the strict check for projects using typo3-ci-workflows"
 
   - id: TT-33
     type: regex
@@ -161,6 +161,13 @@ mechanical:
     pattern: 'phpstan|composer.*stan|composer.*analyze|typo3-ci-workflows'
     severity: warning
     desc: "CI should run PHPStan analysis (directly or via reusable workflow)"
+
+  - id: TT-35
+    type: command
+    command: "grep -oP 'level:\\s*\\K[0-9]+|level:\\s*\\Kmax' Build/phpstan.neon 2>/dev/null || grep -oP 'level:\\s*\\K[0-9]+|level:\\s*\\Kmax' Build/phpstan/phpstan.neon 2>/dev/null || grep -oP 'level:\\s*\\K[0-9]+|level:\\s*\\Kmax' phpstan.neon 2>/dev/null || echo 0"
+    expected: "^(10|max)$"
+    severity: warning
+    desc: "PHPStan must use level 10 (max) — this is the strict check for projects using typo3-ci-workflows"
 
   # === CODE COVERAGE ===
   - id: TT-40
@@ -237,6 +244,28 @@ mechanical:
     pattern: 'typo3-ci-workflows/Makefile.include'
     severity: info
     desc: "Makefile should include shared targets from typo3-ci-workflows"
+
+  # === RUNTESTS.SH QUALITY ===
+  - id: TT-57
+    type: regex
+    target: Build/Scripts/runTests.sh
+    pattern: 'ghcr\.io/typo3/core-testing|CONTAINER_BIN|docker\s+run'
+    severity: warning
+    desc: "runTests.sh should use Docker containers (TYPO3 core-testing images) for consistent test environments"
+
+  - id: TT-58
+    type: regex
+    target: Makefile
+    pattern: '\$\(RUNTESTS\)\s+-s\s+'
+    severity: error
+    desc: "Makefile targets must pass -s flag to runTests.sh (e.g., $(RUNTESTS) -s unit, not $(RUNTESTS) unit)"
+
+  - id: TT-59
+    type: regex
+    target: Build/Scripts/runTests.sh
+    pattern: 'NETWORK=.*\$\{?SUFFIX'
+    severity: warning
+    desc: "Docker network name should include per-run suffix to avoid conflicts with concurrent runs"
 
   # === COMPOSER.JSON TEST DEPENDENCIES ===
   - id: TT-60
@@ -370,8 +399,8 @@ mechanical:
   - id: TT-71
     type: file_exists
     target: captainhook.json
-    severity: warning
-    desc: "captainhook.json should exist for local git hook automation (pre-commit, commit-msg, pre-push)"
+    severity: error
+    desc: "captainhook.json must exist for local git hook automation (pre-commit, commit-msg, pre-push) — mandatory for Netresearch extensions"
 
   # === GITIGNORE CHECKS ===
   - id: TT-70
@@ -396,6 +425,24 @@ mechanical:
     severity: info
     desc: "composer.json should define ci:test:php:mutation script for running mutation tests via composer"
 
+  # === MUTATION TESTING QUALITY ===
+  - id: TT-105
+    type: command
+    command: "grep -oP '\"minMsi\":\\s*\\K[0-9]+' infection.json5 2>/dev/null || echo 0"
+    expected: "^(9[0-9]|100)$"
+    severity: warning
+    desc: "Infection minMsi should be >= 90% for mature test suites"
+
+  - id: TT-106
+    type: command
+    command: |
+      MSI1=$(grep -oP '"minMsi":\s*\K[0-9]+' infection.json5 2>/dev/null || echo 0)
+      MSI2=$(grep -oP '"minMsi":\s*\K[0-9]+' infection-full.json5 2>/dev/null || echo $MSI1)
+      [ "$MSI1" = "$MSI2" ] && echo "consistent" || echo "mismatch: $MSI1 vs $MSI2"
+    expected: "^consistent$"
+    severity: warning
+    desc: "All infection config files must use consistent MSI thresholds"
+
   # === TEST QUALITY PATTERNS ===
   - id: TT-110
     type: regex
@@ -409,6 +456,21 @@ mechanical:
     target: Tests/Functional/Fixtures/
     severity: info
     desc: "Tests/Functional/Fixtures/ directory should exist for CSV fixture data used by functional tests"
+
+  # === TEST ANTI-PATTERNS ===
+  - id: TT-130
+    type: regex_not
+    target: Tests/**/*Test.php
+    pattern: "markTestSkipped\\(['\"].*(?:GD|gd|Imagick|imagick).*extension"
+    severity: error
+    desc: "Tests must not skip for missing image extensions — run tests in Docker via runTests.sh where GD/Imagick are available"
+
+  - id: TT-131
+    type: regex_not
+    target: Tests/**/*Test.php
+    pattern: 'createMock\(.*ImageManager::class\)'
+    severity: warning
+    desc: "Do not mock final classes (e.g., Intervention ImageManager) — use real instances or interface mocks"
 
   # === TEST COVERAGE COMPLETENESS ===
   - id: TT-120
@@ -537,6 +599,35 @@ llm_reviews:
       Sample Tests/Unit/ and Tests/Functional/ directories and assess quality.
     severity: info
     desc: "Assess overall test coverage and quality"
+
+  # === TEST INFRASTRUCTURE ANTI-PATTERNS ===
+  - id: TT-91
+    domain: test-quality
+    prompt: |
+      Review test code for markTestSkipped guards that hide missing Docker infrastructure:
+      1. Find all uses of markTestSkipped() or $this->markTestSkipped() in test files
+      2. Check if any skip guards test for PHP extensions (GD, Imagick, etc.) or
+         external tools that should be available in the Docker test environment
+      3. Tests for image/file/network operations should always run in containerized
+         environments via runTests.sh, not be skipped on bare-metal
+      4. Flag any markTestSkipped() that tests for extensions or binaries that the
+         Docker container should provide
+    severity: warning
+    desc: "Review test code for markTestSkipped guards that hide missing Docker infrastructure — tests for image/file/network operations should always run in containerized environments"
+
+  - id: TT-92
+    domain: test-quality
+    prompt: |
+      Review test code for mocking of final or readonly classes:
+      1. Find all createMock() and getMockBuilder() calls in test files
+      2. Resolve the target class and check if it is declared final or readonly
+         (e.g., Intervention\Image\ImageManager is final in v3+)
+      3. Mocking a final class causes a runtime error in PHPUnit
+      4. Suggest alternatives: use real instances, mock interfaces instead,
+         or use adapter patterns that wrap the final class
+      5. Flag any createMock(FinalClass::class) usage
+    severity: warning
+    desc: "Review for mocking of final or readonly classes — use real instances, interface mocks, or adapter patterns instead of createMock() on final classes"
 
   # === TEST COVERAGE COMPLETENESS ===
   - id: TT-87
