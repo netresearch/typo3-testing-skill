@@ -4,8 +4,142 @@
     {
       "id": 1,
       "name": "setup-captainhook",
+      "area": "git-hooks",
       "prompt": "I need to set up git hooks for a TYPO3 extension that uses composer ci:test:php:cgl and ci:test:php:phpstan. Give me the config.",
-      "expected_output": "Should provide a captainhook.json with pre-commit running cgl and phpstan"
+      "expected_output": "Should provide a captainhook.json with pre-commit running cgl and phpstan, mention CaptainHook Composer plugin for auto-install"
+    },
+    {
+      "id": 2,
+      "name": "unit-test-validator",
+      "area": "unit-testing",
+      "prompt": "Write a unit test for a TYPO3 extension EmailValidator class at Vendor\\MyExt\\Domain\\Validator\\EmailValidator that has a validate(string $email): bool method.",
+      "expected_output": "Should extend UnitTestCase, use PHPUnit\\Framework\\Attributes\\Test, follow TYPO3 naming conventions, test valid and invalid emails, use $subject property pattern, include @covers annotation"
+    },
+    {
+      "id": 3,
+      "name": "functional-test-repository",
+      "area": "functional-testing",
+      "prompt": "Write a functional test for a TYPO3 ProductRepository that has findByCategory(int $categoryId) method. The extension key is my_shop.",
+      "expected_output": "Should extend FunctionalTestCase, set testExtensionsToLoad, import CSV fixtures, use $this->get() for DI, verify database results"
+    },
+    {
+      "id": 4,
+      "name": "functional-test-tsfe-pitfall",
+      "area": "functional-testing",
+      "prompt": "My TYPO3 functional test uses typoLink to generate links but fails with 'parseFunc without any configuration' on v13 and 'No valid attribute applicationType' on v14. How do I fix this?",
+      "expected_output": "Should explain TSFE bootstrap issue, recommend setting TYPO3_REQUEST with applicationType only in specific test methods (not setUp), use try/finally cleanup, reference ci-debugging.md patterns"
+    },
+    {
+      "id": 5,
+      "name": "e2e-playwright-setup",
+      "area": "e2e-testing",
+      "prompt": "I want to add Playwright E2E tests to my TYPO3 extension. What's the directory structure and configuration needed?",
+      "expected_output": "Should show Build/playwright.config.ts, Build/tests/playwright/ structure, package.json with @playwright/test and @axe-core/playwright, Page Object Model pattern, DDEV integration"
+    },
+    {
+      "id": 6,
+      "name": "e2e-accessibility-test",
+      "area": "e2e-testing",
+      "prompt": "Write a Playwright accessibility test for a TYPO3 backend module that checks WCAG 2.1 AA compliance.",
+      "expected_output": "Should use @axe-core/playwright, AxeBuilder, check specific WCAG rules, use Page Object Model, handle TYPO3 backend login"
+    },
+    {
+      "id": 7,
+      "name": "mutation-testing-setup",
+      "area": "mutation-testing",
+      "prompt": "Set up mutation testing with Infection for my TYPO3 extension. I already have 75% code coverage.",
+      "expected_output": "Should provide infection.json5 config, mention .Build/ schema path convention, configure source directories and mutators, suggest MSI threshold of 70%, show runTests.sh -s mutation usage"
+    },
+    {
+      "id": 8,
+      "name": "mock-stub-discipline",
+      "area": "unit-testing",
+      "prompt": "In my TYPO3 unit test, should I use createMock or createStub for a dependency that my class calls but whose return value I need to control?",
+      "expected_output": "Should explain mock vs stub discipline: stubs for return values (createStub), mocks for behavior verification (createMock with expects). Use stubs when only controlling return values, mocks when asserting method was called"
+    },
+    {
+      "id": 9,
+      "name": "ci-github-actions-matrix",
+      "area": "ci-cd",
+      "prompt": "Create a GitHub Actions CI workflow for a TYPO3 extension supporting TYPO3 v13 and v14 with PHP 8.3 and 8.4.",
+      "expected_output": "Should create matrix strategy with TYPO3/PHP version combinations, use runTests.sh, separate jobs for lint/phpstan/unit/functional, cache composer dependencies"
+    },
+    {
+      "id": 10,
+      "name": "ci-debugging-multi-version",
+      "area": "ci-debugging",
+      "prompt": "My CI tests pass on TYPO3 v13 but fail on v14 with 63 errors about RuntimeException in DI container. The errors started after I added a new functional test. What should I check?",
+      "expected_output": "Should check GLOBALS['TYPO3_REQUEST'] pollution in setUp(), verify applicationType attribute is set for v14, recommend per-method setup with try/finally, check regression scope (only new tests vs existing)"
+    },
+    {
+      "id": 11,
+      "name": "architecture-test-phpat",
+      "area": "architecture-testing",
+      "prompt": "Set up phpat architecture tests for my TYPO3 extension to enforce that Domain layer doesn't depend on Infrastructure and that Events are readonly.",
+      "expected_output": "Should provide phpat.php config, use Selector::havePath, show domain-infrastructure dependency rule, events readonly rule, services-controllers separation"
+    },
+    {
+      "id": 12,
+      "name": "runtests-sh-mandatory",
+      "area": "test-runners",
+      "prompt": "My TYPO3 extension doesn't have a runTests.sh script. What suites should it support and how do I set it up?",
+      "expected_output": "Should emphasize runTests.sh is mandatory for Netresearch extensions, must be executable, support -s (suite) and -p (PHP version), list standard suites: unit, functional, phpstan, cgl, mutation, ci"
+    },
+    {
+      "id": 13,
+      "name": "v14-final-class-mocking",
+      "area": "unit-testing",
+      "prompt": "My unit test fails with 'Class SiteConfigurationLoadedEvent is declared final and cannot be mocked' on TYPO3 v14. How do I fix this?",
+      "expected_output": "Should explain TYPO3 v14 final/readonly classes, suggest interface extraction for own dependencies, real object construction for value-like events, adapter pattern for third-party finals"
+    },
+    {
+      "id": 14,
+      "name": "mock-validity-multi-version",
+      "area": "mock-validity",
+      "prompt": "My extension supports intervention/image ^3 || ^4. My test mocks ImageInterface::toWebp() but it fails on v4. What's wrong?",
+      "expected_output": "Should explain toWebp() exists on concrete Image class not on ImageInterface, recommend verifying mocked methods exist on interface in ALL supported versions, suggest adapter pattern or method_exists guards"
+    },
+    {
+      "id": 15,
+      "name": "time-dependent-testing",
+      "area": "unit-testing",
+      "prompt": "I have a TYPO3 service that uses time() and new \\DateTime() for cache expiry logic. How do I make this testable?",
+      "expected_output": "Should recommend ClockInterface (PSR-20) or FakeClock pattern, inject clock dependency, avoid direct time()/DateTime calls, show how to freeze time in tests"
+    },
+    {
+      "id": 16,
+      "name": "integration-test-http-mock",
+      "area": "integration-testing",
+      "prompt": "Write an integration test for a TYPO3 service that calls an external REST API using PSR-18 HttpClient.",
+      "expected_output": "Should mock PSR-18 ClientInterface, create mock PSR-7 responses, verify request construction, test error handling for HTTP failures, use AbstractIntegrationTestCase pattern"
+    },
+    {
+      "id": 17,
+      "name": "quality-tools-phpstan-config",
+      "area": "quality-tools",
+      "prompt": "Configure PHPStan for a TYPO3 extension at level 10 with TYPO3-specific rules.",
+      "expected_output": "Should reference saschaegerer/phpstan-typo3, phpstan-strict-rules, phpstan-deprecation-rules, netresearch/typo3-ci-workflows providing shared configs, level 10 requirement"
+    },
+    {
+      "id": 18,
+      "name": "test-coverage-threshold",
+      "area": "coverage",
+      "prompt": "What coverage requirements should my TYPO3 extension meet and how do I enforce them in CI?",
+      "expected_output": "Should state 70%+ unit test coverage required, functional tests required for DB operations, architecture tests with phpat required for full scoring, show coverage report generation"
+    },
+    {
+      "id": 19,
+      "name": "functional-test-csv-fixtures",
+      "area": "functional-testing",
+      "prompt": "How do I create and use CSV fixture data for TYPO3 functional tests?",
+      "expected_output": "Should show CSV format with TYPO3 table headers, importCSVDataSet usage, fixture file placement in Tests/Functional/Fixtures/, demonstrate table column mapping"
+    },
+    {
+      "id": 20,
+      "name": "ddev-multi-version-testing",
+      "area": "ddev-testing",
+      "prompt": "How do I test my TYPO3 extension against multiple TYPO3 versions locally using DDEV?",
+      "expected_output": "Should explain DDEV testing setup, multi-version matrix configuration, running tests via runTests.sh in DDEV context"
     }
   ]
 }
