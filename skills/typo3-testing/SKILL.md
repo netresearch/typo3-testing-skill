@@ -49,17 +49,19 @@ References for TYPO3 extension testing.
 
 Verify: `ls captainhook.json .git/hooks/pre-commit 2>/dev/null` (see `references/captainhook-setup.md`)
 
-## Running Tests
+## Commands
 
 ```bash
-Build/Scripts/runTests.sh -s unit          # Unit tests
-Build/Scripts/runTests.sh -s functional    # Functional tests
-Build/Scripts/runTests.sh -s phpstan       # Static analysis
-Build/Scripts/runTests.sh -s cgl           # Coding guidelines
-Build/Scripts/runTests.sh -s mutation      # Mutation testing
+# Setup (from skill dir)
+scripts/setup-testing.sh [--with-e2e]
+scripts/validate-setup.sh
+scripts/generate-test.sh <Type> <Class>
+
+# Run (always via runTests.sh)
+Build/Scripts/runTests.sh -s unit|functional|phpstan|cgl|mutation|ci
 ```
 
-Setup scripts: `scripts/setup-testing.sh`, `scripts/validate-setup.sh`, `scripts/generate-test.sh`.
+Verify tests fail before fix, pass after.
 
 ## Scoring Requirements
 
@@ -72,22 +74,19 @@ Setup scripts: `scripts/setup-testing.sh`, `scripts/validate-setup.sh`, `scripts
 
 ## References (in `references/`)
 
-`unit-testing.md` | `functional-testing.md` | `functional-test-patterns.md` | `integration-testing.md` | `e2e-testing.md` | `ddev-testing.md` | `test-runners.md` | `architecture-testing.md` | `ci-debugging.md` | `ci-cd.md` | `quality-tools.md` | `mutation-testing.md` | `typo3-v14-final-classes.md` | `mock-validity.md` | `javascript-testing.md` | `captainhook-setup.md` | `enforcement-rules.md`
+`unit-testing.md` | `functional-testing.md` | `functional-test-patterns.md` | `integration-testing.md` | `e2e-testing.md` | `accessibility-testing.md` | `ddev-testing.md` | `test-runners.md` | `architecture-testing.md` | `ci-debugging.md` | `ci-cd.md` | `quality-tools.md` | `mutation-testing.md` | `fuzz-testing.md` | `performance-testing.md` | `typo3-v14-final-classes.md` | `mock-validity.md` | `javascript-testing.md` | `captainhook-setup.md` | `enforcement-rules.md` | `event-dispatch-testing.md` | `crypto-testing.md` | `test-environment-guards.md` | `sonarcloud.md` | `typo3-ci-config-patterns.md`
 
 ### Content Triggers
 
 - CI test failures across TYPO3 versions: load `ci-debugging.md`
 - Functional tests with TSFE context: load `functional-testing.md`
 - Mock failures across dependency versions: load `mock-validity.md`
+- Image processing or extension-dependent tests: load `test-environment-guards.md`
+- Event dispatcher testing with try/catch: load `event-dispatch-testing.md`
 
-## External Resources
+## Links
 
-- [TYPO3 Testing Documentation](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/Testing/)
-- [Tea Extension](https://github.com/TYPO3BestPractices/tea) (reference implementation)
-- [phpat documentation](https://github.com/carlosas/phpat)
-- [Infection PHP documentation](https://infection.github.io/)
-- [DDEV documentation](https://ddev.readthedocs.io/)
-
----
-
-> **Contributing:** https://github.com/netresearch/typo3-testing-skill
+[TYPO3 Testing Docs](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/Testing/) |
+[Tea Extension](https://github.com/TYPO3BestPractices/tea) |
+[phpat](https://github.com/carlosas/phpat) |
+[Infection](https://infection.github.io/)
