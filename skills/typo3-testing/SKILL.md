@@ -74,33 +74,7 @@ Verify tests fail before fix, pass after.
 
 ## References (in `references/`)
 
-| Reference | Topic |
-|-----------|-------|
-| `unit-testing.md` | UnitTestCase, mock/stub discipline, FakeClock |
-| `functional-testing.md` | FunctionalTestCase, CSV fixtures, **TSFE** |
-| `functional-test-patterns.md` | PHPUnit 10+ migration, container reset |
-| `integration-testing.md` | PSR-18 mocking, OAuth flows |
-| `e2e-testing.md` | Playwright, Page Object Model |
-| `accessibility-testing.md` | axe-core, WCAG 2.1 AA |
-| `ddev-testing.md` | Local multi-version matrix |
-| `test-runners.md` | runTests.sh, Docker orchestration |
-| `architecture-testing.md` | phpat, layer constraints |
-| `ci-debugging.md` | **Multi-version CI failure analysis** |
-| `ci-cd.md` | GitHub Actions, GitLab CI |
-| `quality-tools.md` | PHPStan, PHP-CS-Fixer, Rector |
-| `mutation-testing.md` | Infection, MSI |
-| `fuzz-testing.md` | nikic/php-fuzzer, input mutation |
-| `performance-testing.md` | Benchmarks, regression detection |
-| `typo3-v14-final-classes.md` | Interface extraction, mock strategies |
-| `mock-validity.md` | **Multi-version mock validity, adapters** |
-| `javascript-testing.md` | CKEditor plugin testing |
-| `captainhook-setup.md` | CaptainHook git hooks |
-| `enforcement-rules.md` | PHPUnit quality checks |
-| `event-dispatch-testing.md` | Try/catch guarded dispatch |
-| `crypto-testing.md` | Envelope encryption, key derivation |
-| `test-environment-guards.md` | GD/Imagick/root guards |
-| `sonarcloud.md` | Coverage tracking, quality gates |
-| `typo3-ci-config-patterns.md` | ext_emconf, shared configs |
+`unit-testing.md` | `functional-testing.md` | `functional-test-patterns.md` | `integration-testing.md` | `e2e-testing.md` | `accessibility-testing.md` | `ddev-testing.md` | `test-runners.md` | `architecture-testing.md` | `ci-debugging.md` | `ci-cd.md` | `quality-tools.md` | `mutation-testing.md` | `fuzz-testing.md` | `performance-testing.md` | `typo3-v14-final-classes.md` | `mock-validity.md` | `javascript-testing.md` | `captainhook-setup.md` | `enforcement-rules.md` | `event-dispatch-testing.md` | `crypto-testing.md` | `test-environment-guards.md` | `sonarcloud.md` | `typo3-ci-config-patterns.md`
 
 ### Content Triggers
 
