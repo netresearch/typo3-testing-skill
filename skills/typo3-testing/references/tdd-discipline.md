@@ -66,7 +66,7 @@ Individual tests that legitimately need more time must document why in a comment
 
 ## Cross-Version Test Worktree Authority
 
-When testing across TYPO3 v11/v12/v13/v14, use a separate worktree per version — never switch branches in place.
+When testing across TYPO3 v11/v12/v13/v14, use a separate worktree per version — never switch branches in place. The `.bare/` bare-clone layout this assumes (setup commands, absolute-path rules, cache safety) is documented in [`typo3-extension-upgrade-skill/references/multi-version-worktrees.md`](https://github.com/netresearch/typo3-extension-upgrade-skill/blob/main/skills/typo3-extension-upgrade/references/multi-version-worktrees.md) — set that up first, then:
 
 ```bash
 git -C .bare worktree add ../TYPO3_11 TYPO3_11
@@ -97,7 +97,7 @@ Both should agree on the target major. If you ran the tests in the v13 worktree 
 | "Looks fine, should work" | No command run | Zero evidence |
 | "Tests pass locally" | No output pasted | Unverifiable claim |
 | Sharing a mock DB in a multi-test setup | One DB fixture across tests | Test pollution; flaky failures |
-| Same scheduler/service reused across tests | `var sharedX *X` at file scope | State bleed between tests |
+| Same service instance reused across tests | `private static Service $sharedService` at class scope | State bleed between tests |
 | Running tests without `-p <php-version>` | `Build/Scripts/runTests.sh -s unit` on multi-PHP project | Silently uses host PHP, misses compat bugs |
 | Declaring green on one TYPO3 version, shipping to all | Single `-s functional` run | Different LTSes break differently |
 
