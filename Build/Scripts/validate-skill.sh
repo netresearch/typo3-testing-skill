@@ -97,13 +97,27 @@ else
 fi
 
 # --- Required files ---
-for file in README.md LICENSE .gitignore; do
+for file in README.md .gitignore; do
     if [[ -f "$REPO_DIR/$file" ]]; then
         success "$file exists"
     else
         error "$file not found"
     fi
 done
+
+# License: accept either single LICENSE or split LICENSE-MIT + LICENSE-CC-BY-SA-4.0
+if [[ -f "$REPO_DIR/LICENSE-MIT" ]]; then
+    success "LICENSE-MIT exists"
+    if [[ -f "$REPO_DIR/LICENSE-CC-BY-SA-4.0" ]]; then
+        success "LICENSE-CC-BY-SA-4.0 exists"
+    else
+        error "LICENSE-CC-BY-SA-4.0 not found (required when using split licensing)"
+    fi
+elif [[ -f "$REPO_DIR/LICENSE" ]]; then
+    success "LICENSE exists"
+else
+    error "LICENSE not found (expected LICENSE or split LICENSE-MIT + LICENSE-CC-BY-SA-4.0)"
+fi
 
 # Release workflow
 if [[ -f "$REPO_DIR/.github/workflows/release.yml" ]]; then
