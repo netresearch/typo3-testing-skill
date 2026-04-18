@@ -84,15 +84,21 @@ Verify the command ran in the correct worktree:
 
 ```bash
 pwd                                                      # must match the intended worktree
-jq -r '.require["typo3/cms-core"]' composer.json         # constraint, e.g. "^14.0"
-# typo3/cms-core may live under .packages; typo3/testing-framework
-# under .packages-dev. Search both so the check works regardless of
-# whether the package is a runtime or dev dependency.
-jq -r '(.packages + (."packages-dev" // []))[] | select(.name=="typo3/cms-core") | .version' composer.lock
+
+# composer.json: typo3/cms-core may be declared in require OR require-dev
+# depending on whether the extension treats core as a runtime or a dev
+# dependency. typo3/testing-framework is typically require-dev. Search the
+# union so both forms work.
+jq -r '(.require + (."require-dev" // {}))["typo3/cms-core"]'          composer.json
+jq -r '(.require + (."require-dev" // {}))["typo3/testing-framework"]' composer.json
+
+# composer.lock: same packages may resolve under .packages or .packages-dev
+# per the same runtime/dev split.
+jq -r '(.packages + (."packages-dev" // []))[] | select(.name=="typo3/cms-core") | .version'           composer.lock
 jq -r '(.packages + (."packages-dev" // []))[] | select(.name=="typo3/testing-framework") | .version' composer.lock
 ```
 
-All three values should agree on the target major. If you ran tests in the v13 worktree but claimed v14, the claim is false.
+All four values should agree on the target major. If you ran tests in the v13 worktree but claimed v14, the claim is false.
 
 ## Anti-Patterns
 
