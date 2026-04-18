@@ -39,16 +39,19 @@ A bare assertion from the assistant is not evidence.
 
 ## Playwright Hard Timeout
 
-Playwright sessions have hung for 2+ hours when waiting for a selector that never appeared. Set a hard ceiling:
+Playwright sessions have hung for 2+ hours when waiting for a selector that never appeared. Set a hard ceiling. The snippet below shows the timeout-relevant fields only — merge into the project's existing `playwright.config.ts` alongside its `projects`, `webServer`, `use`, and reporter settings:
 
-```javascript
-// playwright.config.ts
+```typescript
+// playwright.config.ts — merge into existing defineConfig({...})
+import { defineConfig } from '@playwright/test';
+
 export default defineConfig({
-  timeout: 120_000,           // 2 min per test — HARD CAP
-  expect: { timeout: 15_000 }, // 15s per expectation
+  timeout: 120_000,            // 2 min per test — HARD CAP
+  expect: { timeout: 15_000 }, // 15 s per expectation
   globalTimeout: 1_800_000,    // 30 min total across all tests
   workers: 4,
   forbidOnly: !!process.env.CI,
+  // ... keep existing fields: projects, webServer, use, reporter, etc.
 });
 ```
 
@@ -80,12 +83,12 @@ cd ../main     && Build/Scripts/runTests.sh -s functional -p 8.4
 Verify the command ran in the correct worktree:
 
 ```bash
-pwd                                # must match the intended version's worktree
-head -1 composer.json              # sanity check — should mention the right TYPO3 version
-cat composer.lock | jq '.packages[] | select(.name == "typo3/cms-core") | .version'
+pwd                                                      # must match the intended worktree
+jq -r '.require["typo3/cms-core"]' composer.json         # constraint, e.g. "^14.0"
+jq -r '.packages[] | select(.name=="typo3/cms-core") | .version' composer.lock
 ```
 
-If you ran the tests in the v13 worktree but claimed v14, the claim is false.
+Both should agree on the target major. If you ran the tests in the v13 worktree but claimed v14, the claim is false.
 
 ## Anti-Patterns
 
@@ -105,7 +108,7 @@ After the loop completes, report in this format:
 ```
 Fix summary: <one sentence>
 
-Reproduction test: tests/Unit/<Name>Test.php::<testMethod>
+Reproduction test: Tests/Unit/<Name>Test.php::<testMethod>
 Verification:
   $ Build/Scripts/runTests.sh -s unit -- --filter <Name>
   <pasted output, last 10 lines>
