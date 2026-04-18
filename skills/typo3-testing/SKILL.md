@@ -61,20 +61,15 @@ scripts/generate-test.sh <Type> <Class>
 Build/Scripts/runTests.sh -s unit|functional|phpstan|cgl|mutation|ci
 ```
 
-Verify tests fail before fix, pass after.
+Verify tests fail before fix, pass after. Bug fixes use the strict TDD loop in `references/tdd-discipline.md` — no "tested/verified" claims without pasted output.
 
 ## Scoring Requirements
 
-| Criterion | Requirement |
-|-----------|-------------|
-| Unit tests | Required, 70%+ coverage |
-| Functional tests | Required for DB operations |
-| Architecture tests | **phpat required** for full points |
-| PHPStan | Level 10 (max) |
+Unit tests required (70%+ coverage). Functional tests required for DB operations. **phpat required** for architecture points. PHPStan level 10.
 
 ## References (in `references/`)
 
-`unit-testing.md` | `functional-testing.md` | `functional-test-patterns.md` | `integration-testing.md` | `e2e-testing.md` | `accessibility-testing.md` | `ddev-testing.md` | `test-runners.md` | `architecture-testing.md` | `ci-debugging.md` | `ci-cd.md` | `quality-tools.md` | `mutation-testing.md` | `fuzz-testing.md` | `performance-testing.md` | `typo3-v14-final-classes.md` | `mock-validity.md` | `javascript-testing.md` | `captainhook-setup.md` | `enforcement-rules.md` | `event-dispatch-testing.md` | `crypto-testing.md` | `test-environment-guards.md` | `sonarcloud.md` | `typo3-ci-config-patterns.md`
+`unit-testing.md` | `functional-testing.md` | `functional-test-patterns.md` | `integration-testing.md` | `e2e-testing.md` | `accessibility-testing.md` | `ddev-testing.md` | `test-runners.md` | `architecture-testing.md` | `ci-debugging.md` | `ci-cd.md` | `quality-tools.md` | `mutation-testing.md` | `fuzz-testing.md` | `performance-testing.md` | `typo3-v14-final-classes.md` | `mock-validity.md` | `javascript-testing.md` | `captainhook-setup.md` | `enforcement-rules.md` | `event-dispatch-testing.md` | `crypto-testing.md` | `test-environment-guards.md` | `sonarcloud.md` | `typo3-ci-config-patterns.md` | `tdd-discipline.md`
 
 ### Content Triggers
 
