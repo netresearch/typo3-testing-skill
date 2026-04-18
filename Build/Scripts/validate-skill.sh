@@ -97,13 +97,39 @@ else
 fi
 
 # --- Required files ---
-for file in README.md LICENSE .gitignore; do
+for file in README.md .gitignore; do
     if [[ -f "$REPO_DIR/$file" ]]; then
         success "$file exists"
     else
         error "$file not found"
     fi
 done
+
+# License: pass if EITHER a legacy LICENSE file exists OR the split pair
+# LICENSE-MIT + LICENSE-CC-BY-SA-4.0 both exist. Both forms coexisting (e.g.
+# mid-migration from single to split) is fine — a plain LICENSE alone already
+# satisfies the check, so we don't fail just because the split pair is
+# incomplete in that case.
+_has_legacy="no"; _has_mit="no"; _has_ccbysa="no"
+[[ -f "$REPO_DIR/LICENSE" ]] && _has_legacy="yes"
+[[ -f "$REPO_DIR/LICENSE-MIT" ]] && _has_mit="yes"
+[[ -f "$REPO_DIR/LICENSE-CC-BY-SA-4.0" ]] && _has_ccbysa="yes"
+
+if [[ "$_has_legacy" == "yes" ]]; then
+    success "LICENSE exists"
+    [[ "$_has_mit" == "yes" ]] && success "LICENSE-MIT also present (split in addition to legacy)"
+    [[ "$_has_ccbysa" == "yes" ]] && success "LICENSE-CC-BY-SA-4.0 also present"
+elif [[ "$_has_mit" == "yes" && "$_has_ccbysa" == "yes" ]]; then
+    success "LICENSE-MIT exists"
+    success "LICENSE-CC-BY-SA-4.0 exists"
+elif [[ "$_has_mit" == "yes" ]]; then
+    error "LICENSE-CC-BY-SA-4.0 not found (required alongside LICENSE-MIT when not using a legacy LICENSE)"
+elif [[ "$_has_ccbysa" == "yes" ]]; then
+    error "LICENSE-MIT not found (required alongside LICENSE-CC-BY-SA-4.0 when not using a legacy LICENSE)"
+else
+    error "LICENSE not found (expected LICENSE or split LICENSE-MIT + LICENSE-CC-BY-SA-4.0)"
+fi
+unset _has_legacy _has_mit _has_ccbysa
 
 # Release workflow
 if [[ -f "$REPO_DIR/.github/workflows/release.yml" ]]; then
