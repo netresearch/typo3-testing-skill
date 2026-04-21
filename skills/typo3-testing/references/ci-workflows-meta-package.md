@@ -73,7 +73,7 @@ Create a shell alias or Makefile target:
 
 ```makefile
 composer-install-local:
-    composer install --no-plugins
+	composer install --no-plugins
 ```
 
 ## Build/phpstan.no-plugins.neon Pattern

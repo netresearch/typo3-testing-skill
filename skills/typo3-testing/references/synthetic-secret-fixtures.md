@@ -59,7 +59,7 @@ key pattern.
 ### Option B — Helper Closure (preferred for many fixtures)
 
 ```php
-// In setUp() or as a class constant helper
+// Define in setUp(), or extract to a private static function make(...), or use a top-level helper function
 $make = static fn(string ...$parts): string => implode('', $parts);
 
 // Usage in tests

@@ -25,29 +25,29 @@ RELEASE_YF=".github/workflows/release.yml"
 
 echo "Validating reusable workflow references in $RELEASE_YF ..."
 
-grep -oP 'uses:\s*\K[^\s#]+' "$RELEASE_YF" \
-  | grep '\.github/workflows/' \
-  | while IFS= read -r ref; do
-      # ref format: owner/repo/.github/workflows/file.yml@sha
-      owner_repo="${ref%%/.github/*}"
-      rest="${ref#*/}"
-      rest="${rest#*/}"
-      sha="${ref##*@}"
-      workflow_path="${rest%@*}"
+FAILED=0
 
-      url="https://raw.githubusercontent.com/${owner_repo}/${sha}/${workflow_path}"
-      http_code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+while IFS= read -r ref; do
+  # ref format: owner/repo/.github/workflows/file.yml@sha
+  owner_repo="${ref%%/.github/*}"
+  rest="${ref#*/}"
+  rest="${rest#*/}"
+  sha="${ref##*@}"
+  workflow_path="${rest%@*}"
 
-      if [ "$http_code" = "200" ]; then
-        echo "  OK  $ref"
-      else
-        echo "  FAIL (HTTP $http_code): $ref"
-        echo "       URL checked: $url"
-        FAILED=1
-      fi
-    done
+  url="https://raw.githubusercontent.com/${owner_repo}/${sha}/${workflow_path}"
+  http_code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
 
-if [ "${FAILED:-0}" = "1" ]; then
+  if [ "$http_code" = "200" ]; then
+    echo "  OK  $ref"
+  else
+    echo "  FAIL (HTTP $http_code): $ref"
+    echo "       URL checked: $url"
+    FAILED=1
+  fi
+done < <(grep -oP 'uses:\s*\K[^\s#]+' "$RELEASE_YF" | grep '\.github/workflows/')
+
+if [ "$FAILED" -eq 1 ]; then
   echo ""
   echo "ERROR: One or more reusable workflow references are broken."
   echo "Update the SHA references in $RELEASE_YF before tagging."

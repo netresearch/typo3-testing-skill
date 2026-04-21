@@ -442,7 +442,7 @@ mechanical:
 
   # === TEST QUALITY PATTERNS ===
   - id: TT-110
-    type: not_contains
+    type: regex_not
     target: Tests/**/*Test.php
     pattern: 'assertEquals\s*\(\s*null\s*,'
     severity: warning
@@ -527,7 +527,7 @@ mechanical:
   - id: TT-NEW-4
     type: regex
     target: Tests/Functional/**/*Test.php
-    pattern: 'function setUp\(\)[^}]*self::markTestSkipped[^}]*parent::setUp\(\)'
+    pattern: 'function setUp\(\)[^}]*(?:(?:self|static)::markTestSkipped|\$this->markTestSkipped)[^}]*parent::setUp\(\)'
     multiline: true
     severity: error
     desc: >-
