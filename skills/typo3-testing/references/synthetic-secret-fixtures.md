@@ -76,10 +76,10 @@ For detectors that test on _format_ rather than _content_, substitute prefix
 characters so the literal never matches the real pattern:
 
 ```php
-// Replace one character so GitHub's regex won't match
+// Replace prefix characters so the literal never matches the real pattern.
 // Real pattern: sk_live_[a-zA-Z0-9]{24}
-// Fake:         sk_test_ prefix is fine — Stripe test keys are explicitly allowed
-$stripeTestKey = 'sk_test_4eC39HqLyjWDarjtT7ai';
+// Fake live key: use a clearly-fake prefix that doesn't match the scanner regex
+$stripeFakeKey = 'XX_live_XXXXXXXXXXXXXXXXXXXXXXXX';
 
 // Real AWS: AKIA[0-9A-Z]{16}
 // Fake: Use ZZIA prefix — not a valid AWS key ID prefix

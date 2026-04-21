@@ -7,7 +7,7 @@ description: "Use when setting up TYPO3 extension test infrastructure, writing u
 
 ## Assessment-First Rule
 
-**When enhancing an existing test suite** (not setting up from scratch), run the automated-assessment skill FIRST:
+**When enhancing an existing test suite** (not setting up from scratch), run FIRST:
 
 ```bash
 automated-assessment typo3-testing
@@ -73,14 +73,14 @@ Unit tests required (70%+ coverage). Functional tests required for DB operations
 
 ### Content Triggers
 
-- CI test failures across TYPO3 versions: load `ci-debugging.md`
-- Functional tests with TSFE context: load `functional-testing.md`
-- Mock failures across dependency versions: load `mock-validity.md`
-- Image processing or extension-dependent tests: load `test-environment-guards.md`
-- Event dispatcher testing with try/catch: load `event-dispatch-testing.md`
-- Meta-package, typo3-ci-workflows, extension-installer, or no-plugins: load `ci-workflows-meta-package.md`
-- Fake secrets in tests, push-protection blocks, php-cs-fixer collapses string concat: load `synthetic-secret-fixtures.md`
-- Release workflow references, burned tag, validate before tagging: load `release-workflow-validation.md`
+- CI failures across TYPO3 versions → `ci-debugging.md`
+- Functional tests with TSFE context → `functional-testing.md`
+- Mock failures across dependency versions → `mock-validity.md`
+- Image/extension-dependent tests → `test-environment-guards.md`
+- Event dispatcher testing with try/catch → `event-dispatch-testing.md`
+- Meta-package, typo3-ci-workflows, no-plugins → `ci-workflows-meta-package.md`
+- Fake secrets, push-protection, cs-fixer concat → `synthetic-secret-fixtures.md`
+- Burned tag, validate before tagging → `release-workflow-validation.md`
 
 ## Links
 
