@@ -268,12 +268,9 @@ mechanical:
     desc: "Docker network name should include per-run suffix to avoid conflicts with concurrent runs"
 
   # === COMPOSER.JSON TEST DEPENDENCIES ===
-  - id: TT-60
-    type: json_path
-    target: composer.json
-    pattern: '.["require-dev"]["phpunit/phpunit"]'
-    severity: error
-    desc: "composer.json must require phpunit/phpunit in require-dev"
+  # TT-60 removed: phpunit/phpunit is pulled transitively via typo3/testing-framework.
+  # Requiring it directly breaks the PHP-8.2 matrix cell because phpunit 12.5.8+
+  # requires PHP ≥ 8.3. Do NOT add a direct phpunit/phpunit require-dev entry.
 
   - id: TT-61
     type: command
@@ -298,9 +295,9 @@ mechanical:
   - id: TT-15
     type: json_path
     target: composer.json
-    pattern: '.["require-dev"]["carlosas/phpat"]'
+    pattern: '.["require-dev"]["phpat/phpat"] // .["require-dev"]["netresearch/typo3-ci-workflows"]'
     severity: warning
-    desc: "composer.json should require carlosas/phpat for architecture testing"
+    desc: "composer.json should require phpat/phpat for architecture testing (package was renamed from carlosas/phpat in 2023; also satisfied when netresearch/typo3-ci-workflows meta-package is present, as phpat is transitive)"
 
   # === E2E TESTING (Playwright) ===
   - id: TT-16
@@ -445,7 +442,7 @@ mechanical:
 
   # === TEST QUALITY PATTERNS ===
   - id: TT-110
-    type: regex
+    type: not_contains
     target: Tests/**/*Test.php
     pattern: 'assertEquals\s*\(\s*null\s*,'
     severity: warning
@@ -504,6 +501,46 @@ mechanical:
       [ "$missing" -eq 0 ]
     severity: warning
     desc: "Every ViewHelper in Classes/ViewHelpers/ (including subdirectories) should have a corresponding test"
+
+  # === NEW CHECKPOINTS (from t3x-nr-vault v0.5.0 session) ===
+
+  - id: TT-NEW-1
+    type: regex_not
+    target: Tests/E2E/**/*.spec.ts
+    pattern: "(['\"])\\s*/(?:home|Users)/[^'\"/]+/[^'\"]*\\1|(['\"])C:\\\\\\\\"
+    severity: error
+    desc: "E2E specs must not contain hardcoded absolute local paths (/home/username/..., /Users/username/..., C:\\...) — breaks CI and every other developer's machine. Use process.cwd() or paths relative to the test file instead."
+    note: "Real bug caught in t3x-nr-vault review: hardcoded /home/cybot/projects/.../main in an execFileSync cwd."
+
+  - id: TT-NEW-2
+    type: llm_review
+    target: "Tests/Unit/**/*Test.php"
+    severity: warning
+    desc: "#[CoversClass] target must not appear in phpunit.xml <source><exclude>. PHPUnit 12 emits 'not a valid target for code coverage' when a class is both covered and excluded; failOnWarning=true promotes this to a failure. Use #[CoversNothing] for tests of excluded classes, or remove the class from the exclude list."
+
+  - id: TT-NEW-3
+    type: llm_review
+    target: "Tests/**/*.php"
+    severity: error
+    desc: "Tests that call vfsStream::url() must call vfsStream::setup() for the same root in setUp(). On a fresh CI run the virtual-filesystem root does not exist; file_put_contents('vfs://keys/...') fails with 'No such file or directory'. Works locally only when a previous test in the same process already registered the root."
+
+  - id: TT-NEW-4
+    type: regex
+    target: Tests/Functional/**/*Test.php
+    pattern: 'function setUp\(\)[^}]*self::markTestSkipped[^}]*parent::setUp\(\)'
+    multiline: true
+    severity: error
+    desc: >-
+      markTestSkipped() must not be called before parent::setUp() in a FunctionalTestCase::setUp().
+      Typed properties like $this->instancePath are uninitialised until parent::setUp() runs;
+      tearDown() then crashes with "accessed before initialization".
+      Correct order: parent::setUp() first, then check the skip condition.
+
+  - id: TT-NEW-5
+    type: llm_review
+    target: "phpstan.neon"
+    severity: error
+    desc: "phpstan.neon must not combine phpstan/extension-installer auto-registration with explicit includes: of the same extension .neon files. When extension-installer is active (via netresearch/typo3-ci-workflows), phpstan-phpunit, phpstan-strict-rules, phpstan-deprecation-rules, phpat, and saschaegerer/phpstan-typo3 are already registered — adding explicit includes: causes 'These files are included multiple times' and PHPStan exits 1. Remove duplicate includes or use Build/phpstan.no-plugins.neon for local runs without extension-installer."
 
 llm_reviews:
   # === DEPENDENCY FRESHNESS ===
