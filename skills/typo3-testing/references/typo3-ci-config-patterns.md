@@ -83,6 +83,7 @@ strategy:
       - { php: '8.2', typo3: '^13.4' }
       - { php: '8.3', typo3: '^13.4' }
       - { php: '8.4', typo3: '^13.4' }
+      - { php: '8.5', typo3: '^13.4' }
       # TYPO3 12.4 LTS (ELTS window approaching 2026-04-30)
       - { php: '8.2', typo3: '^12.4' }
       - { php: '8.3', typo3: '^12.4' }

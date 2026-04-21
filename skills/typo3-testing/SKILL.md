@@ -1,6 +1,6 @@
 ---
 name: typo3-testing
-description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit 11/12/13, mutation testing, mocking final classes (v14), CI/CD matrix across TYPO3 12/13/14.3 LTS, or debugging CI failures. testing-framework ^9.5 covers both v13 and v14 from one branch. For existing test suites, run the automated-assessment skill first to identify gaps. Also triggers on: ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
+description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit 11/12/13, mutation testing, mocking final classes (v14), CI/CD matrix across TYPO3 12/13/14.3 LTS, or debugging CI failures. `typo3/testing-framework` ^9.5 covers both v13 and v14 from one branch. For existing test suites, run the automated-assessment skill first to identify gaps. Also triggers on: ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
 ---
 
 # TYPO3 Testing Skill
