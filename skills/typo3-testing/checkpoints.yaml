@@ -502,9 +502,9 @@ mechanical:
     severity: warning
     desc: "Every ViewHelper in Classes/ViewHelpers/ (including subdirectories) should have a corresponding test"
 
-  # === NEW CHECKPOINTS (from t3x-nr-vault v0.5.0 session) ===
+  # === ADDITIONAL CHECKPOINTS (t3x-nr-vault v0.5.0 session) ===
 
-  - id: TT-NEW-1
+  - id: TT-132
     type: regex_not
     target: Tests/E2E/**/*.spec.ts
     pattern: "(['\"])\\s*/(?:home|Users)/[^'\"/]+/[^'\"]*\\1|(['\"])C:\\\\\\\\"
@@ -512,19 +512,19 @@ mechanical:
     desc: "E2E specs must not contain hardcoded absolute local paths (/home/username/..., /Users/username/..., C:\\...) — breaks CI and every other developer's machine. Use process.cwd() or paths relative to the test file instead."
     note: "Real bug caught in t3x-nr-vault review: hardcoded /home/cybot/projects/.../main in an execFileSync cwd."
 
-  - id: TT-NEW-2
+  - id: TT-133
     type: llm_review
     target: "Tests/Unit/**/*Test.php"
     severity: warning
     desc: "#[CoversClass] target must not appear in phpunit.xml <source><exclude>. PHPUnit 12 emits 'not a valid target for code coverage' when a class is both covered and excluded; failOnWarning=true promotes this to a failure. Use #[CoversNothing] for tests of excluded classes, or remove the class from the exclude list."
 
-  - id: TT-NEW-3
+  - id: TT-134
     type: llm_review
     target: "Tests/**/*.php"
     severity: error
     desc: "Tests that call vfsStream::url() must call vfsStream::setup() for the same root in setUp(). On a fresh CI run the virtual-filesystem root does not exist; file_put_contents('vfs://keys/...') fails with 'No such file or directory'. Works locally only when a previous test in the same process already registered the root."
 
-  - id: TT-NEW-4
+  - id: TT-135
     type: regex
     target: Tests/Functional/**/*Test.php
     pattern: 'function setUp\(\)[^}]*(?:(?:self|static)::markTestSkipped|\$this->markTestSkipped)[^}]*parent::setUp\(\)'
@@ -536,7 +536,7 @@ mechanical:
       tearDown() then crashes with "accessed before initialization".
       Correct order: parent::setUp() first, then check the skip condition.
 
-  - id: TT-NEW-5
+  - id: TT-136
     type: llm_review
     target: "phpstan.neon"
     severity: error
