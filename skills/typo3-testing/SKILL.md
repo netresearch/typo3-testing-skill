@@ -1,13 +1,13 @@
 ---
 name: typo3-testing
-description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit 11/12/13, mutation testing, mocking final classes (v14), CI/CD matrix across TYPO3 12/13/14.3 LTS, or debugging CI failures. `typo3/testing-framework` ^9.5 covers both v13 and v14 from one branch. For existing test suites, run the automated-assessment skill first to identify gaps. Also triggers on: ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
+description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit 11/12/13, mutation testing, mocking final classes (v14), CI/CD matrix across TYPO3 12/13/14.3 LTS, dev-dependency consolidation via typo3-ci-workflows meta-package, or debugging CI failures. Also triggers on: testing-framework setup, ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
 ---
 
 # TYPO3 Testing Skill
 
 ## Assessment-First Rule
 
-**When enhancing an existing test suite** (not setting up from scratch), run the automated-assessment skill FIRST:
+**When enhancing an existing test suite** (not setting up from scratch), run FIRST:
 
 ```bash
 automated-assessment typo3-testing
@@ -69,15 +69,18 @@ Unit tests required (70%+ coverage). Functional tests required for DB operations
 
 ## References (in `references/`)
 
-`unit-testing.md` | `functional-testing.md` | `functional-test-patterns.md` | `integration-testing.md` | `e2e-testing.md` | `accessibility-testing.md` | `ddev-testing.md` | `test-runners.md` | `architecture-testing.md` | `ci-debugging.md` | `ci-cd.md` | `quality-tools.md` | `mutation-testing.md` | `fuzz-testing.md` | `performance-testing.md` | `typo3-v14-final-classes.md` | `mock-validity.md` | `javascript-testing.md` | `captainhook-setup.md` | `enforcement-rules.md` | `event-dispatch-testing.md` | `crypto-testing.md` | `test-environment-guards.md` | `sonarcloud.md` | `typo3-ci-config-patterns.md` | `tdd-discipline.md`
+`unit-testing.md` | `functional-testing.md` | `functional-test-patterns.md` | `integration-testing.md` | `e2e-testing.md` | `accessibility-testing.md` | `ddev-testing.md` | `test-runners.md` | `architecture-testing.md` | `ci-debugging.md` | `ci-cd.md` | `quality-tools.md` | `mutation-testing.md` | `fuzz-testing.md` | `performance-testing.md` | `typo3-v14-final-classes.md` | `mock-validity.md` | `javascript-testing.md` | `captainhook-setup.md` | `enforcement-rules.md` | `event-dispatch-testing.md` | `crypto-testing.md` | `test-environment-guards.md` | `sonarcloud.md` | `typo3-ci-config-patterns.md` | `tdd-discipline.md` | `ci-workflows-meta-package.md` | `synthetic-secret-fixtures.md` | `release-workflow-validation.md`
 
 ### Content Triggers
 
-- CI test failures across TYPO3 versions: load `ci-debugging.md`
-- Functional tests with TSFE context: load `functional-testing.md`
-- Mock failures across dependency versions: load `mock-validity.md`
-- Image processing or extension-dependent tests: load `test-environment-guards.md`
-- Event dispatcher testing with try/catch: load `event-dispatch-testing.md`
+- CI failures across TYPO3 versions → `ci-debugging.md`
+- Functional tests with TSFE context → `functional-testing.md`
+- Mock failures across dependency versions → `mock-validity.md`
+- Image/extension-dependent tests → `test-environment-guards.md`
+- Event dispatcher testing with try/catch → `event-dispatch-testing.md`
+- Meta-package, typo3-ci-workflows, no-plugins → `ci-workflows-meta-package.md`
+- Fake secrets, push-protection, cs-fixer concat → `synthetic-secret-fixtures.md`
+- Burned tag, validate before tagging → `release-workflow-validation.md`
 
 ## Links
 

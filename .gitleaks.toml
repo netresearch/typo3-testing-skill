@@ -1,0 +1,12 @@
+title = "Gitleaks configuration for typo3-testing-skill"
+
+[allowlist]
+  description = "Reference documentation intentionally documents fake secret patterns for educational purposes"
+  paths = [
+    "skills/typo3-testing/references/synthetic-secret-fixtures.md",
+  ]
+  regexes = [
+    # Deliberately fake Stripe test key used as a documentation example in
+    # synthetic-secret-fixtures.md — not a real secret.
+    "sk_test_4eC39HqLyjWDarjtT7ai",
+  ]
