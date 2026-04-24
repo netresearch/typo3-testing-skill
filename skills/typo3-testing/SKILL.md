@@ -47,7 +47,7 @@ References for TYPO3 extension testing.
 
 ## Git Hooks
 
-Verify: `ls captainhook.json .git/hooks/pre-commit 2>/dev/null` (see `references/captainhook-setup.md`)
+Netresearch default: `Build/captainhook.json` (declared in composer.json `extra.captainhook.config`). Verify: `ls Build/captainhook.json .git/hooks/pre-commit 2>/dev/null` (see `references/captainhook-setup.md`).
 
 ## Commands
 

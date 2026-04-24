@@ -393,16 +393,41 @@ mechanical:
     tags: [ci, ddev, e2e]
 
   # === GIT HOOKS ===
+  # Netresearch convention: keep testing/CI config under Build/ so the repo
+  # root stays focused on end-user files (README, LICENSE, composer.json,
+  # ext_emconf.php). captainhook/hook-installer reads the config path from
+  # composer.json "extra.captainhook.config", so Build/captainhook.json is
+  # the enforced default.
   - id: TT-71
     type: file_exists
-    target: "{captainhook.json,Build/captainhook.json,.captainhook/captainhook.json}"
+    target: "{Build/captainhook.json,captainhook.json,.captainhook/captainhook.json}"
     severity: error
     desc: >-
       captainhook config must exist for local git hook automation (pre-commit,
-      commit-msg, pre-push) — mandatory for Netresearch extensions. Accepts the
-      default path (captainhook.json at root) or the Build/ subpath (configured
-      via composer.json "extra.captainhook.config" — the official
-      captainhook/hook-installer plugin pattern).
+      commit-msg, pre-push) — mandatory for Netresearch extensions.
+      Netresearch default: Build/captainhook.json (declared in composer.json
+      "extra.captainhook.config"). Root captainhook.json is accepted for
+      backward compatibility but flagged by TT-71a.
+
+  - id: TT-71a
+    type: file_not_exists
+    target: captainhook.json
+    severity: warning
+    desc: >-
+      captainhook.json should live under Build/captainhook.json (Netresearch
+      convention — keeps repo root clean). Move to Build/ and declare
+      "extra": {"captainhook": {"config": "Build/captainhook.json"}} in
+      composer.json so captainhook/hook-installer picks it up.
+
+  - id: TT-71b
+    type: json_path
+    target: composer.json
+    pattern: '.extra.captainhook.config == "Build/captainhook.json"'
+    severity: warning
+    desc: >-
+      composer.json should declare extra.captainhook.config:
+      "Build/captainhook.json" so the captainhook/hook-installer plugin
+      installs hooks using the Build/ subdir config on every composer install.
 
   # === GITIGNORE CHECKS ===
   - id: TT-70
