@@ -395,9 +395,14 @@ mechanical:
   # === GIT HOOKS ===
   - id: TT-71
     type: file_exists
-    target: captainhook.json
+    target: "{captainhook.json,Build/captainhook.json,.captainhook/captainhook.json}"
     severity: error
-    desc: "captainhook.json must exist for local git hook automation (pre-commit, commit-msg, pre-push) — mandatory for Netresearch extensions"
+    desc: >-
+      captainhook config must exist for local git hook automation (pre-commit,
+      commit-msg, pre-push) — mandatory for Netresearch extensions. Accepts the
+      default path (captainhook.json at root) or the Build/ subpath (configured
+      via composer.json "extra.captainhook.config" — the official
+      captainhook/hook-installer plugin pattern).
 
   # === GITIGNORE CHECKS ===
   - id: TT-70
@@ -525,7 +530,7 @@ mechanical:
     desc: "Tests that call vfsStream::url() must call vfsStream::setup() for the same root in setUp(). On a fresh CI run the virtual-filesystem root does not exist; file_put_contents('vfs://keys/...') fails with 'No such file or directory'. Works locally only when a previous test in the same process already registered the root."
 
   - id: TT-135
-    type: regex
+    type: regex_not
     target: Tests/Functional/**/*Test.php
     pattern: 'function setUp\(\)[^}]*(?:(?:self|static)::markTestSkipped|\$this->markTestSkipped)[^}]*parent::setUp\(\)'
     multiline: true
