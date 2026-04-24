@@ -66,7 +66,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          coverage: xdebug
+          coverage: pcov
 
       - name: Install dependencies
         run: composer install --no-progress
@@ -186,90 +186,55 @@ steps:
     name: codecov-umbrella
 ```
 
-### Xdebug vs PCOV for Coverage
+### PCOV vs Xdebug for Coverage
 
-**Xdebug is recommended for CI/CD.** PCOV is faster but gives up enough diagnostic fidelity and local/CI parity that the tradeoff rarely pays off in practice.
+**PCOV is recommended for CI/CD** due to significant performance advantages:
 
-| Aspect | Xdebug | PCOV |
-|--------|--------|------|
-| **Local/CI parity** | ✅ Composer scripts like `ci:test:php:unit:coverage` already set `XDEBUG_MODE=coverage`, so CI matches dev | ❌ Mismatches local; leaks `beStrictAboutCoverageMetadata`-style drift |
-| **Branch coverage** | ✅ Branch + path coverage | ❌ Line-only |
-| **Purpose** | Debugger + Profiler + Coverage | Coverage only |
-| **Speed** | Slower (debugger overhead) | 2-5× faster |
-| **Memory** | Higher (full debugger loaded) | Lower footprint |
+| Aspect | PCOV | Xdebug |
+|--------|------|--------|
+| **Speed** | 2-5x faster | Slower (debugger overhead) |
+| **Purpose** | Coverage only | Debugger + Profiler + Coverage |
+| **Memory** | Lower footprint | Higher (full debugger loaded) |
+| **CI/CD** | Ideal | Overkill for just coverage |
 
-**Why Xdebug is the better default in 2026:**
-- **Strict coverage metadata**: PHPUnit's `beStrictAboutCoverageMetadata="true"` marks tests as "risky" when they execute code outside their declared `#[CoversClass]` / `#[UsesClass]` attributes. The check only runs under active coverage. Mixing local Xdebug with CI PCOV produced "green locally, red in CI" surprises — switching both to Xdebug eliminates that drift. Observed concretely in [t3x-nr-image-optimize#93](https://github.com/netresearch/t3x-nr-image-optimize/pull/93).
-- **Branch + path coverage**: Xdebug sees `if/else` branches and early returns. PCOV reports only which lines executed, losing the "did we actually test the else-branch?" signal. Matters for Codecov trend reports and mutation testing preparation.
-- **Cost**: ~2-3 min extra CI runtime across a typical 8-job matrix. Acceptable for the diagnostic gain.
+**Why PCOV is faster:**
+- Xdebug hooks into every opcode execution for debugging capabilities
+- PCOV only instruments line coverage — no step debugging, no profiling
+- Less overhead = faster test runs
 
-**When PCOV is still the right call:**
-- CI matrix has so many jobs (e.g. 20+ combinations) that the 2-5× coverage speed-up genuinely matters.
-- Coverage runs are gated (only on the default branch, not every PR).
-- You're comfortable maintaining `[CoversClass]` / `[UsesClass]` declarations that pass locally and in CI — see the "Strict coverage metadata" note below.
+**When to use which:**
+- **PCOV**: CI pipelines, large test suites, coverage reports
+- **Xdebug**: Local debugging, step-through, profiling, breakpoints
 
-**Via `netresearch/typo3-ci-workflows`:**
-
-As of [netresearch/typo3-ci-workflows#72](https://github.com/netresearch/typo3-ci-workflows/pull/72), the default `coverage-tool` is `xdebug`. Consumers can still override explicitly:
-
+**GitHub Actions setup:**
 ```yaml
-jobs:
-  ci:
-    uses: netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main
-    with:
-      upload-coverage: true
-      # coverage-tool defaults to xdebug (recommended)
-      # coverage-tool: 'pcov'  # opt in to pcov for faster runs
-```
-
-**Standalone GitHub Actions setup:**
-```yaml
-- name: Setup PHP with Xdebug (recommended)
-  uses: shivammathur/setup-php@v2
-  with:
-    php-version: ${{ matrix.php }}
-    coverage: xdebug
-
-# Or opt into PCOV when CI runtime matters more than coverage fidelity:
-- name: Setup PHP with PCOV
+- name: Setup PHP with PCOV (recommended for CI)
   uses: shivammathur/setup-php@v2
   with:
     php-version: ${{ matrix.php }}
     coverage: pcov
+
+- name: Setup PHP with Xdebug (for debugging)
+  uses: shivammathur/setup-php@v2
+  with:
+    php-version: ${{ matrix.php }}
+    coverage: xdebug
 ```
 
 **Local development with runTests.sh:**
 ```bash
-# Recommended: Xdebug (matches CI default, branch coverage)
-php -d xdebug.mode=coverage \
-    vendor/bin/phpunit --coverage-clover coverage.xml
-
-# Alternative: PCOV if available and speed matters
+# Fast coverage with PCOV (if available in Docker image)
 php -d pcov.enabled=1 -d xdebug.mode=off \
     vendor/bin/phpunit --coverage-clover coverage.xml
+
+# Coverage with Xdebug
+php -d xdebug.mode=coverage \
+    vendor/bin/phpunit --coverage-clover coverage.xml
 ```
 
-#### Strict coverage metadata
-
-If `Build/UnitTests.xml` / `Build/FunctionalTests.xml` sets `beStrictAboutCoverageMetadata="true"` together with `failOnRisky="true"`, every test must declare every class it executes via `#[CoversClass]` or `#[UsesClass]` — otherwise the coverage-driven check flags the test as risky and fails the run.
-
-- Unit tests: strict metadata is natural — a unit test touches exactly one class.
-- Functional / integration tests: expect to declare the full transitive dependency chain via `#[UsesClass]`. Example:
-
-```php
-#[CoversClass(ProcessingMiddleware::class)]
-#[UsesClass(Processor::class)]
-#[UsesClass(ImageManagerAdapter::class)]
-#[UsesClass(ImageManagerFactory::class)]
-#[UsesClass(VariantServedEvent::class)]
-final class ProcessingMiddlewareTest extends FunctionalTestCase
-```
-
-If maintaining those lists across DI refactorings costs too much, relax to `beStrictAboutCoverageMetadata="false"` *on functional tests only* — keep unit tests strict.
-
-> **Note:** PHPUnit auto-detects available coverage drivers. If both are
-> present (some Docker images install both), PHPUnit prefers PCOV — set
-> `XDEBUG_MODE=coverage` or pass `-d pcov.enabled=0` to force Xdebug.
+> **Note:** PHPUnit auto-detects available coverage drivers and prefers PCOV
+> if both are present. The TYPO3 core-testing Docker images
+> (`ghcr.io/typo3/core-testing-php*`) include both PCOV and Xdebug.
 
 ## E2E Testing in CI
 
