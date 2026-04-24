@@ -344,19 +344,23 @@ mechanical:
     desc: "If infection.json5 exists, mutation testing should be configured in CI (at least as a scheduled job)"
 
   # === ADDITIONAL DEV DEPENDENCIES ===
+  # Accept either a direct require-dev declaration OR transitive availability
+  # via the netresearch/typo3-ci-workflows meta-package, which bundles
+  # php-cs-fixer, typo3/coding-standards, rector, phpstan, infection, etc.
+  # Same pattern as TT-15 (phpat) — see references/ci-workflows-meta-package.md
   - id: TT-63
     type: json_path
     target: composer.json
-    pattern: '.["require-dev"]["friendsofphp/php-cs-fixer"] // .["require-dev"]["typo3/coding-standards"]'
+    pattern: '.["require-dev"]["friendsofphp/php-cs-fixer"] // .["require-dev"]["typo3/coding-standards"] // .["require-dev"]["netresearch/typo3-ci-workflows"]'
     severity: warning
-    desc: "composer.json should require php-cs-fixer or typo3/coding-standards in require-dev"
+    desc: "composer.json should require php-cs-fixer or typo3/coding-standards in require-dev (also satisfied transitively via netresearch/typo3-ci-workflows)"
 
   - id: TT-64
     type: json_path
     target: composer.json
-    pattern: '.["require-dev"]["rector/rector"]'
+    pattern: '.["require-dev"]["rector/rector"] // .["require-dev"]["netresearch/typo3-ci-workflows"]'
     severity: info
-    desc: "composer.json should require rector/rector in require-dev"
+    desc: "composer.json should require rector/rector in require-dev (also satisfied transitively via netresearch/typo3-ci-workflows)"
 
   # === CI MATRIX BEST PRACTICES ===
   - id: TT-25
