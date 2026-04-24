@@ -192,13 +192,13 @@ steps:
 
 | Aspect | Xdebug | PCOV |
 |--------|--------|------|
-| **Local/CI parity** | ✅ Composer scripts like `ci:test:php:unit:coverage` already set `XDEBUG_MODE=coverage`, so CI matches dev | ❌ Mismatches local; leaks `beStrictAboutCoverageMetadata`-style drift |
+| **Local/CI parity** | ✅ Local coverage runs typically set `XDEBUG_MODE=coverage`; keeping CI on xdebug means local and CI behave identically | ❌ Mismatches local; leaks `beStrictAboutCoverageMetadata`-style drift |
 | **Branch coverage** | ✅ Branch + path coverage | ❌ Line-only |
 | **Purpose** | Debugger + Profiler + Coverage | Coverage only |
 | **Speed** | Slower (debugger overhead) | 2-5× faster |
 | **Memory** | Higher (full debugger loaded) | Lower footprint |
 
-**Why Xdebug is the better default in 2026:**
+**Why Xdebug is the better default:**
 - **Strict coverage metadata**: PHPUnit's `beStrictAboutCoverageMetadata="true"` marks tests as "risky" when they execute code outside their declared `#[CoversClass]` / `#[UsesClass]` attributes. The check only runs under active coverage. Mixing local Xdebug with CI PCOV produced "green locally, red in CI" surprises — switching both to Xdebug eliminates that drift. Observed concretely in [t3x-nr-image-optimize#93](https://github.com/netresearch/t3x-nr-image-optimize/pull/93).
 - **Branch + path coverage**: Xdebug sees `if/else` branches and early returns. PCOV reports only which lines executed, losing the "did we actually test the else-branch?" signal. Matters for Codecov trend reports and mutation testing preparation.
 - **Cost**: ~2-3 min extra CI runtime across a typical 8-job matrix. Acceptable for the diagnostic gain.
@@ -238,15 +238,33 @@ jobs:
     coverage: pcov
 ```
 
-**Local development with runTests.sh:**
-```bash
-# Recommended: Xdebug (matches CI default, branch coverage)
-php -d xdebug.mode=coverage \
-    vendor/bin/phpunit --coverage-clover coverage.xml
+**Local execution via `Build/Scripts/runTests.sh`:**
 
-# Alternative: PCOV if available and speed matters
-php -d pcov.enabled=1 -d xdebug.mode=off \
-    vendor/bin/phpunit --coverage-clover coverage.xml
+The canonical TYPO3 core-testing pattern runs the suite inside the
+`ghcr.io/typo3/core-testing-*` Docker images, which already have
+xdebug available. Pass `XDEBUG_MODE=coverage` into the container so
+PHPUnit picks xdebug (not pcov, when both are installed):
+
+```bash
+# Recommended: xdebug coverage via runTests.sh
+XDEBUG_MODE=coverage Build/Scripts/runTests.sh -s unit -- \
+    --coverage-clover=coverage.xml
+
+# Functional suite with coverage
+XDEBUG_MODE=coverage Build/Scripts/runTests.sh -s functional -- \
+    --coverage-clover=coverage-functional.xml
+```
+
+**Direct PHPUnit (when runTests.sh is not in use):**
+
+```bash
+# xdebug (matches CI default)
+php -d xdebug.mode=coverage vendor/bin/phpunit \
+    --coverage-clover coverage.xml
+
+# pcov (opt-in, speed over fidelity)
+php -d pcov.enabled=1 -d xdebug.mode=off vendor/bin/phpunit \
+    --coverage-clover coverage.xml
 ```
 
 #### Strict coverage metadata
