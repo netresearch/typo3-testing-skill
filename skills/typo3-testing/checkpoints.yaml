@@ -137,9 +137,9 @@ mechanical:
 
   - id: TT-31
     type: file_exists
-    target: phpstan-baseline.neon
+    target: "{phpstan-baseline.neon,Build/phpstan-baseline.neon,Build/phpstan/phpstan-baseline.neon}"
     severity: info
-    desc: "phpstan-baseline.neon for gradual adoption"
+    desc: "phpstan-baseline.neon for gradual adoption (root or Build/ subdir)"
 
   - id: TT-32
     type: regex
@@ -302,15 +302,15 @@ mechanical:
   # === E2E TESTING (Playwright) ===
   - id: TT-16
     type: file_exists
-    target: Build/playwright.config.ts
+    target: "{playwright.config.ts,playwright.config.js,Build/playwright.config.ts,Tests/E2E/playwright.config.ts}"
     severity: info
-    desc: "Playwright config should exist for E2E testing"
+    desc: "Playwright config should exist for E2E testing (root, Build/, or Tests/E2E/)"
 
   - id: TT-17
     type: file_exists
-    target: Build/package.json
+    target: "{package.json,Build/package.json,Tests/E2E/package.json,Tests/E2E/Playwright/package.json}"
     severity: info
-    desc: "Build/package.json should exist for Playwright/JS test dependencies"
+    desc: "package.json should exist for Playwright/JS test dependencies (root or Build/ or Tests/E2E/ subpath)"
 
   - id: TT-17a
     type: command
@@ -329,9 +329,9 @@ mechanical:
   # === MUTATION TESTING ===
   - id: TT-18
     type: file_exists
-    target: infection.json5
+    target: "{infection.json5,infection.json.dist,infection.json,Build/infection.json5,Build/infection.json.dist}"
     severity: info
-    desc: "Infection config should exist for mutation testing"
+    desc: "Infection config should exist for mutation testing (accepts .json5, .json.dist, .json)"
 
   - id: TT-18a
     type: command
@@ -393,11 +393,42 @@ mechanical:
     tags: [ci, ddev, e2e]
 
   # === GIT HOOKS ===
+  # Netresearch convention: keep testing/CI config under Build/ so the repo
+  # root stays focused on end-user files (README, LICENSE, composer.json,
+  # ext_emconf.php). captainhook/hook-installer reads the config path from
+  # composer.json "extra.captainhook.config", so Build/captainhook.json is
+  # the enforced default.
   - id: TT-71
     type: file_exists
-    target: captainhook.json
+    target: "{Build/captainhook.json,captainhook.json,.captainhook/captainhook.json}"
     severity: error
-    desc: "captainhook.json must exist for local git hook automation (pre-commit, commit-msg, pre-push) — mandatory for Netresearch extensions"
+    desc: >-
+      captainhook config must exist for local git hook automation (pre-commit,
+      commit-msg, pre-push) — mandatory for Netresearch extensions.
+      Netresearch default: Build/captainhook.json (declared in composer.json
+      "extra.captainhook.config"). Root captainhook.json or
+      .captainhook/captainhook.json are accepted for backward compatibility
+      but root location is flagged by TT-71a.
+
+  - id: TT-71a
+    type: file_not_exists
+    target: captainhook.json
+    severity: warning
+    desc: >-
+      captainhook.json should live under Build/captainhook.json (Netresearch
+      convention — keeps repo root clean). Move to Build/ and declare
+      "extra": {"captainhook": {"config": "Build/captainhook.json"}} in
+      composer.json so captainhook/hook-installer picks it up.
+
+  - id: TT-71b
+    type: json_path
+    target: composer.json
+    pattern: '.extra.captainhook.config == "Build/captainhook.json"'
+    severity: warning
+    desc: >-
+      composer.json should declare extra.captainhook.config:
+      "Build/captainhook.json" so the captainhook/hook-installer plugin
+      installs hooks using the Build/ subdir config on every composer install.
 
   # === GITIGNORE CHECKS ===
   - id: TT-70
@@ -525,7 +556,7 @@ mechanical:
     desc: "Tests that call vfsStream::url() must call vfsStream::setup() for the same root in setUp(). On a fresh CI run the virtual-filesystem root does not exist; file_put_contents('vfs://keys/...') fails with 'No such file or directory'. Works locally only when a previous test in the same process already registered the root."
 
   - id: TT-135
-    type: regex
+    type: regex_not
     target: Tests/Functional/**/*Test.php
     pattern: 'function setUp\(\)[^}]*(?:(?:self|static)::markTestSkipped|\$this->markTestSkipped)[^}]*parent::setUp\(\)'
     multiline: true
