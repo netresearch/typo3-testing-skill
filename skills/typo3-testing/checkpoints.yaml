@@ -406,8 +406,9 @@ mechanical:
       captainhook config must exist for local git hook automation (pre-commit,
       commit-msg, pre-push) — mandatory for Netresearch extensions.
       Netresearch default: Build/captainhook.json (declared in composer.json
-      "extra.captainhook.config"). Root captainhook.json is accepted for
-      backward compatibility but flagged by TT-71a.
+      "extra.captainhook.config"). Root captainhook.json or
+      .captainhook/captainhook.json are accepted for backward compatibility
+      but root location is flagged by TT-71a.
 
   - id: TT-71a
     type: file_not_exists
