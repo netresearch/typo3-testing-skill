@@ -347,7 +347,7 @@ mechanical:
   # Accept either a direct require-dev declaration OR transitive availability
   # via the netresearch/typo3-ci-workflows meta-package, which bundles
   # php-cs-fixer, typo3/coding-standards, rector, phpstan, infection, etc.
-  # Same pattern as TT-46 (phpat) — see references/ci-workflows-meta-package.md
+  # Same pattern as TT-15 (phpat) — see references/ci-workflows-meta-package.md
   - id: TT-63
     type: json_path
     target: composer.json
