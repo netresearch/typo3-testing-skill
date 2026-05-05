@@ -316,6 +316,19 @@ Note that the `coverage.include` glob uses a suffix pattern
 project tree, not relative to Vitest's working directory; the relative
 form silently produces 0/0 even with `allowExternal` enabled.
 
+Coverage is opt-in: Vitest only writes `lcov.info` when invoked with
+`--coverage` (or with `coverage.enabled: true` in the config). Wire it
+into a script so CI and local runs match:
+
+```json
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  }
+}
+```
+
 For SonarCloud upload (paths are repository-root-relative), point at
 the resulting lcov:
 
