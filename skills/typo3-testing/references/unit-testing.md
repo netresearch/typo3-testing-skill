@@ -996,6 +996,16 @@ Add comments explaining the limitation:
 // These are better tested in functional tests
 ```
 
+### Uninitialised `Environment` / `NormalizedParams::createFromServerParams`
+
+**Problem**: Code migrated from the deprecated `GeneralUtility::getIndpEnv()` to `NormalizedParams::createFromServerParams($_SERVER, $sysConf)` fails with a `TypeError` in unit tests:
+```
+TypeError: TYPO3\CMS\Core\Core\Environment::getCurrentScript():
+Return value must be of type string, null returned
+```
+
+**Solution**: Call `Environment::initialize()` once in `Tests/bootstrap.php`. See [Test Environment Guards](test-environment-guards.md#initialise-environment-in-testsbootstrapphp) for the full bootstrap snippet and the matching defensive read pattern needed when `phpunit.xml` has `backupGlobals="true"`.
+
 ### Singleton State Pollution
 
 **Problem**: Tests interfere with each other due to singleton state.

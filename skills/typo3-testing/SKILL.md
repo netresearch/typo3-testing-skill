@@ -76,7 +76,7 @@ Unit tests required (70%+ coverage). Functional tests required for DB operations
 - CI failures across TYPO3 versions → `ci-debugging.md`
 - Functional tests with TSFE context → `functional-testing.md`
 - Mock failures across dependency versions → `mock-validity.md`
-- Image/extension-dependent tests → `test-environment-guards.md`
+- Image/extension tests, `Environment::initialize`, `NormalizedParams` TypeError, `backupGlobals` → `test-environment-guards.md`
 - Event dispatcher testing with try/catch → `event-dispatch-testing.md`
 - Meta-package, typo3-ci-workflows, no-plugins → `ci-workflows-meta-package.md`
 - Fake secrets, push-protection, cs-fixer concat → `synthetic-secret-fixtures.md`
