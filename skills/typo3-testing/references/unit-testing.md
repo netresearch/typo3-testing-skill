@@ -998,7 +998,7 @@ Add comments explaining the limitation:
 
 ### Uninitialised `Environment` / `NormalizedParams::createFromServerParams`
 
-**Problem**: Code migrated from the deprecated `GeneralUtility::getIndpEnv()` to `NormalizedParams::createFromServerParams($_SERVER, $sysConf)` TypeErrors in unit tests:
+**Problem**: Code migrated from the deprecated `GeneralUtility::getIndpEnv()` to `NormalizedParams::createFromServerParams($_SERVER, $sysConf)` fails with a `TypeError` in unit tests:
 ```
 TypeError: TYPO3\CMS\Core\Core\Environment::getCurrentScript():
 Return value must be of type string, null returned

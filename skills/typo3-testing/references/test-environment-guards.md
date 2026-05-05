@@ -54,7 +54,7 @@ Reference the bootstrap from `phpunit.xml` at the project root, or from `Build/p
 
 ## PHPUnit `backupGlobals="true"` Resets `$GLOBALS` Between Tests
 
-Many TYPO3 extension `phpunit.xml` files set `backupGlobals="true"`. PHPUnit then snapshots `$GLOBALS` before each test and restores them afterwards. If the snapshot was taken before your bootstrap finished populating globals (or if globals were unset between bootstrap and the test method), production code that reads `$GLOBALS['TYPO3_CONF_VARS']` at runtime can see `null` -- typically resulting in:
+Many TYPO3 extension `phpunit.xml` files set `backupGlobals="true"`. PHPUnit runs the suite bootstrap once, then snapshots `$GLOBALS` per test (before `setUp()`) and restores the snapshot after the test finishes. Globals set by the suite bootstrap survive that cycle, but globals introduced inside `setUp()` or mutated by a previous test do not -- they are reset to whatever was captured in the snapshot. Combined with CLI / non-request contexts where `$GLOBALS['TYPO3_CONF_VARS']` may simply never have been populated, production code that reads it at runtime can see `null` -- typically resulting in:
 
 ```
 TypeError: ... must be of type array, null given
