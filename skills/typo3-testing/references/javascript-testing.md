@@ -267,6 +267,75 @@ describe('TYPO3 Image Plugin', function() {
 });
 ```
 
+### Vitest: Cross-directory Coverage (production at `../../../Resources/...`)
+
+TYPO3 extensions place JS tests under `Tests/JavaScript/` while
+production code lives in `Resources/Public/JavaScript/`. Tests grouped
+into subdirectories (e.g. `Tests/JavaScript/Plugins/foo.test.ts`)
+import production via relative paths such as
+`../../../Resources/Public/JavaScript/Plugins/foo.js`.
+
+By default, **Vitest's v8 coverage provider silently drops files
+outside the test workspace** — `lcov.info` ends up empty even though
+all tests pass. Symptom: SonarCloud (or any lcov consumer) reports 0%
+JS coverage despite imports working and tests asserting against the
+production code.
+
+This recipe assumes `vitest.config.ts` lives in `Tests/JavaScript/`
+and Vitest runs from that directory (so `reportsDirectory: './coverage'`
+resolves to `Tests/JavaScript/coverage/`, matching the Sonar path
+below). The fix is `coverage.allowExternal: true`:
+
+```ts
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+    test: {
+        globals: true,
+        environment: 'jsdom',
+        include: ['**/*.test.ts', '**/*.test.js'],
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'json', 'html', 'lcov'],
+            reportsDirectory: './coverage',
+            // Production code lives outside this workspace
+            // (../../../Resources/Public/JavaScript/), so v8 needs
+            // allowExternal to instrument it — without this,
+            // lcov.info is empty.
+            allowExternal: true,
+            include: ['**/Resources/Public/JavaScript/**/*.js'],
+            exclude: ['**/node_modules/**', '**/Tests/**', '**/mocks/**'],
+        },
+    },
+});
+```
+
+Note that the `coverage.include` glob uses a suffix pattern
+(`**/Resources/...`) rather than the relative-path form
+(`../../../Resources/...`). v8 matches file paths anywhere in the
+project tree, not relative to Vitest's working directory; the relative
+form silently produces 0/0 even with `allowExternal` enabled.
+
+Coverage is opt-in: Vitest only writes `lcov.info` when invoked with
+`--coverage` (or with `coverage.enabled: true` in the config). Wire it
+into a script so CI and local runs match:
+
+```json
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  }
+}
+```
+
+For SonarCloud upload (paths are repository-root-relative), point at
+the resulting lcov:
+
+```properties
+sonar.javascript.lcov.reportPaths=Tests/JavaScript/coverage/lcov.info
+```
+
 ## Unit Tests Do Not Prove UI Works
 
 Vitest/Jest unit tests around DOM helpers, event handlers, or "controller" JS classes verify **logic in isolation**. They do **not** exercise:
