@@ -32,15 +32,19 @@ $projectPath = \dirname(__DIR__);
     $projectPath,               // publicPath
     $projectPath . '/var',      // varPath
     $projectPath . '/config',   // configPath
-    $projectPath . '/bootstrap.php',
+    __FILE__,                   // currentScript (this Tests/bootstrap.php file)
     'UNIX',                     // os
 );
 ```
 
-Reference the bootstrap from `phpunit.xml` (or `Build/phpunit/UnitTests.xml`):
+Reference the bootstrap from `phpunit.xml` at the project root, or from `Build/phpunit/UnitTests.xml` (note the relative path differs by config location):
 
 ```xml
-<phpunit bootstrap="../Tests/bootstrap.php" ...>
+<!-- phpunit.xml at project root -->
+<phpunit bootstrap="Tests/bootstrap.php" ...>
+
+<!-- Build/phpunit/UnitTests.xml (two levels deep) -->
+<phpunit bootstrap="../../Tests/bootstrap.php" ...>
 ```
 
 **Where this matters:**
