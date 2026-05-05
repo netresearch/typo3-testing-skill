@@ -52,6 +52,20 @@ Reference the bootstrap from `phpunit.xml` at the project root, or from `Build/p
 - Migrations away from `GeneralUtility::getIndpEnv()` (deprecated v14.3, removed v15.0)
 - Any unit test that exercises code touching `Environment::getCurrentScript()` / `Environment::getPublicPath()`
 
+### Define the `LF` constant for TYPO3 v12 unit tests
+
+TYPO3 v12's `PageRenderer` (and a few other v12-only code paths) reference the `LF` global constant that `SystemEnvironmentBuilder::defineBaseConstants()` defines during a normal request bootstrap. Unit tests do not run that bootstrap, so any test that exercises v12 PageRenderer code dies with `Undefined constant "LF"` (PHP 8.x: a fatal `Error`).
+
+Add this guard early in `Tests/bootstrap.php`, next to the `Environment::initialize()` call:
+
+```php
+if (!\defined('LF')) {
+    \define('LF', "\n");
+}
+```
+
+The constant was effectively retired in v13+ (replaced by `PHP_EOL` / explicit `"\n"` at call sites), but the guard is harmless on v13/v14 and is required while the extension still supports v12.
+
 ## PHPUnit `backupGlobals="true"` Resets `$GLOBALS` Between Tests
 
 Many TYPO3 extension `phpunit.xml` files set `backupGlobals="true"`. PHPUnit runs the suite bootstrap once, then snapshots `$GLOBALS` per test (before `setUp()`) and restores the snapshot after the test finishes. Globals set by the suite bootstrap survive that cycle, but globals introduced inside `setUp()` or mutated by a previous test do not -- they are reset to whatever was captured in the snapshot. Combined with CLI / non-request contexts where `$GLOBALS['TYPO3_CONF_VARS']` may simply never have been populated, production code that reads it at runtime can see `null` -- typically resulting in:

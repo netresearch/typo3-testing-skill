@@ -335,6 +335,27 @@ final class BackendControllerTest extends UnitTestCase
 
 **Important:** Set `protected bool $resetSingletonInstances = true;` when tests interact with TYPO3 singletons to prevent test pollution.
 
+### `setSingletonInstance()` vs `addInstance()` for `SingletonInterface`
+
+`GeneralUtility::makeInstance()` honours two registries:
+
+| API | Lifetime | Use for |
+|-----|----------|---------|
+| `GeneralUtility::addInstance($class, $obj)` | **Drains** -- one `makeInstance($class)` consumes the entry, the next call returns a fresh instance | Non-singleton dependencies, one-shot replacements |
+| `GeneralUtility::setSingletonInstance($class, $obj)` | **Persists** -- every subsequent `makeInstance($class)` returns the same registered object until reset | Anything implementing `\TYPO3\CMS\Core\SingletonInterface` |
+
+`PageRenderer`, `BackendUserAuthentication` and `LanguageService` all implement `SingletonInterface`. Registering them with `addInstance()` works for the first call inside the subject under test and silently breaks on the second:
+
+```php
+// WRONG -- second makeInstance(PageRenderer::class) returns a real PageRenderer
+GeneralUtility::addInstance(PageRenderer::class, $pageRendererMock);
+
+// CORRECT -- mock persists for the whole test
+GeneralUtility::setSingletonInstance(PageRenderer::class, $pageRendererMock);
+```
+
+Pair this with `protected bool $resetSingletonInstances = true;` so the mock is cleared between tests.
+
 ## Mocking Dependencies
 
 Use PHPUnit's built-in mocking (PHPUnit 11/12):

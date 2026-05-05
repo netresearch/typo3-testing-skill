@@ -267,6 +267,51 @@ describe('TYPO3 Image Plugin', function() {
 });
 ```
 
+## Unit Tests Do Not Prove UI Works
+
+Vitest/Jest unit tests around DOM helpers, event handlers, or "controller" JS classes verify **logic in isolation**. They do **not** exercise:
+
+- TYPO3's real `Modal` component (lives in `@typo3/backend/modal.js`, ships its own shadow DOM in v13+)
+- Real browser event dispatch / bubbling
+- Backend page chrome (iframes, top frame, module router in v14)
+- Network round-trips against actual TYPO3 endpoints
+
+**Rule:** never claim a UI/JS change "works" on the basis of green unit tests alone. For any change that touches the rendered backend UI, do one of:
+
+1. Write a Playwright E2E spec under `Tests/E2E/` and run it against DDEV.
+2. Push the branch and ask the human to verify in a real browser.
+
+A passing unit test is evidence that the function under test does what its tests assert -- not that the feature works for a backend user. Skipping this distinction is the single most common cause of "you said it worked, but it doesn't" feedback on PRs.
+
+## TYPO3 Modal API: `button.clicked` Does Not Cross Shadow DOM
+
+TYPO3 v13+ wraps the backend `Modal` in a shadow DOM. The internal `button.clicked` event is dispatched **inside** the shadow root and does not bubble out to the modal host element. Code that does this:
+
+```javascript
+// BROKEN: event never fires the listener -- the shadow root swallows it
+const modal = Modal.show({ /* ... */ });
+modal.addEventListener('button.clicked', (e) => { /* ... */ });
+```
+
+silently does nothing on v13+ even though it appeared to work on v12 with the legacy modal. The supported, cross-version API is the per-button `trigger` callback supplied at `Modal.show()` time:
+
+```javascript
+import Modal from '@typo3/backend/modal.js';
+import Severity from '@typo3/backend/severity.js';
+
+Modal.show({
+    title: 'Confirm',
+    content: 'Delete this passkey?',
+    severity: Severity.warning,
+    buttons: [
+        { text: 'Cancel', btnClass: 'btn-default', trigger: () => { /* dismissed */ } },
+        { text: 'Delete', btnClass: 'btn-warning', trigger: () => { performDelete(); } },
+    ],
+});
+```
+
+`trigger` callbacks are invoked the same way on TYPO3 v12, v13 and v14, regardless of whether the modal is rendered into the light DOM or a shadow root. Use them as the only event hook for modal buttons. (Page Object Models in `references/e2e-testing.md` test the rendered modal from the outside via `.modal` selectors -- they do not rely on `button.clicked` either.)
+
 ## Testing Best Practices
 
 ### 1. Isolate Editor Instance
