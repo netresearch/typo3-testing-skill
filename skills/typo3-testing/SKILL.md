@@ -67,9 +67,9 @@ Verify tests fail before fix, pass after. Bug fixes use the strict TDD loop in `
 
 Unit tests required (70%+ coverage). Functional tests required for DB operations. **phpat required** for architecture points. PHPStan level 10.
 
-## References (in `references/`)
+## References (in `references/`, `.md` implied)
 
-`unit-testing.md` | `functional-testing.md` | `functional-test-patterns.md` | `integration-testing.md` | `e2e-testing.md` | `accessibility-testing.md` | `ddev-testing.md` | `test-runners.md` | `architecture-testing.md` | `ci-debugging.md` | `ci-cd.md` | `quality-tools.md` | `mutation-testing.md` | `fuzz-testing.md` | `performance-testing.md` | `typo3-v14-final-classes.md` | `mock-validity.md` | `javascript-testing.md` | `captainhook-setup.md` | `enforcement-rules.md` | `event-dispatch-testing.md` | `crypto-testing.md` | `test-environment-guards.md` | `sonarcloud.md` | `typo3-ci-config-patterns.md` | `tdd-discipline.md` | `ci-workflows-meta-package.md` | `synthetic-secret-fixtures.md` | `release-workflow-validation.md`
+`unit-testing.md` | `functional-testing.md` | `functional-test-patterns.md` | `integration-testing.md` | `e2e-testing.md` | `accessibility-testing.md` | `ddev-testing.md` | `test-runners.md` | `architecture-testing.md` | `ci-debugging.md` | `ci-cd.md` | `quality-tools.md` | `mutation-testing.md` | `fuzz-testing.md` | `performance-testing.md` | `typo3-v14-final-classes.md` | `mock-validity.md` | `javascript-testing.md` | `captainhook-setup.md` | `enforcement-rules.md` | `event-dispatch-testing.md` | `crypto-testing.md` | `test-environment-guards.md` | `sonarcloud.md` | `typo3-ci-config-patterns.md` | `tdd-discipline.md` | `ci-workflows-meta-package.md` | `synthetic-secret-fixtures.md` | `release-workflow-validation.md` | `asset-templates-guide.md`
 
 ### Content Triggers
 
