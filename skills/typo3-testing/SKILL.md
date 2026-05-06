@@ -7,24 +7,24 @@ description: "Use when setting up TYPO3 extension test infrastructure, writing u
 
 ## Assessment-First Rule
 
-**When enhancing an existing test suite** (not setting up from scratch), run FIRST:
+**When enhancing an existing test suite** (not from scratch), run FIRST:
 
 ```bash
 automated-assessment typo3-testing
 ```
 
-> Install additional skills (e.g. `typo3-conformance`, `enterprise-readiness`) for broader assessment coverage.
+> Install other skills (e.g. `typo3-conformance`, `enterprise-readiness`) for broader coverage.
 
-This generates a gap report from 73+ checkpoints covering PHPUnit config, PHPStan level, runTests.sh, CaptainHook hooks, architecture tests, mutation thresholds, CI matrix, and coverage per class.
+Generates a gap report from 73+ checkpoints (PHPUnit, PHPStan, runTests.sh, CaptainHook, architecture, mutation, CI matrix, coverage).
 
-**Use the assessment report as the task list.** Resolve mechanical checkpoint failures before manual test writing.
+**Use the report as the task list.** Resolve mechanical failures before manual test writing.
 
-### When This Rule Applies
-- "enhance/improve/strengthen tests", "increase coverage/mutation score"
+### Applies
+- "enhance/improve/strengthen tests", "increase coverage/mutation"
 - "enterprise grade", "A+ testing", "fix all findings"
 
-### When This Rule Does NOT Apply
-- Setting up from scratch, writing a specific test, debugging a failing test
+### Does NOT Apply
+- From scratch, writing a specific test, debugging a failure
 
 ---
 
