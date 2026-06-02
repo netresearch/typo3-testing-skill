@@ -31,13 +31,16 @@ canvas-height trap or a CSS/JS load-order problem.
 ### 2. Live render (browser)
 
 For anything with layout, charts, JS modules, or `ModuleTemplate` chrome, open the
-module in a real backend. With DDEV + Playwright this is scriptable:
+module in a running backend (a live render is a browser/manual step, **not** an
+automated test — run schema/CLI against the same binaries CI uses, not through DDEV):
 
 ```bash
 # 1. Apply the schema (v14: extension:setup — NOT database:updateschema, which was removed)
-ddev exec vendor/bin/typo3 extension:setup
+vendor/bin/typo3 extension:setup
+# (or: php vendor/bin/typo3 extension:setup)
 
-# 2. Open the module URL (see the typo3-ddev skill for the URL scheme) and check:
+# 2. Open the module in a running backend (the typo3-ddev skill covers spinning one
+#    up locally + the URL scheme), then check:
 #    - HTTP 200, not 500 (a 500 here is almost always a Fluid parse error)
 #    - no console errors / no "Chart.js not available" (classic-script vs ES-module load order)
 #    - canvases/charts have a sane bounded height
