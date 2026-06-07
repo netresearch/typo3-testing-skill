@@ -753,6 +753,33 @@ vendor/bin/phpunit --no-coverage
     fi
 ```
 
+### Debugging "green before, red now" on unchanged code
+
+TYPO3 extensions are libraries and **do not commit `composer.lock`** — so every
+CI run does a fresh `composer update` and resolves dependencies (including the
+dev toolchain: PHPStan, Rector, php-cs-fixer, testing-framework) to the latest
+versions allowed by `composer.json`. A green pipeline can therefore turn red with
+**no change to your code**, simply because an upstream package published a new
+release between runs.
+
+When a check fails on a commit (or PR) that previously passed with identical
+code, suspect a fresh upstream release before touching your own code:
+
+```bash
+# Which version did the failing run install vs. a previous green run?
+gh run view <failing-run-id> --log | grep -iE "Installing (phpstan|rector|...)"
+# Cross-check release dates on Packagist:
+curl -s https://repo.packagist.org/p2/phpstan/phpstan.json \
+  | python3 -c "import json,sys;[print(v['version'],v['time']) for v in json.load(sys.stdin)['packages']['phpstan/phpstan'][:6]]"
+```
+
+Reproduce deterministically by pinning the suspect version locally
+(`composer require --dev "phpstan/phpstan:X.Y.Z"`), confirm it fails, then revert
+to the floating constraint after the fix. Note that a newer analyzer release is
+often a **true positive** surfacing a latent bug — fix the code, don't pin to
+escape it. Pin only as a temporary, documented escape hatch when the release is
+genuinely broken (and prefer `!= X.Y.Z` over a hard pin so future fixes flow in).
+
 ## Environment-Specific Configuration
 
 ### Development Branch
