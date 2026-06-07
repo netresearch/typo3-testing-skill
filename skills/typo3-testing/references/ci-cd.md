@@ -767,10 +767,12 @@ code, suspect a fresh upstream release before touching your own code:
 
 ```bash
 # Which version did the failing run install vs. a previous green run?
-gh run view <failing-run-id> --log | grep -iE "Installing (phpstan|rector|...)"
-# Cross-check release dates on Packagist:
+# composer logs full package names, e.g. "Installing phpstan/phpstan (2.2.2)".
+gh run view <run-id> --log | grep -iE "Installing (phpstan|rector|friendsofphp|typo3/testing-framework)/"
+# Cross-check release dates on Packagist. The /p2/ endpoint returns versions
+# newest-first, so the first entries are the most recent releases.
 curl -s https://repo.packagist.org/p2/phpstan/phpstan.json \
-  | python3 -c "import json,sys;[print(v['version'],v['time']) for v in json.load(sys.stdin)['packages']['phpstan/phpstan'][:6]]"
+  | php -r '$d = json_decode(file_get_contents("php://stdin"), true); foreach (array_slice($d["packages"]["phpstan/phpstan"], 0, 6) as $v) { echo $v["version"] . " " . $v["time"] . PHP_EOL; }'
 ```
 
 Reproduce deterministically by pinning the suspect version locally
@@ -778,7 +780,9 @@ Reproduce deterministically by pinning the suspect version locally
 to the floating constraint after the fix. Note that a newer analyzer release is
 often a **true positive** surfacing a latent bug — fix the code, don't pin to
 escape it. Pin only as a temporary, documented escape hatch when the release is
-genuinely broken (and prefer `!= X.Y.Z` over a hard pin so future fixes flow in).
+genuinely broken — and exclude just the broken release *in addition to* your
+normal range (e.g. `^1.12,!=1.12.3`), never a bare `!=1.12.3` (which would also
+permit unexpected major upgrades), so future fixes still flow in.
 
 ## Environment-Specific Configuration
 
