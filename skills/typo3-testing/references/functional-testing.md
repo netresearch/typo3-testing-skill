@@ -181,6 +181,29 @@ protected array $coreExtensionsToLoad = [
 ];
 ```
 
+### Load ALL hard dependencies (or the bootstrap fails cryptically)
+
+`coreExtensionsToLoad` / `testExtensionsToLoad` must include **every** TYPO3
+extension your extension hard-depends on — both the `ext_emconf.php`
+`constraints.depends` AND every `typo3/cms-*` in the composer `require`
+(composer-only extensions on v14.3 derive their dependencies from `require`; see
+the typo3-conformance skill's ext_emconf migration notes).
+
+If a declared dependency is not loaded, the package graph is unsatisfiable, the
+DI container falls back to the **failsafe container**, and the real cause is
+hidden behind a misleading error:
+
+```
+TYPO3\CMS\Core\DependencyInjection\NotFoundException:
+  Container entry "TYPO3\CMS\Core\Configuration\Extension\ExtTablesFactory" is not available.
+```
+
+When you see that `ExtTablesFactory` / failsafe-container error, the fix is almost
+always "a declared dependency is not loaded" — add it to `coreExtensionsToLoad`.
+(Example: an extension that requires `typo3/cms-reports` for a Reports status
+provider must list `'reports'` in **every** functional test's `coreExtensionsToLoad`,
+not just one.)
+
 ## Site Configuration
 
 Create site configuration for frontend tests:
