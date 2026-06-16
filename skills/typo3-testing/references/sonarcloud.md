@@ -339,11 +339,14 @@ SonarCloud imports PHPStan issues and displays them alongside its own analysis.
   scaffolding to the PR as "new code", so a green project can suddenly fail
   `new_duplicated_lines_density`. Fix it by factoring the repeated setup (mock wiring,
   fixtures) into private helpers — not by reverting the original change.
-- **Reducing test duplication can drop the coverage gate.** The local coverage gate is
-  usually *unit*-only (e.g. `phpunit -c Build/phpunit/UnitTests.xml`). Extracting shared
-  mock setup out of unit tests can lower unit line-coverage below the threshold even
-  though behaviour is unchanged. Recover by adding unit tests for methods that were only
-  *functionally* covered before (e.g. thin repository wrappers) — don't lower the gate.
+- **De-duplicating tests can drop the coverage gate — but only when it removes exercised
+  paths.** *Pure* extraction of shared mock setup into helpers/traits does NOT change
+  coverage: test files are excluded from coverage metrics and the same production lines
+  still run. Coverage drops when the consolidation also *merges distinct scenarios* (so a
+  production branch is no longer exercised in any test) or *deletes* redundant test cases.
+  The local gate is usually *unit*-only (`phpunit -c Build/phpunit/UnitTests.xml`), so
+  re-check it after a dedup sweep and recover by adding unit tests for methods previously
+  only *functionally* covered (e.g. thin repository wrappers) — don't lower the gate.
 
 ## PR Decoration
 
