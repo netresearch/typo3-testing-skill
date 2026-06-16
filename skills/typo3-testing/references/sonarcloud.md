@@ -331,6 +331,20 @@ SonarCloud imports PHPStan issues and displays them alongside its own analysis.
 2. Create new gate or copy "Sonar Way"
 3. Adjust thresholds for TYPO3 requirements
 
+### Gotchas: new-code duplication and coverage pull against each other
+
+- **"New-code duplication" counts pre-existing duplication on lines you touch.**
+  A mechanical sweep that edits many lines (e.g. converting `createMock()` → `createStub()`
+  across the test suite) makes SonarCloud attribute the *surrounding* duplicated test
+  scaffolding to the PR as "new code", so a green project can suddenly fail
+  `new_duplicated_lines_density`. Fix it by factoring the repeated setup (mock wiring,
+  fixtures) into private helpers — not by reverting the original change.
+- **Reducing test duplication can drop the coverage gate.** The local coverage gate is
+  usually *unit*-only (e.g. `phpunit -c Build/phpunit/UnitTests.xml`). Extracting shared
+  mock setup out of unit tests can lower unit line-coverage below the threshold even
+  though behaviour is unchanged. Recover by adding unit tests for methods that were only
+  *functionally* covered before (e.g. thin repository wrappers) — don't lower the gate.
+
 ## PR Decoration
 
 SonarCloud automatically comments on PRs:
