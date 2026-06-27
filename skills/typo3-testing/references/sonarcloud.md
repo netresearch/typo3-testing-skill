@@ -78,6 +78,35 @@ GitHub Checks **annotation**, *regardless* of whether the Quality Gate passes. A
 (its configured new-code conditions) is the merge bar; non-gate code-smell annotations
 do not block a merge. Don't treat a passing-gate-with-annotations PR as "broken".
 
+## Don't SAST-edit template-synced files (exclude them instead)
+
+`Build/Scripts/runTests.sh` — and the other files an extension syncs from this
+`typo3-testing` skill's `assets/` (the test-runner template, `Build/playwright/**`,
+PHPUnit/PHPStan/rector configs) — are **upstream-owned template files**. A downstream
+extension should **never** apply cosmetic SonarCloud/static-analysis fixes to them in
+place (e.g. `php:S100`/shell-naming renames, `S7684`, variable-style tweaks). Such edits
+diverge the local copy from this template and cause drift and merge conflicts on the next
+template sync — for a finding that was never the downstream repo's to fix.
+
+Instead, **exclude template-synced paths from analysis** so the findings never reach the
+PR in the first place:
+
+```properties
+# Automatic Analysis → .sonarcloud.properties
+# CI-based analysis  → sonar-project.properties
+sonar.exclusions=**/Build/Scripts/runTests.sh,**/Build/playwright/**
+
+# Or scope-suppress specific rules on the synced file rather than rewriting it:
+sonar.issue.ignore.multicriteria=e1
+sonar.issue.ignore.multicriteria.e1.ruleKey=php:S100
+sonar.issue.ignore.multicriteria.e1.resourceKey=**/Build/Scripts/runTests.sh
+```
+
+Fix the finding **upstream** in this skill's `assets/` template if it is genuinely worth
+fixing, then re-sync — that keeps every downstream copy identical. (Real instance: a
+2026-06-27 SonarCloud sweep renamed shell functions in a downstream `runTests.sh`,
+diverging it from this template.)
+
 ## Quick Start
 
 ### 1. Sign Up
