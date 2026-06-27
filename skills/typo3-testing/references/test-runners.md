@@ -104,6 +104,27 @@ find Tests/Functional -name '*Test.php' | xargs -P${PARALLEL_JOBS} ...
 
 Unit tests are typically fast enough (<1s) that parallelization overhead would be counterproductive. PHPUnit's native parallelization (ParaTest) doesn't support PHPUnit 12 yet.
 
+## Gotcha: Single-Process PHPUnit OOMs on Large Functional Suites
+
+Running the whole functional suite through plain single-process PHPUnit (`vendor/bin/phpunit -c phpunit.xml.dist`, no parallelization) accumulates every test's compiled DI container and TYPO3 bootstrap in one PHP process. On a few hundred functional tests this exhausts `memory_limit` — typically a fatal deep in Symfony's container dumper:
+
+```
+PHP Fatal error:  Allowed memory size of 536870912 bytes exhausted ...
+  in .../symfony/dependency-injection/Dumper/PhpDumper.php
+```
+
+The symptom is misleading: progress dots stop part-way with **no PHPUnit summary line**, and a `timeout`/wrapper around the call may still report exit 0 — so it looks like "passed" when it actually died mid-run.
+
+**Fix:** run the suite the way the project's entry point does — in **isolated worker processes**, one slice per worker, so container compilation never accumulates:
+
+```bash
+./Build/Scripts/runTests.sh -s functionalParallel   # xargs -P, one phpunit process per test file
+# or, for a paratest-based project entry point:
+composer test
+```
+
+Reserve plain `phpunit --filter=SomeClass` for a single class. (This is the concrete reason behind Best Practice "Single Entry Point — all tests via `runTests.sh`, not direct PHPUnit".)
+
 ## Database Support
 
 ### SQLite (Default)
