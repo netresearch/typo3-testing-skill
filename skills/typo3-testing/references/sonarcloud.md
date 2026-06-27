@@ -94,12 +94,12 @@ PR in the first place:
 ```properties
 # Automatic Analysis → .sonarcloud.properties
 # CI-based analysis  → sonar-project.properties
-sonar.exclusions=Build/Scripts/runTests.sh,Build/playwright/**
+sonar.exclusions=**/Build/Scripts/runTests.sh,**/Build/playwright/**
 
 # Or scope-suppress specific rules on the synced file rather than rewriting it:
 sonar.issue.ignore.multicriteria=e1
 sonar.issue.ignore.multicriteria.e1.ruleKey=php:S100
-sonar.issue.ignore.multicriteria.e1.resourceKey=Build/Scripts/runTests.sh
+sonar.issue.ignore.multicriteria.e1.resourceKey=**/Build/Scripts/runTests.sh
 ```
 
 Fix the finding **upstream** in this skill's `assets/` template if it is genuinely worth
