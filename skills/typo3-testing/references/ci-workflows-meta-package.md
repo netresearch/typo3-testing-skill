@@ -116,7 +116,7 @@ Pair the meta-package with the reusable GitHub Actions workflow:
 # .github/workflows/ci.yml
 jobs:
   ci:
-    uses: netresearch/typo3-ci-workflows/.github/workflows/extension-ci.yml@<SHA>
+    uses: netresearch/typo3-ci-workflows/.github/workflows/ci.yml@<SHA>
     with:
       php-versions: '["8.2", "8.3", "8.4"]'
       typo3-versions: '["13", "14"]'
