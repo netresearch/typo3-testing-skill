@@ -96,6 +96,67 @@ This pattern:
 
 **Alternative:** set `backupGlobals="false"` in `phpunit.xml` if no test relies on global isolation -- but the defensive read pattern above is preferred because it also hardens production code for genuinely uninitialised CLI contexts.
 
+## Transient `HashService`/`encryptionKey` E_WARNING When a Functional Test Builds a DI Container
+
+**Symptom:** a functional test that realises a dependency-injection container which
+loads a package (e.g. `dashboard`) fails with `failOnWarning=true` on an
+`E_WARNING` — "Undefined array key" / "Trying to access array offset on null" —
+raised from core `TYPO3\CMS\Core\Crypto\HashService::hmac()` reading
+`$GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey']`. The tell-tale traits:
+
+- It fires only on **one matrix cell** (seen on PHP 8.2 × TYPO3 `^14.3`), only on
+  the cold CI container — **not reproducible locally**, and the test **passes in
+  isolation** and in a functional-only run.
+- The warning originates inside `parent::setUp()`'s container build, not in your
+  own test body.
+
+**Cause:** realising the container makes TYPO3 core reset and repopulate
+`$GLOBALS['TYPO3_CONF_VARS']` mid-build; a service instantiated during that window
+calls `HashService::hmac()` while `['SYS']['encryptionKey']` is momentarily unset.
+It is benign — production's error handler suppresses it, and the functional test
+runner sets `errorHandler=''`, so only `failOnWarning=true` turns it into a failure.
+
+**Why the obvious fixes don't work:** the build clears the global itself, so pinning
+`encryptionKey` or using `#[BackupGlobals(false)]` doesn't help; the warning fires
+inside `parent::setUp()`, so an in-body `try` can't catch it; `#[WithoutErrorHandler]`
+works but is too broad (an AI reviewer will rightly flag it — it disables *all*
+error-to-exception conversion for the test).
+
+**Fix:** wrap the `parent::setUp()` call in a **scoped** `set_error_handler` that
+suppresses *only* this specific warning, and restore it **inside the same method**
+so the handler stack stays balanced (a set-in-`setUp` / restore-in-`tearDown` split
+trips `failOnRisky`):
+
+```php
+protected function setUp(): void
+{
+    // Benign core-boot warning on PHP 8.2 × TYPO3 ^14.3 cold CI containers:
+    // building the DI container transiently unsets ['SYS']['encryptionKey']
+    // while HashService::hmac() reads it. Suppress ONLY that warning.
+    set_error_handler(
+        static function (int $severity, string $message, string $file): bool {
+            return str_contains($file, 'Crypto/HashService.php')
+                && (str_contains($message, 'TYPO3_CONF_VARS')
+                    || str_contains($message, 'array offset'));
+        },
+        \E_WARNING,
+    );
+
+    try {
+        parent::setUp();
+    } finally {
+        restore_error_handler();
+    }
+
+    // ... rest of setUp ...
+}
+```
+
+Returning `true` swallows the matched warning; returning `false` lets every other
+warning propagate to the framework handler so `failOnWarning` still catches real
+issues. Match on both `errfile` (`Crypto/HashService.php`) **and** `errstr` so the
+guard is narrow.
+
 ## GD/Imagick Extension Guard
 
 Tests involving image processing (thumbnails, resizing, format conversion) must check for the GD or Imagick extension. CI environments may not have image libraries installed.
