@@ -127,3 +127,38 @@ jobs:
 
 Pin to a full 40-character SHA. Checkpoints TT-22, TT-23, TT-24, and TT-41 are
 all satisfied by this single workflow call.
+
+## Functional tests are OPT-IN — `run-functional-tests` defaults to `false`
+
+The reusable `netresearch/typo3-ci-workflows/.github/workflows/ci.yml` gates its
+functional jobs (both the SQLite job and the DB-service job) on the boolean input
+`run-functional-tests`, and **its default is `false`**. A caller that never sets
+it has the **entire functional job SKIPPED on every event** — pull_request,
+`merge_group`, and push alike. `Functional Tests` and `Functional Tests SQLite`
+show up as `skipped`, not failing, so nothing looks wrong — meanwhile the whole
+`Build/FunctionalTests.xml` (every `<testsuite>` in it) never runs in CI, and
+functional/backend test rot accumulates silently for months.
+
+Turn it on explicitly:
+
+```yaml
+    with:
+      run-functional-tests: true
+```
+
+**Verify** it actually runs, don't assume: after enabling, open a `merge_group`
+(or PR) run and confirm the functional cells show `success`, not `skipped`
+(`gh run view <id> --json jobs --jq '.jobs[] | select(.name | test("Functional")) | {name, conclusion}'`).
+
+**Trade-offs of enabling it:**
+
+- Functional now runs on PRs too, expanding the matrix (≈ one cell per
+  PHP × TYPO3 combination) — CI gets slower.
+- If your functional suite makes real outbound calls (e.g. provider-connection
+  smoke tests hitting an unreachable host and waiting for a timeout), those cells
+  are *slow*; mock the transport or gate such tests behind a marker.
+- Enabling a job that was skipped changes its required-status-check context from a
+  single bare name to N matrix names — which can silently orphan the required check
+  and leave PRs `BLOCKED` with every visible check green. See the
+  github-project skill's `merge-strategy.md`, "Renaming a CI job orphans its
+  required status check," for the ruleset fix.
