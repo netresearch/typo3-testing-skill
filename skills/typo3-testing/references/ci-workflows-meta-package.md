@@ -163,8 +163,9 @@ Turn it on explicitly:
   **matrix** contexts (`ci / Functional Tests SQLite (8.2, ^13.4)` … `(8.5, ^14.3)`),
   so the bare required context no longer reports and PRs sit permanently `BLOCKED`
   with every visible check green. Fix: update the branch ruleset's
-  `required_status_checks` (via `gh api -X PUT repos/O/R/rulesets/<id>`, or `PATCH
-  …/branches/main/protection/required_status_checks` for classic protection) to
+  `required_status_checks` (via `gh api -X PUT repos/O/R/rulesets/<id>`, or
+  `gh api -X PATCH repos/O/R/branches/main/protection/required_status_checks` for
+  classic branch protection) to
   replace the bare context with the matrix-expanded ones — mirror how Unit/PHPStan
   are already listed. This is also what makes the newly-enabled job actually *gate*
   merges.

@@ -132,14 +132,26 @@ protected function setUp(): void
 {
     // Benign core-boot warning on PHP 8.2 × TYPO3 ^14.3 cold CI containers:
     // building the DI container transiently unsets ['SYS']['encryptionKey']
-    // while HashService::hmac() reads it. Suppress ONLY that warning.
-    set_error_handler(
-        static function (int $severity, string $message, string $file): bool {
+    // while HashService::hmac() reads it. Suppress ONLY that warning and
+    // delegate everything else back to the handler that was active (PHPUnit's),
+    // so failOnWarning still catches unrelated warnings during parent::setUp().
+    $previous = set_error_handler(
+        static function (int $errno, string $errstr, string $errfile, int $errline) use (&$previous): bool {
             // Normalise separators so the match also holds on Windows (backslash paths).
-            return str_contains(str_replace('\\', '/', $file), 'Crypto/HashService.php')
-                && (str_contains($message, 'TYPO3_CONF_VARS')
-                    || str_contains($message, 'array offset')      // "…array offset on null"
-                    || str_contains($message, 'Undefined array key'));
+            $isBenignBootWarning = str_contains(str_replace('\\', '/', $errfile), 'Crypto/HashService.php')
+                && (str_contains($errstr, 'TYPO3_CONF_VARS')
+                    || str_contains($errstr, 'array offset')      // "…array offset on null"
+                    || str_contains($errstr, 'Undefined array key'));
+
+            if ($isBenignBootWarning) {
+                return true; // swallow only this one
+            }
+
+            // Not ours: hand back to the previously-registered (PHPUnit) handler so
+            // real warnings still fail the test; false only if there was none.
+            return $previous !== null
+                ? (bool) $previous($errno, $errstr, $errfile, $errline)
+                : false;
         },
         \E_WARNING,
     );
@@ -154,10 +166,13 @@ protected function setUp(): void
 }
 ```
 
-Returning `true` swallows the matched warning; returning `false` lets every other
-warning propagate to the framework handler so `failOnWarning` still catches real
-issues. Match on both `errfile` (`Crypto/HashService.php`) **and** `errstr` so the
-guard is narrow.
+The delegation is what keeps the guard honest: the matched benign warning returns
+`true` (swallowed), but every other warning is handed back to the handler that was
+active — PHPUnit's — so `failOnWarning` still catches real issues during
+`parent::setUp()`. (Returning `false` there instead would fall through to PHP's
+*internal* handler, silently blinding `failOnWarning` for that window.) Capture the
+previous handler by reference so the closure can delegate to it, and match on both
+`errfile` (`Crypto/HashService.php`) **and** `errstr` to keep the guard narrow.
 
 ## GD/Imagick Extension Guard
 
