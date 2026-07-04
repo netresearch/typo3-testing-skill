@@ -135,9 +135,11 @@ protected function setUp(): void
     // while HashService::hmac() reads it. Suppress ONLY that warning.
     set_error_handler(
         static function (int $severity, string $message, string $file): bool {
-            return str_contains($file, 'Crypto/HashService.php')
+            // Normalise separators so the match also holds on Windows (backslash paths).
+            return str_contains(str_replace('\\', '/', $file), 'Crypto/HashService.php')
                 && (str_contains($message, 'TYPO3_CONF_VARS')
-                    || str_contains($message, 'array offset'));
+                    || str_contains($message, 'array offset')      // "…array offset on null"
+                    || str_contains($message, 'Undefined array key'));
         },
         \E_WARNING,
     );
