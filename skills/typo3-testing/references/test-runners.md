@@ -426,7 +426,8 @@ Before pushing a change to a shared type:
 
 ```bash
 # Find who depends on it, then run the suites that exercise them.
-grep -rn 'YourValueObject\|->yourChangedMethod' Classes/ Tests/
+# Use -e per pattern (portable across GNU/BSD grep; escaped \| is not).
+grep -rn -e 'YourValueObject' -e '->yourChangedMethod' Classes/ Tests/
 ./Build/Scripts/runTests.sh -s unit
 ./Build/Scripts/runTests.sh -s functional     # the assertions on the old shape live here
 ```
