@@ -410,6 +410,31 @@ sudo rm -rf node_modules .Build
 7. **Update Images**: Run `-u` periodically to get latest TYPO3 images
 8. **Keep Versions Synced**: Playwright versions in package.json and runTests.sh
 
+## Gotcha: `-s unit` Green ≠ Safe When You Touch a Shared Type
+
+`./Build/Scripts/runTests.sh -s unit` covers **only** `Tests/Unit/`. When you
+change a **widely-consumed** type — a shared value object, DTO, enum, or a
+method on a public service interface — its consumers and their assertions live
+in the **functional** suite (and integration/e2e), which `-s unit` never runs.
+
+A green unit run then hides a real break, and it surfaces later in CI or a
+reviewer's comment instead of on your machine. (Real case: a change to a
+`ToolSpec` value object passed `-s unit` locally but broke a functional test
+asserting the old shape — caught by CI + the PR bot, not the local unit run.)
+
+Before pushing a change to a shared type:
+
+```bash
+# Find who depends on it, then run the suites that exercise them.
+grep -rn 'YourValueObject\|->yourChangedMethod' Classes/ Tests/
+./Build/Scripts/runTests.sh -s unit
+./Build/Scripts/runTests.sh -s functional     # the assertions on the old shape live here
+```
+
+If the extension's CI runs functional tests (it should — a functional job that
+is silently skipped is its own bug), treat "did I run the same suites CI will?"
+as the pre-push checklist, not "is unit green?".
+
 ## Resources
 
 - [TYPO3 Tea Extension](https://github.com/TYPO3BestPractices/tea) - Reference implementation
