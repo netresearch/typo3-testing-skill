@@ -259,11 +259,15 @@ and accepts **no** encoding-options argument. An AJAX action that echoes
 untrusted bytes back to the browser — tool output, log lines, injected text —
 throws an uncaught exception on a single malformed byte, returning an **HTML 500
 page** the frontend can't parse (it surfaces as a bare "Unknown error"). Build
-the response manually so bad bytes degrade instead of throwing:
+the response via the injected PSR-17 factory so bad bytes degrade instead of
+throwing (prefer the factory over `new \TYPO3\CMS\Core\Http\Response()` — that
+class is not public API):
 
 ```php
+// $this->responseFactory is an injected Psr\Http\Message\ResponseFactoryInterface
 $json = json_encode($data, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
-$response = new \TYPO3\CMS\Core\Http\Response('php://temp', $status, ['Content-Type' => 'application/json; charset=utf-8']);
+$response = $this->responseFactory->createResponse($status)
+    ->withHeader('Content-Type', 'application/json; charset=utf-8');
 $response->getBody()->write($json);
 $response->getBody()->rewind(); // else getContents() in an emitter/middleware sees an empty stream
 return $response;
