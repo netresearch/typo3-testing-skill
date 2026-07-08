@@ -234,3 +234,49 @@ public function testWithPageInformation(): void
     self::assertSame(1, $result->getPageId());
 }
 ```
+
+## Backend controller & AJAX gotchas (found while functional-testing controllers)
+
+Three traps that surface when functional-testing TYPO3 backend controllers and
+running the suite locally:
+
+### `-s functional` hangs on WSL2 under Docker contention
+
+The full functional suite can hang indefinitely (many minutes, **zero output** =
+a setup hang, not a test failure) when it competes for the Docker daemon with a
+running `ddev` project and/or Playwright. Run **targeted files** locally and
+treat **CI functional as authoritative**:
+
+```bash
+# Not the whole suite while ddev/Playwright are busy:
+./Build/Scripts/runTests.sh -s functional Tests/Functional/Controller/Backend/FooControllerTest.php
+```
+
+### `JsonResponse` 500s on non-UTF-8 and takes no encode flags
+
+TYPO3's `\TYPO3\CMS\Core\Http\JsonResponse` encodes with `JSON_THROW_ON_ERROR`
+and accepts **no** encoding-options argument. An AJAX action that echoes
+untrusted bytes back to the browser — tool output, log lines, injected text —
+throws an uncaught exception on a single malformed byte, returning an **HTML 500
+page** the frontend can't parse (it surfaces as a bare "Unknown error"). Build
+the response manually so bad bytes degrade instead of throwing:
+
+```php
+$json = json_encode($data, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
+$response = new \TYPO3\CMS\Core\Http\Response('php://temp', $status, ['Content-Type' => 'application/json; charset=utf-8']);
+$response->getBody()->write($json);
+$response->getBody()->rewind(); // else getContents() in an emitter/middleware sees an empty stream
+return $response;
+```
+
+A functional test for this: run the action with a scripted provider/model whose
+response carries `"\xFF\xFE"`, and assert the action returns `200` with
+decodable JSON — not that it throws.
+
+### `jsonResponse()` is a FATAL name clash on an Extbase `ActionController`
+
+`ActionController` already declares `protected function jsonResponse(?string $json = null)`.
+A helper named `jsonResponse` with a narrower visibility or different signature
+is a **fatal** "access level must be …" / signature error at class-load time —
+not a lint warning. Name controller JSON helpers something else (`respondJson`,
+`streamLine`, …).
