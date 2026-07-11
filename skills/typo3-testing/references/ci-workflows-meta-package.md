@@ -169,3 +169,41 @@ Turn it on explicitly:
   replace the bare context with the matrix-expanded ones — mirror how Unit/PHPStan
   are already listed. This is also what makes the newly-enabled job actually *gate*
   merges.
+
+## Adding a MariaDB functional leg (and its two silent traps)
+
+The reusable `ci.yml`'s functional job runs on **one** DBMS per call, chosen by
+`functional-test-db` (default `sqlite`); its two functional jobs are mutually
+exclusive per call (`== sqlite` vs `!= sqlite`). To keep an extension's
+MySQL-only code paths (e.g. `MATCH … AGAINST` fulltext, strict-mode inserts —
+see `functional-testing.md`) exercised in CI, add a **second, narrow call** of
+the reusable workflow rather than trying to run both engines in one:
+
+```yaml
+  ci-functional-mariadb:
+    uses: netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main
+    with:
+      php-versions: '["8.4"]'
+      typo3-versions: '["^14.3"]'
+      run-functional-tests: true
+      functional-test-db: mariadb
+      db-image: 'mariadb:10.11'
+```
+
+Two traps that make the leg silently *not* test MariaDB, or fail to start:
+
+- **`db-image` defaults to `mysql:9.6`.** Setting `functional-test-db: mariadb`
+  alone does **not** run against MariaDB — the DB service image is a separate
+  input. Without `db-image: 'mariadb:...'` the "MariaDB leg" runs on MySQL. Set
+  both.
+- **MariaDB images ≥ 11 break the reusable workflow's health check.** The job
+  health-checks the DB service with a hardcoded `mysqladmin ping`. MariaDB
+  dropped the `mysql*` compatibility symlinks at 11.0 and ships only
+  `mariadb-admin`, so `mariadb:11.x` never turns healthy → "Failed to initialize
+  container". Pin **`mariadb:10.11`** (LTS, still carries the `mysql*` symlinks)
+  until the reusable workflow's health check covers both binaries.
+
+Also expect the enabled leg to surface **pre-existing** MySQL-strict-mode bugs
+in an e2e-backend suite that has only ever run on SQLite — file those separately
+and, if needed, scope the leg to `--testsuite functional` (via
+`functional-test-command`) until they're fixed, then drop the scoping.

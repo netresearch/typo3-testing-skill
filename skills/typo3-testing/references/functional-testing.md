@@ -628,6 +628,13 @@ public function uploadsFile(): void
 - **`beStrictAboutOutputDuringTests="false"`**: Required when testing ViewHelpers via `StandaloneView`, since rendering output triggers PHPUnit's output-during-tests strictness check. Without this, ViewHelper E2E tests will fail as risky.
 - **`typo3DatabaseDriver` env var**: Use `pdo_sqlite` for fast local/CI testing without requiring a database server. SQLite is sufficient for most functional tests and eliminates external service dependencies. Use `mysqli` or `pdo_mysql` only when testing database-specific behavior.
 
+> **⚠️ SQLite hides MySQL/MariaDB strict-mode bugs — don't claim "cross-DBMS green" from an SQLite-only run.** SQLite is permissive where a production MySQL/MariaDB in strict mode rejects. A functional/E2E suite that passes on SQLite can fail on MySQL for bugs SQLite never surfaces:
+> - **Overlong values**: SQLite silently truncates a value longer than a `varchar(N)` column; MySQL strict mode rejects the insert (error → often a 500 on an AJAX-persist path that bypasses FormEngine's `max` eval). The test only fails on MySQL.
+> - **`decimal(p,s)` scale**: SQLite stores the full float; MySQL rounds to the column scale, so the same entity round-trips a *different* value per DBMS (`0.123456789` → `0.12`). Assertions pinned to the full value pass on SQLite, fail on MySQL.
+> - **Error-path coverage**: an insert that *only* fails under strict mode runs an error branch SQLite never reaches — where an uninitialized property (e.g. a reflection-constructed controller's injected logger) then fatals. The bug is real in production but invisible to SQLite tests.
+>
+> For any code with DB-specific behaviour (length limits, decimal columns, strict-mode-sensitive inserts), run the **full functional + e2e suite on MariaDB** locally — `runTests.sh -s functional -d mariadb` — before asserting it's cross-DBMS clean, and add a MariaDB leg to CI (see `ci-workflows-meta-package.md`). A suite that has *only ever* run on SQLite silently rots for MySQL.
+
 ### Bootstrap (Build/phpunit/FunctionalTestsBootstrap.php)
 
 ```php
