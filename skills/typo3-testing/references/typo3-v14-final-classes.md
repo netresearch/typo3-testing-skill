@@ -495,7 +495,7 @@ your production code depends on, wrap the concrete factory in a tiny production
 implementation, and have the test double implement the interface directly:
 
 ```php
-interface HttpFetcherInterface { public function get(string $url): ResponseInterface; }
+interface HttpFetcherInterface { public function get(string $url): \Psr\Http\Message\ResponseInterface; }
 
 final readonly class HttpFetcher implements HttpFetcherInterface { /* wraps RequestFactory */ }
 

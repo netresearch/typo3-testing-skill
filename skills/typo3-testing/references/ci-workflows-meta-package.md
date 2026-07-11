@@ -181,7 +181,7 @@ the reusable workflow rather than trying to run both engines in one:
 
 ```yaml
   ci-functional-mariadb:
-    uses: netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main
+    uses: netresearch/typo3-ci-workflows/.github/workflows/ci.yml@<SHA>  # pin to a commit SHA
     with:
       php-versions: '["8.4"]'
       typo3-versions: '["^14.3"]'
