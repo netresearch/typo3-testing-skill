@@ -345,6 +345,8 @@ final class UserServiceTest extends UnitTestCase
 
 PHPUnit 12 introduces stricter defaults. Follow these patterns to avoid notices and deprecations.
 
+**Static assertions:** call assertions via `self::` (`self::assertSame(...)`), not `$this->assertSame(...)` — PHPUnit 12 treats the assertion methods as static, and the instance form is deprecated. Every example in this file uses `self::`.
+
 ### Mock vs Stub Discipline (PHPUnit 12+)
 
 PHPUnit 12 reports notices when mock objects have no expectations configured. The correct fix is to use the right test double for the job.
