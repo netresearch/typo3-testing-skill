@@ -296,6 +296,14 @@ fi
 
 # PHP performance options
 PHP_OPCACHE_OPTS="-d opcache.enable_cli=1 -d opcache.jit=1255 -d opcache.jit_buffer_size=128M"
+# Functional/e2e-backend suites run WITHOUT the JIT: the tracing JIT in the
+# container PHP builds (reproduced on 8.3 and 8.5) can segfault silently
+# during suite bootstrap for certain - perfectly valid - source shapes
+# (t3x-nr-llm#351: adding a plain property+getter+setter to an entity
+# flipped it). Identical runs with opcache.jit=off pass; functionalCoverage
+# below already ran without the JIT. Functional tests are IO-bound, so the
+# JIT buys nothing here anyway.
+PHP_FUNCTIONAL_OPTS="-d opcache.enable_cli=1"
 
 # Suite execution
 case ${TEST_SUITE} in
@@ -346,7 +354,7 @@ case ${TEST_SUITE} in
         SUITE_EXIT_CODE=$?
         ;;
     functional)
-        COMMAND=(php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml --exclude-group not-${DBMS} "$@")
+        COMMAND=(php ${PHP_FUNCTIONAL_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml --exclude-group not-${DBMS} "$@")
 
         case ${DBMS} in
             mariadb)
@@ -393,7 +401,7 @@ case ${TEST_SUITE} in
             PARALLEL_JOBS="\$(((\$(nproc) + 1) / 2))"
         fi
 
-        COMMAND="find Tests/Functional -name '*Test.php' | xargs -P${PARALLEL_JOBS} -I{} php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml {}"
+        COMMAND="find Tests/Functional -name '*Test.php' | xargs -P${PARALLEL_JOBS} -I{} php ${PHP_FUNCTIONAL_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml {}"
         CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${ROOT_DIR}/.Build/web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid"
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-parallel-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
         SUITE_EXIT_CODE=$?
