@@ -54,6 +54,31 @@ final class ProductRepositoryTest extends FunctionalTestCase
 }
 ```
 
+## Gotcha: a green functional suite can prove nothing
+
+A passing functional run is not proof the tests ran. Three ways CI stays green while nothing is verified — check for all three:
+
+1. **A wrapped `setUp` swallows a broken environment into a skip.** A base class that guards `parent::setUp()` like this:
+
+   ```php
+   protected function setUp(): void
+   {
+       try {
+           parent::setUp();
+       } catch (\Throwable $e) {
+           self::markTestSkipped('Failed to initialize functional test: ' . $e->getMessage());
+       }
+   }
+   ```
+
+   turns an **unreachable database** — or a broken fixture, or a TCA error — into `OK, Tests: 25, Assertions: 0, Skipped: 25`, exit 0. The suite tested nothing and CI is green. Proven: pointing the run at a not-yet-ready MariaDB produced exactly that. Prefer letting the environment failure fail the test (keep only a deliberate "no database configured" skip, and put that check *before* `parent::setUp()`), and **gate the run on assertion count, not exit code** — `Assertions: 0` across the suite means it proved nothing.
+
+2. **A coverage flag that never reaches the runner.** `composer ci:test:php:functional -- --coverage-clover=cov.xml` silently produces no file if the composer script wraps its command in `sh -c '… runTests.sh …'` — composer appends the args *after* the quoted string, so they become `$0`/`$@` of the wrapper and never reach `runTests.sh` (nor the PHPUnit it drives). Forward them: `sh -c '… runTests.sh … "$@"' --`. (One extension uploaded no coverage for three months this way.)
+
+3. **A coverage config with no `<source>`.** Even with the flag, PHPUnit answers `No filter is configured, code coverage will not be processed` and writes nothing unless `FunctionalTests.xml` has a `<source>` block. And because the Codecov step runs with `fail_ci_if_error: false`, uploading a file that was never written never fails. **Verify coverage actually lands** (the Codecov commit/flag updates), don't assume a green upload step means it worked.
+
+The through-line: **success reported ≠ behaviour proven.** Gate on a produced artifact (assertions, a non-empty clover), not on exit 0.
+
 ## Test Database
 
 Functional tests use an isolated test database:
