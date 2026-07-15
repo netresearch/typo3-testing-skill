@@ -96,9 +96,19 @@ fi
 find Tests/Functional -name '*Test.php' | xargs -P${PARALLEL_JOBS} ...
 ```
 
-**Performance**: 2-3x speedup (24s → 10s for 62 tests)
+**Performance**: 2-3x speedup (24s → 10s for 62 tests). On CI's slower shared runners the win is larger — an 8-11min serial functional cell drops to ~2.5min.
 
-**Requirement**: SQLite with tmpfs for isolated databases per test file.
+**Why one process per file is collision-free (and works on MariaDB too):** the testing-framework derives BOTH the test instance directory AND the database name from the same per-class identifier — `substr(sha1(static::class), 0, 7)` (`FunctionalTestCase::getInstanceIdentifier`), used as `functional-<id>/` for the SQLite file and as `<originalDatabaseName>_ft<id>` for MySQL/MariaDB (`FunctionalTestCase.php`, the non-sqlite branch). So each **file** gets its own database on a shared server — no CREATE race, safe at `-P4` well under a default `max_connections` of 151. Shard by **file**, never by test *method* (`--filter`): several methods of one class share one instance.
+
+**Glob every suite `FunctionalTests.xml` declares, not just `Tests/Functional`.** If the config runs a second testsuite (e.g. an `e2e-backend` directory `Tests/E2E/Backend/`), a sharder that globs only `Tests/Functional` **silently drops it** — the classes never run and CI stays green. Match the config:
+
+```bash
+find Tests/Functional Tests/E2E/Backend -name '*Test.php' | xargs -P${PARALLEL_JOBS} ...
+```
+
+**Force `XDEBUG_MODE=off` on non-coverage parallel runs.** If setup-php installed Xdebug as the coverage driver, it stays in coverage mode and taxes runtime ~1.6x **even when no coverage is collected** (measured: 61s vs 37.6s on the same 126-test subset). Only enable it on the serial coverage run.
+
+**Requirement**: SQLite with tmpfs (or MySQL/MariaDB, per above) for isolated databases per test file.
 
 ### Unit Tests
 
