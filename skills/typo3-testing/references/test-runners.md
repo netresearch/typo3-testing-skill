@@ -55,7 +55,7 @@ Use `assets/Build/Scripts/runTests.sh` as starting point. Customize:
 
 | Option | Description | Values |
 |--------|-------------|--------|
-| `-s` | Test suite | `unit`, `functional`, `functionalParallel`, `e2e`, `lint`, `phpstan`, `cgl`, `rector`, `fuzz`, `mutation` |
+| `-s` | Test suite | `unit`, `functional`, `functionalParallel`, `e2e`, `lint`, `phpstan`, `cgl`, `rector`, `fuzz`, `mutation`, `composer` (runs a composer command, e.g. `-s composer dump-autoload`) |
 | `-d` | Database | `sqlite` (default), `mariadb`, `mysql`, `postgres` |
 | `-i` | DB version | mariadb: 10.11, mysql: 8.0, postgres: 16 |
 | `-p` | PHP version | `8.2`, `8.3`, `8.4`, `8.5` |
