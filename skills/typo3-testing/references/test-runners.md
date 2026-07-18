@@ -55,7 +55,7 @@ Use `assets/Build/Scripts/runTests.sh` as starting point. Customize:
 
 | Option | Description | Values |
 |--------|-------------|--------|
-| `-s` | Test suite | `unit`, `functional`, `functionalParallel`, `e2e`, `lint`, `phpstan`, `cgl`, `rector`, `fuzz`, `mutation` |
+| `-s` | Test suite | `unit`, `functional`, `functionalParallel`, `e2e`, `lint`, `phpstan`, `cgl`, `rector`, `fuzz`, `mutation`, `composer` (runs a composer command, e.g. `-s composer dump-autoload`) |
 | `-d` | Database | `sqlite` (default), `mariadb`, `mysql`, `postgres` |
 | `-i` | DB version | mariadb: 10.11, mysql: 8.0, postgres: 16 |
 | `-p` | PHP version | `8.2`, `8.3`, `8.4`, `8.5` |
@@ -361,6 +361,30 @@ jobs:
       - run: ddev start
       - run: Build/Scripts/runTests.sh -s e2e
 ```
+
+## Fast setup in a fresh worktree (rsync a known-good `.Build`)
+
+A newly created worktree has no `.Build/` (it's gitignored), so `runTests.sh`
+fails with `Could not open input file: .Build/bin/phpunit`. A fresh `composer
+install` works but is slow, and on WSL2 a fresh resolution can segfault the
+full-config PHPUnit run (flaky exit 139). Faster and stable: rsync a **known-good**
+`.Build` from a sibling worktree, then regenerate the autoloader so the new
+worktree's own classes are registered.
+
+```bash
+rsync -a --delete ../<sibling-worktree>/.Build/ ./.Build/
+Build/Scripts/runTests.sh -s composer dump-autoload   # register new PSR-4 classes
+Build/Scripts/runTests.sh -s unit
+```
+
+Only reuse a `.Build` whose resolved dependency versions are compatible with this
+branch (e.g. the same `nr-llm` minor). If they differ, the reused vendor can carry
+a different API than your code targets — a symptom is a value object's constructor
+requiring an argument your code/tests omit (signatures drift across minors).
+Verify the constructor at the **resolved** version, not the library's `main`, and
+run the static analyzer **after** the tests are written (test files are analyzed
+too). CI remains authoritative — treat the rsynced `.Build` as a local fast path,
+not a substitute for the CI matrix.
 
 ## Troubleshooting
 
