@@ -566,14 +566,17 @@ on failure — but do not reach for `srand()` + `mt_rand()`:
   fixer runs. The test still passes locally (before the fixer) and becomes silently
   non-deterministic in CI (after the fixer) — a flake you cannot reproduce.
 
-Use a hand-rolled linear congruential generator in the test instead — it survives
-the fixer and gives a fixed sequence per seed:
+Use a hand-rolled deterministic generator in the test instead — it survives the
+fixer and gives a fixed sequence per seed. Prefer a hash-based generator: it is
+100% portable (no integer-overflow / float-cast platform dependence a raw LCG has
+on 32-bit PHP) and just as simple:
 
 ```php
-$state = 12345; // fixed seed
-$roll = static function () use (&$state): int {
-    $state = ($state * 1103515245 + 12345) & 0x7fffffff;
-    return $state;
+$seed = 'fixed-seed';
+$counter = 0;
+$roll = static function () use (&$counter, $seed): int {
+    // 7 hex chars = 28 bits, always fits a signed int on 32- and 64-bit PHP
+    return (int) hexdec(substr(hash('sha256', $seed . $counter++), 0, 7));
 };
 
 for ($i = 0; $i < 1000; $i++) {
@@ -583,7 +586,8 @@ for ($i = 0; $i < 1000; $i++) {
 ```
 
 **Rule:** never depend on `srand()`/`mt_rand()` determinism in a test when CGL runs
-in the gate. A deterministic LCG (or a fixed data provider) is the portable choice.
+in the gate. A deterministic hash-based generator (or a fixed data provider) is the
+portable choice.
 
 ## Resources
 

@@ -60,9 +60,19 @@ ExpressionLanguage provider, which needs the DI/provider bootstrap the unit
 `ArgumentCountError` from `ProviderConfigurationLoader` the moment `getBase()`
 touches a variant.
 
-Test such code as **functional** (write the site YAML with a `baseVariants` block,
-as above) so ExpressionLanguage is wired. Reserve unit tests for site code that
-never resolves a variant base.
+Test such code as **functional** — write the site YAML with a `baseVariants` block
+(extending the site-config example above) so ExpressionLanguage is wired:
+
+```yaml
+rootPageId: 1
+base: '/'
+baseVariants:
+  -
+    base: 'https://staging.example.com/'
+    condition: 'applicationContext == "Production/Staging"'
+```
+
+Reserve unit tests for site code that never resolves a variant base.
 
 ## Disabling Session for Context Fixtures
 
