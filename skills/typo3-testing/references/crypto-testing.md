@@ -553,6 +553,38 @@ jobs:
             --filter 'Encryption|Crypto|Secret|Vault'
 ```
 
+## Randomized Property Tests — Deterministic Seeding
+
+Redaction, sanitizer, and streaming-window code is best proven with a randomized
+property test (generate many raw inputs, assert an invariant such as
+`concat(redactedChunks) === redact(fullRaw)`). Such a test must be **reproducible**
+on failure — but do not reach for `srand()` + `mt_rand()`:
+
+- **`mt_rand()` gets rewritten by CGL.** The coding-standards fixer (php-cs-fixer
+  `random_api_migration`) rewrites `mt_rand()` → `random_int()`. `random_int()` is
+  a CSPRNG and **ignores `srand()`**, so a seed you set has no effect after the
+  fixer runs. The test still passes locally (before the fixer) and becomes silently
+  non-deterministic in CI (after the fixer) — a flake you cannot reproduce.
+
+Use a hand-rolled linear congruential generator in the test instead — it survives
+the fixer and gives a fixed sequence per seed:
+
+```php
+$state = 12345; // fixed seed
+$roll = static function () use (&$state): int {
+    $state = ($state * 1103515245 + 12345) & 0x7fffffff;
+    return $state;
+};
+
+for ($i = 0; $i < 1000; $i++) {
+    $raw = $this->randomPayload($roll);        // build input from $roll(), not mt_rand()
+    self::assertSame(redact($raw), implode('', $this->streamThrough($raw)));
+}
+```
+
+**Rule:** never depend on `srand()`/`mt_rand()` determinism in a test when CGL runs
+in the gate. A deterministic LCG (or a fixed data provider) is the portable choice.
+
 ## Resources
 
 - [libsodium Documentation](https://doc.libsodium.org/)
