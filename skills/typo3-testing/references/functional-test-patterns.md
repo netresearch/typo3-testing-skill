@@ -50,6 +50,30 @@ protected function setUp(): void
 }
 ```
 
+### `Site::getBase()` with `baseVariants` is functional-only
+
+Code that resolves a site base URL — egress/SSRF policy, probe-URL builders,
+anything calling `$site->getBase()` — cannot be **unit**-tested when the site
+carries `baseVariants`. `baseVariants` are evaluated through TYPO3's
+ExpressionLanguage provider, which needs the DI/provider bootstrap the unit
+`UnitTestCase` does not set up; a plain unit test throws
+`ArgumentCountError` from `ProviderConfigurationLoader` the moment `getBase()`
+touches a variant.
+
+Test such code as **functional** — write the site YAML with a `baseVariants` block
+(extending the site-config example above) so ExpressionLanguage is wired:
+
+```yaml
+rootPageId: 1
+base: '/'
+baseVariants:
+  -
+    base: 'https://staging.example.com/'
+    condition: 'applicationContext == "Production/Staging"'
+```
+
+Reserve unit tests for site code that never resolves a variant base.
+
 ## Disabling Session for Context Fixtures
 
 When testing contexts that don't need session:
