@@ -34,9 +34,12 @@ default that quietly substitutes for a rejected value, a mocked collaborator tha
 call shape. Mock-based tests are especially prone to it — a mock cannot reproduce the real
 library's argument filtering, so asserting *how* it was called is the only thing that binds.
 
+Run it through `runTests.sh` so the check inherits the project's Docker PHP-version isolation —
+a pass/fail signal is only worth as much as the environment it came from:
+
 ```bash
 # 1. Baseline: the guard passes
-vendor/bin/phpunit -c Build/phpunit/UnitTests.xml --filter=theGuardingTest
+Build/Scripts/runTests.sh -s unit -- --filter=theGuardingTest
 
 # 2. Reintroduce the bug (exact string replace, not a regex sed)
 python3 - <<'PY'
@@ -49,12 +52,17 @@ PY
 grep -n 'save(\$path' Classes/Service/Thing.php   # confirm the edit applied
 
 # 3. The guard MUST fail now
-vendor/bin/phpunit -c Build/phpunit/UnitTests.xml --filter=theGuardingTest
+Build/Scripts/runTests.sh -s unit -- --filter=theGuardingTest
 
 # 4. Restore and confirm green again
 git checkout -- Classes/Service/Thing.php
-git diff --quiet -- Classes/ && vendor/bin/phpunit -c Build/phpunit/UnitTests.xml --filter=theGuardingTest
+git diff --quiet -- Classes/ && Build/Scripts/runTests.sh -s unit -- --filter=theGuardingTest
 ```
+
+Where the project has no `runTests.sh` — or you are already inside the container — the direct
+equivalent is `vendor/bin/phpunit -c Build/phpunit/UnitTests.xml --filter=theGuardingTest`. This is
+the single-class case that [`test-runners.md`](test-runners.md) reserves plain `phpunit --filter`
+for; do not generalise it to running whole suites outside the entry point.
 
 Two traps make this check lie:
 
