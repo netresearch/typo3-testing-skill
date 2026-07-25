@@ -965,6 +965,51 @@ dispatch met the goal; the phantom gap would have cost days of test-writing.
 Corollary: measure locally only for per-file gap analysis — a full functional
 suite under Xdebug on WSL2 projects to hours; the CI dispatch is the fast path.
 
+### On a PR, the same drop is usually an upload still in flight
+
+The expired-flag case above is the *repo-level* variant. On a pull request the
+identical symptom — `codecov/project` red, coverage down several points — far
+more often means one flag's upload for **this head commit** has not landed yet
+at the moment Codecov computed the status. Nothing is wrong and nothing needs
+doing; the status recomputes when the upload arrives.
+
+Three signals identify it, and all three must hold:
+
+- **`codecov/patch` is green** and says *"Coverage not affected"*. A real
+  regression from the PR's own diff would show up here first.
+- **The head number equals one flag's standalone coverage.** The project total
+  has collapsed to the flags that *did* upload. Compare against
+  `api.codecov.io/.../report/?flag=<flag>` per flag — if head% matches `unit`
+  to two decimals, only `unit` is in the report.
+- **The missing flag's own report is healthy** — non-zero `lines`, not `0/0`.
+  `0/0` means expired (previous section); healthy-but-absent means in flight.
+
+```bash
+# head total vs each flag standalone — the match names the flag that uploaded
+for f in unit functional acceptance; do
+  printf '%s: ' "$f"
+  curl -s "https://api.codecov.io/api/v2/github/<org>/repos/<repo>/report/?flag=$f" \
+    | jq -c '.totals | {coverage, lines}'
+done
+```
+
+Observed: `codecov/project` 89.60% (−4.65%) with `codecov/patch` reporting
+"Coverage not affected" on a release PR that changed only a version literal and
+Markdown. 89.60% was `unit` (89.54%) alone; `functional` was healthy at 39.05%
+over the same 1444 lines but its matrix cells had not finished. The status went
+green on its own once they did.
+
+The window exists only when the repo's `codecov.yml` has drifted from the
+shipped `assets/codecov.yml`, which sets `carryforward: true` on **every**
+uploading flag. A flag without it contributes nothing until its own upload for
+that commit lands; a flag with it falls back to the previous session and the
+project number stays stable. So check the repo's `flags:` block against the
+asset — the incident above was a repo carrying `carryforward` on `unit` only.
+
+Until the config is aligned, treat a project-only drop on a PR as pending, not
+as a finding — do not re-run CI, adjust the target, or start writing tests for
+it.
+
 ### Stale coverage cache fails the suite with zero failing tests
 
 PHPUnit's static-analysis cache (`.Build/cache/phpunit/code-coverage/`) is
