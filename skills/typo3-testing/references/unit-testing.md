@@ -562,6 +562,55 @@ grep -A 10 '"excludePaths"' infection.json5 infection.json.dist 2>/dev/null
 grep -rn 'function [a-z].*(' Classes/Domain/Model/ | grep -v 'get\|set\|is\|has'
 ```
 
+### `#[CoversClass]` pointing at an excluded class turns CI red
+
+A coverage exclusion and a `#[CoversClass]` attribute are two independent lists, and PHPUnit compares them. Naming a class that `<source>` excludes makes PHPUnit emit **one warning per test in that class**:
+
+```
+Class Netresearch\Ext\Exception\FooException is not a valid target for code coverage
+```
+
+With `failOnWarning="true"` — the default in the shared TYPO3 CI config, and set in every Netresearch extension — those warnings are a **red build**, even though every assertion passed.
+
+The trap is that the suite you reach for first cannot see it. Coverage targets are only validated when coverage is actually collected, so:
+
+```bash
+./Build/Scripts/runTests.sh -s unit            # GREEN — no coverage driver, no target check
+./Build/Scripts/runTests.sh -s unitCoverage    # RED   — 37 warnings, the real CI verdict
+```
+
+This bites hardest on the classes teams most often exclude *and* most often add narrow tests for: empty exception subclasses, interfaces, enums (PHPUnit 12 cannot attribute coverage to an enum at all), and thin backend controllers.
+
+**When adding a test for a class you suspect is excluded, do one of:**
+
+- Drop the `#[CoversClass]` attribute and rely on `#[CoversNothing]` or no attribute — correct when the class is genuinely trivial and the test exists to pin behaviour, not to claim coverage.
+- Remove the class from `<exclude>` — correct when it turned out to carry logic worth covering.
+
+Check before you push, rather than after CI tells you. Parse the XML — a
+`grep` for `<directory>` also matches the `<testsuites>` entries and reports
+every test directory as an exclusion:
+
+```python
+# phpunit.xml <exclude> vs. #[CoversClass] — prints offenders, silent when clean
+import glob, re, xml.etree.ElementTree as ET
+
+excluded = {
+    (node.text or '').strip().lstrip('./').replace('../', '')
+    for ex in ET.parse('Build/phpunit.xml').getroot().iter('exclude')
+    for node in ex
+}
+NS = '\\YourVendor\\YourExt\\'          # adjust to the extension namespace
+for path in glob.glob('Tests/**/*.php', recursive=True):
+    for m in re.finditer(r'#\[CoversClass\(\s*\\?([\w\\]+)::class', open(path).read()):
+        target = 'Classes/' + m.group(1).split(NS, 1)[-1].replace('\\', '/') + '.php'
+        if any(target == e or target.startswith(e.rstrip('/') + '/') for e in excluded):
+            print(f'{path}: covers excluded {m.group(1)}')
+```
+
+Handles both exclusion shapes — a whole directory (`Classes/Exception`) and a single `<file>` — since teams mix them.
+
+Cost when skipped: a full CI matrix round-trip, red on every PHP cell, with a local `-s unit` run that stayed green throughout.
+
 ## Testing PHP Syntax Variants
 
 When testing code that parses or analyzes PHP (like Extension Scanner matchers), test all syntax variants that PHP allows. Different syntaxes may be parsed differently.
