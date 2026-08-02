@@ -360,6 +360,34 @@
           "description": "Uses runTests.sh for test execution in DDEV"
         }
       ]
+    },
+    {
+      "id": 21,
+      "area": "unit-testing",
+      "name": "singleton-pollution-plain-testcase",
+      "prompt": "My PHPUnit test passes when I run it with --filter but fails in the full suite with an unrelated error. The class extends PHPUnit\\Framework\\TestCase and gets a Context via GeneralUtility::makeInstance().",
+      "assertions": [
+        {
+          "type": "content_contains",
+          "value": "resetSingletonInstances",
+          "description": "Names the usual lever and that it belongs to UnitTestCase"
+        },
+        {
+          "type": "content_contains",
+          "value": "new Context()",
+          "description": "Recommends owning the dependency instead of taking the singleton"
+        },
+        {
+          "type": "content_contains",
+          "value": "DateTimeAspect",
+          "description": "Shows setting the date aspect explicitly for time-dependent assertions"
+        },
+        {
+          "type": "content_contains",
+          "value": "full suite",
+          "description": "Requires verifying the fix against the whole suite, not the filtered run that was already green"
+        }
+      ]
     }
   ]
 }

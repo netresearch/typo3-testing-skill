@@ -244,6 +244,40 @@ final class BackendControllerTest extends UnitTestCase
 
 **Important:** Set `protected bool $resetSingletonInstances = true;` when tests interact with TYPO3 singletons to prevent test pollution.
 
+#### That property only exists on `UnitTestCase`
+
+`$resetSingletonInstances` is a feature of the testing framework's `UnitTestCase`. A
+class extending PHPUnit's own `TestCase` — common for pure unit tests with no TYPO3
+bootstrap — inherits no such lever: setting the property does nothing, and every
+`GeneralUtility::makeInstance()` call inside it takes and keeps the process-wide
+instance.
+
+The symptom is a test that **passes under `--filter` and fails in the full suite**,
+usually with an error unrelated to the assertion under test:
+
+```bash
+vendor/bin/phpunit --filter MyTest        # green
+vendor/bin/phpunit                        # red — someone earlier changed shared state
+```
+
+When that happens, do not chase the failing assertion. Find what the class takes from
+the global registry and give it its own:
+
+```php
+// ❌ Shares whatever a previously-run test left in the singleton
+$context = GeneralUtility::makeInstance(Context::class);
+
+// ✅ Owned by this test class, unaffected by execution order
+$context = new Context();
+$context->setAspect('date', new DateTimeAspect(new \DateTimeImmutable('@' . time())));
+```
+
+`Context` is the usual culprit for time-dependent code, because assertions built
+relative to `time()` fail the moment an earlier test pins the date aspect elsewhere —
+and the resulting error ("token expired", "not yet valid", "record not found") points
+at the subject rather than at the pollution. Verify the fix against the **whole**
+suite, not the filtered run that was green all along.
+
 ### `setSingletonInstance()` vs `addInstance()` for `SingletonInterface`
 
 `GeneralUtility::makeInstance()` honours two registries:
