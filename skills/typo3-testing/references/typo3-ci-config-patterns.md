@@ -151,7 +151,7 @@ version and the core stubs differ per dependency set**, so identical code can
 type-check on the `^14.x` leg and fail only on `^13.4`:
 
 - **First-class-callable filters are narrowed inconsistently.**
-  `array_filter(array_keys($fieldArray), is_string(...))` is inferred as
+  `array_filter(array_keys($fieldArray), \is_string(...))` is inferred as
   `list<string>` by the PHPStan the v14 set resolves, but stays `array` on the
   v13 set — so a downstream `implode(', ', $columns)` fails with *"Parameter #2
   \$array of function implode expects array<string>, array given"* **only in the
@@ -170,9 +170,12 @@ type-check on the `^14.x` leg and fail only on `^13.4`:
 - **Loosely-typed core properties differ between version stubs.**
   `DataHandler::$errorLog` is plain `array` in the v13 core, so string
   operations over it (`implode(', ', $dataHandler->errorLog)`) fail the v13
-  legs. In assertions, prefer forms that need no string coercion at all —
-  `self::assertSame([], $errorLog)` prints the offending entries itself on
-  failure.
+  legs. In assertions, prefer forms that need no string coercion at all:
+
+  ```php
+  $errorLog = $dataHandler->errorLog;
+  self::assertSame([], $errorLog); // prints the offending entries itself on failure
+  ```
 
 Diagnostic shortcut: when **only the `^13.4` PHPStan legs are red** while
 `^14.x` and the local run are green, suspect a narrowing/stub difference before
