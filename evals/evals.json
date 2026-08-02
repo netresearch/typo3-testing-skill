@@ -386,6 +386,11 @@
           "type": "content_contains",
           "value": "full suite",
           "description": "Requires verifying the fix against the whole suite, not the filtered run that was already green"
+        },
+        {
+          "type": "content_contains",
+          "value": "fixtures",
+          "description": "States that the pinned instant must also drive the test fixtures, not only the context"
         }
       ]
     }
