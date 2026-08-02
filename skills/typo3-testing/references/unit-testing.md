@@ -244,6 +244,52 @@ final class BackendControllerTest extends UnitTestCase
 
 **Important:** Set `protected bool $resetSingletonInstances = true;` when tests interact with TYPO3 singletons to prevent test pollution.
 
+#### That property only exists on `UnitTestCase`
+
+`$resetSingletonInstances` is a feature of the testing framework's `UnitTestCase`. A
+class extending PHPUnit's own `TestCase` — common for pure unit tests with no TYPO3
+bootstrap — inherits no such lever: setting the property does nothing, and every
+`GeneralUtility::makeInstance()` call inside it takes and keeps the process-wide
+instance.
+
+The symptom is a test that **passes under `--filter` and fails in the full suite**,
+usually with an error unrelated to the assertion under test:
+
+```bash
+vendor/bin/phpunit --filter MyTest        # green
+vendor/bin/phpunit                        # red — someone earlier changed shared state
+```
+
+When that happens, do not chase the failing assertion. Find what the class takes from
+the global registry and give it its own:
+
+```php
+private const NOW = 1767225600;   // 2026-01-01T00:00:00Z
+
+// ❌ Shares whatever a previously-run test left in the singleton
+$context = GeneralUtility::makeInstance(Context::class);
+
+// ✅ Owned by this test class, and the same instant every run
+$context = new Context();
+$context->setAspect('date', new DateTimeAspect(new \DateTimeImmutable('@' . self::NOW)));
+```
+
+Pin the instant rather than reading `time()`: the clock can cross a second between
+`setUp()` and the assertion, and a fixed value makes a failure reproducible instead of
+"it passed on my machine". **The same constant has to drive the fixtures** — a context
+frozen at a chosen instant while the test data is built from `time()` puts them years
+apart and fails everything as expired:
+
+```php
+'exp' => \DateTimeImmutable::createFromFormat('U', (string)(self::NOW + 3600)),
+```
+
+`Context` is the usual culprit for time-dependent code, because assertions built
+relative to `time()` fail the moment an earlier test pins the date aspect elsewhere —
+and the resulting error ("token expired", "not yet valid", "record not found") points
+at the subject rather than at the pollution. Verify the fix against the **whole**
+suite, not the filtered run that was green all along.
+
 ### `setSingletonInstance()` vs `addInstance()` for `SingletonInterface`
 
 `GeneralUtility::makeInstance()` honours two registries:
