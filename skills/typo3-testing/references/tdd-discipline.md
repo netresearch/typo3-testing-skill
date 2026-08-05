@@ -118,7 +118,9 @@ one-minute mutation probe and it is the only evidence that the test is load-bear
 # 1. revert the fix (or invert the condition) in the production file
 # 2. run only the test that is supposed to guard it
 Build/Scripts/runTests.sh -s unit -- --filter <TestName>   # MUST fail
-# 3. restore the production file, re-run          # MUST pass
+# 3. restore the production file
+# 4. run the exact same command again
+Build/Scripts/runTests.sh -s unit -- --filter <TestName>   # MUST pass
 ```
 
 If you cannot name a change that breaks it, the test is decorative — delete it
