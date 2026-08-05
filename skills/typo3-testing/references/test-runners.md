@@ -251,6 +251,8 @@ PHP_OPCACHE_OPTS="-d opcache.enable_cli=1 -d opcache.jit=1255 -d opcache.jit_buf
 
 **Note**: Disable JIT for coverage (`-d opcache.jit=off`) as it's incompatible with Xdebug.
 
+**Functional suites: run WITHOUT JIT.** Core-testing container PHP builds (seen on 8.3 and 8.5 images) with `opcache.jit=1255` can segfault **silently** during functional bootstrap — exit 139, no PHP error, dies between PHPUnit's "Configuration:" line and the first test, triggered by the *shape* of perfectly valid source (a plain property+getter on an Extbase entity flipped it). Functional suites are IO-bound, JIT gains nothing: use a separate `PHP_FUNCTIONAL_OPTS="-d opcache.enable_cli=1"` (no JIT) for functional/functionalParallel and keep JIT for phpstan/cgl/unit. Diagnosis pattern: fast probe via `runTests.sh -s functional -- --filter OneTestClass`, stash-bisect per candidate file, cross-check with `-d opcache.jit=off`.
+
 ## Permission Handling
 
 ### Linux --user Flag

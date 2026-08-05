@@ -731,3 +731,7 @@ infection --configuration=infection.json5 --show-mutations
 - [TYPO3 Coding Guidelines](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/CodingGuidelines/)
 - [netresearch/typo3-ci-workflows](https://github.com/netresearch/typo3-ci-workflows)
 - [Infection PHP Documentation](https://infection.github.io/guide/)
+
+## Fresh-worktree PHPStan without plugins: spurious InvocationStubber errors
+
+When the no-plugins route runs without the repo's explicit-includes config (fallback: `runTests.sh -s composer install --no-scripts` — note: no `--` separator, or composer treats the flag as a package name; bins land in `.Build/bin/`), phpstan-phpunit mis-resolves and reports spurious `Call to an undefined method …InvocationStubber::with()` / `Cannot call method willReturn() on mixed` on ordinary mock chains. These are NOT real and NOT caused by your change. Verify authoritatively with a controlled stash: `git stash push -u` → phpstan on the clean tree → note the identical baseline set → `git stash pop` → confirm your change adds zero. CI with a proper install stays clean.

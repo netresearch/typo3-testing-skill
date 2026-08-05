@@ -1004,3 +1004,11 @@ final class MyViewHelperTest extends FunctionalTestCase
 - [TYPO3 Functional Testing Documentation](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/Testing/FunctionalTests.html)
 - [Testing Framework](https://github.com/typo3/testing-framework)
 - [CSV Fixture Format](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/Testing/FunctionalTests.html#importing-data)
+
+## `FunctionalTestCase::get()` resolves PRIVATE services — don't make services public for tests
+
+The testing-framework's `private_container` fixture extension registers every private service and private alias into a public locator (`typo3.testing-framework.private-container`); `get()` falls back to it. So `$this->get(SomeConcrete::class)` works with `public: false` — never add `public: true` in `Services.yaml` just for a functional/E2E test. Genuine `public: true` reasons: a documented downstream consumer resolved by class name, or resolution outside DI via `GeneralUtility::makeInstance()` (TCA itemsProcFunc, DataHandler hooks). Verified at scale: 45→27 public services in one extension with zero test changes, all green — refuting the common "repositories must be public for `get()`" claim.
+
+## Coverage of mock-exercised classes: measure per test file, not combined
+
+A combined PHPUnit run can report 0% / heavily under-counted coverage for classes exercised through partial mocks (`createPartialMock`, `onlyMethods()`) — a cross-file attribution artifact, not missing coverage. Before any test-architecture decision based on a 0%, measure the file in isolation (`php -d xdebug.mode=coverage … --coverage-clover /tmp/cov.xml tests/…/OneTest.php`) and read that clover. One measured case: combined run 0/12 and 0/9, isolated runs 11/12 and 8/9.

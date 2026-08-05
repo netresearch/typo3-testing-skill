@@ -1029,3 +1029,7 @@ rm -rf .Build/cache/phpunit/code-coverage
 - [TYPO3 Tea Extension CI](https://github.com/TYPO3BestPractices/tea/tree/main/.github/workflows)
 - [shivammathur/setup-php](https://github.com/shivammathur/setup-php)
 - [netresearch/typo3-ci-workflows](https://github.com/netresearch/typo3-ci-workflows)
+
+## No-lock libraries resolve per PHP matrix leg — verify on each
+
+A library without `composer.lock` resolves dependencies fresh per CI run AND per PHP version — each matrix leg can install a different dependency set, and the local default PHP's resolution is not representative. A PHPStan baseline generated on local PHP 8.5 (which resolved Symfony 8) would not have matched the 8.1/8.2 CI legs (Symfony 6.4/7.4). Before claiming a no-lock library green, re-resolve per CI PHP version: `composer config platform.php 8.1.99 && composer update --with-all-dependencies`, run the checks, repeat per leg.
