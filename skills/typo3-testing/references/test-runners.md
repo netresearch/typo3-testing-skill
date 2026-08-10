@@ -388,6 +388,34 @@ run the static analyzer **after** the tests are written (test files are analyzed
 too). CI remains authoritative — treat the rsynced `.Build` as a local fast path,
 not a substitute for the CI matrix.
 
+### A `.Build` also pins a PHP version, which can make one suite unrunnable
+
+Compatibility is not only about library versions. `composer install` writes
+`.Build/vendor/composer/platform_check.php` from the PHP it resolved under, and
+that file **fatals** rather than warns when the runtime is older:
+
+```
+Fatal error: Uncaught RuntimeException: Composer detected issues in your platform:
+Your Composer dependencies require a PHP version ">= 8.4.1". You are running 8.2.30.
+```
+
+That matters for any suite whose gate pins a *lower* PHP than the one the
+`.Build` was resolved under. The usual case is Rector: its PHPUnit rule set
+activates from the phpunit version composer installed, so the gate is pinned low
+in CI (`rector-php-version: '8.2'`) — and in a worktree whose `.Build` came from
+a PHP 8.4 resolve, `runTests.sh -s rector -n -p 8.2` cannot start at all. The
+suite is not failing; it never ran.
+
+Recognise it by the message: a `platform_check.php` fatal is an environment
+mismatch, never a code finding. Then pick one:
+
+- keep a second `.Build` resolved at the pinned version for that one gate, or
+- accept CI as the only place that gate runs — and **say so** when reporting
+  which gates were run locally, rather than listing it as green.
+
+Silently skipping it is the failure mode: the gate is then first evaluated in
+CI, on a pushed branch, which costs a round-trip per finding.
+
 ## Troubleshooting
 
 ### TTY Errors
