@@ -1098,6 +1098,61 @@ final class MyDataHandlerHookTest extends UnitTestCase
 5. **Reset Singletons**: Always set `protected bool $resetSingletonInstances = true;`
 6. **Constructor DI**: Inject all dependencies via constructor (TYPO3 13+ best practice)
 
+## Exercising a PSR-15 Middleware Without an Instance
+
+Sometimes the question is about a *third-party* middleware in a project you
+cannot boot — the database dump is elsewhere, `composer install` cannot
+authenticate against a paid package, the environment is simply not yours. The
+answer is not to reason about the code and call it verified. A PSR-15 middleware
+needs a request, a handler and whatever request attributes it reads; none of that
+requires a TYPO3 instance.
+
+Build a scratch project **outside the repository**, so its config cannot pick up
+the project's own:
+
+```json
+{
+  "require": { "vendor/the-middleware": "^1.2", "typo3/cms-core": "~12.4" },
+  "config": {
+    "allow-plugins": { "typo3/cms-composer-installers": true, "typo3/class-alias-loader": true },
+    "policy": { "advisories": { "block": false } }
+  }
+}
+```
+
+`policy.advisories.block` matters: Composer refuses every TYPO3 release under an
+open advisory, which in a throwaway probe blocks the install outright. Acceptable
+here and nowhere else.
+
+Then call `process()` with the real configuration:
+
+```php
+$config = \Symfony\Component\Yaml\Yaml::parseFile(__DIR__ . '/site-config.yaml');
+unset($config['baseVariants']);   // resolving these needs the DI container
+$site = new Site('my-site', 1, $config);
+
+$handler = new class () implements RequestHandlerInterface {
+    public function handle(ServerRequestInterface $request): ResponseInterface
+    {
+        return (new Response())->withStatus(200);
+    }
+};
+
+$request = (new ServerRequest(new Uri('https://example.com/contact'), 'GET'))
+    ->withAttribute('site', $site)
+    ->withAttribute('routing', new PageArguments(13, '0', []));
+
+$response = (new TheMiddleware())->process($request, $handler);
+```
+
+Copy the site configuration from the repository rather than writing a fixture —
+the point is to test *your* configuration, and a hand-built one silently answers
+a different question. Two limits to state in the report rather than paper over:
+anything you strip (`baseVariants` above) is untested, and a middleware
+registered after `page-resolver` cannot be shown here to be skipped for
+unresolvable paths — that follows from the registration order, not from this
+probe. Say which claims came from which.
+
 ## Test Patterns for TYPO3 Extensions
 
 ### Coverage Attributes: #[CoversClass] and #[CoversNothing]
