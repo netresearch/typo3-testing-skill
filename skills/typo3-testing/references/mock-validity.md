@@ -178,10 +178,12 @@ Parameter $run of anonymous function has invalid type
 Netresearch\NrLlm\Tests\Unit\Service\Tool\AgentRunReference.
 ```
 
-This is the concrete reason for the ordering rule in `quality-tools.md`: run
-the static analyser **after** writing tests, over the final tree, because test
-files are analysed too. A green `runTests.sh -s unit` is not evidence that a
-new test file is type-correct.
+The recommended PHPStan configuration in `quality-tools.md` lists `Tests` in
+`paths`, so the analyser does see this — but only if you run it **after**
+writing the tests, over the final tree. Ordering matters here in a way it does
+not for production code: a green `runTests.sh -s unit` is not evidence that a
+new test file is even type-correct, so analysing before the tests exist checks
+the half that was already fine.
 
 Two habits close it without waiting for the analyser:
 
