@@ -1,6 +1,6 @@
 # Functional Test Patterns for TYPO3 12/13
 
-> **Source**: Real-world patterns from netresearch/contexts extension testing (2024-12)
+> **Source**: Real-world patterns from testing a production TYPO3 extension (2024-12)
 
 ## Container Reset Between Tests
 

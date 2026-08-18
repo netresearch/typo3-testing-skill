@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "typo3-testing",
-  "version": "5.20.1",
+  "version": "5.20.2",
   "description": "TYPO3 extension testing with automated test generation agents",
   "author": {
     "name": "Netresearch DTT GmbH",
