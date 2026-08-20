@@ -58,6 +58,8 @@ Use `assets/Build/Scripts/runTests.sh` as starting point. Customize:
 | `-s` | Test suite | `unit`, `functional`, `functionalParallel`, `e2e`, `lint`, `phpstan`, `cgl`, `rector`, `fuzz`, `mutation`, `composer` (runs a composer command, e.g. `-s composer dump-autoload`) |
 | `-d` | Database | `sqlite` (default), `mariadb`, `mysql`, `postgres` |
 | `-i` | DB version | mariadb: 11.8 (accepted: 10.11, 11.4, 11.8, 12.3), mysql: 8.0, postgres: 16 |
+
+A MariaDB version that has left support is mapped onto the LTS of its own series and the substitution is printed — `-i 10.5` runs 10.11, `-i 12.2` runs 12.3 — so an old call in a Makefile keeps working instead of failing. `DBMS_VERSION_EXACT=1` runs the requested version verbatim, for reproducing a bug on the engine a customer actually operates.
 | `-p` | PHP version | `8.2`, `8.3`, `8.4`, `8.5` |
 | `-x` | Enable Xdebug | |
 | `-n` | Dry-run | For cgl, rector |
