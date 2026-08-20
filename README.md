@@ -361,8 +361,8 @@ The tea extension uses `Build/Scripts/runTests.sh` for orchestrated multi-databa
 # Run functional tests against SQLite (default, fast)
 ./Build/Scripts/runTests.sh -s functional
 
-# Run functional tests against MariaDB 10.11
-./Build/Scripts/runTests.sh -s functional -d mariadb -i 10.11
+# Run functional tests against MariaDB 11.8
+./Build/Scripts/runTests.sh -s functional -d mariadb -i 11.8
 
 # Run functional tests against MySQL 8.0
 ./Build/Scripts/runTests.sh -s functional -d mysql -i 8.0
@@ -398,7 +398,7 @@ jobs:
         database:
           - type: 'sqlite'
           - type: 'mariadb'
-            version: '10.11'
+            version: '11.8'
           - type: 'mysql'
             version: '8.0'
           - type: 'postgres'
@@ -482,7 +482,7 @@ version: '3.8'
 
 services:
   mariadb:
-    image: mariadb:10.11
+    image: mariadb:11.8
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: test
@@ -531,7 +531,7 @@ The `runTests.sh` script from the tea extension provides comprehensive test orch
 
 **3. Version Control**:
 ```bash
-./Build/Scripts/runTests.sh -s functional -d mariadb -i 10.11
+./Build/Scripts/runTests.sh -s functional -d mariadb -i 11.8
 ./Build/Scripts/runTests.sh -s functional -d postgres -i 16
 ./Build/Scripts/runTests.sh -p 8.3              # PHP version
 ```
@@ -625,7 +625,7 @@ composer ci:tests
 ```bash
 # Test against all databases
 ./Build/Scripts/runTests.sh -s functional -d sqlite
-./Build/Scripts/runTests.sh -s functional -d mariadb -i 10.11
+./Build/Scripts/runTests.sh -s functional -d mariadb -i 11.8
 ./Build/Scripts/runTests.sh -s functional -d mysql -i 8.0
 ./Build/Scripts/runTests.sh -s functional -d postgres -i 16
 
