@@ -82,8 +82,13 @@ handleDbmsOptions() {
                 echo "Invalid combination -d ${DBMS} -a ${DATABASE_DRIVER}" >&2
                 exit 1
             fi
-            [ -z "${DBMS_VERSION}" ] && DBMS_VERSION="10.11"
-            if ! [[ ${DBMS_VERSION} =~ ^(10.5|10.6|10.11|11.0|11.4)$ ]]; then
+            [ -z "${DBMS_VERSION}" ] && DBMS_VERSION="11.8"
+            # MariaDB series still in community support (mariadb.org
+            # maintenance policy): 10.11 until 2028-02, 11.4 until 2029-05,
+            # 11.8 until 2028-06, 12.3 until 2029-06. 10.5, 10.6 and 11.0 are
+            # EOL; 12.0-12.2 are rolling releases, not LTS, and Docker Hub
+            # stopped rebuilding 12.2 in May 2026.
+            if ! [[ ${DBMS_VERSION} =~ ^(10.11|11.4|11.8|12.3)$ ]]; then
                 echo "Invalid combination -d ${DBMS} -i ${DBMS_VERSION}" >&2
                 exit 1
             fi
@@ -152,7 +157,7 @@ Options:
         Database for functional tests (default: sqlite)
 
     -i version
-        Database version (mariadb: 10.11, mysql: 8.0, postgres: 16)
+        Database version (mariadb: 11.8, mysql: 8.0, postgres: 16)
 
     -p <8.2|8.3|8.4|8.5>
         PHP version (default: 8.5)
