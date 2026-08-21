@@ -8,6 +8,7 @@ Automated code quality and static analysis tools for TYPO3 extensions.
 - **Rector**: Automated code refactoring and modernization
 - **php-cs-fixer**: Code style enforcement (PSR-12, TYPO3 CGL)
 - **phplint**: PHP syntax validation
+- **jscpd**: Copy/paste (duplicate code) detection
 
 ## Centralized CI Tooling: netresearch/typo3-ci-workflows
 
@@ -534,6 +535,50 @@ Build/Scripts/runTests.sh lint
 # Specific directory
 vendor/bin/phplint Classes/
 ```
+
+## jscpd (Copy/Paste Duplicate Detection)
+
+### Installation
+
+```bash
+npm install --save-dev jscpd
+```
+
+### Configuration — jscpd 5.x schema
+
+Create `Build/.jscpd.json`:
+
+```json
+{
+    "path": ["../Classes/"],
+    "format": ["php"],
+    "mode": "weak",
+    "threshold": 0,
+    "reporters": ["console-full"],
+    "minTokens": 100,
+    "minLines": 5,
+    "ignore": [],
+    "exitCode": 1
+}
+```
+
+**jscpd 5.x breaking schema changes** (config written for older jscpd versions fails with confusing errors):
+
+- The language field is `format`, not `languages`. A leftover `languages` key is rejected with `config file Build/.jscpd.json: unknown field 'languages'`.
+- `exitCode` must be an **integer** (`1`), not a boolean. `"exitCode": true` fails with `invalid type: boolean 'true', expected i32`.
+- The default `mode` counts comments as tokens, which inflates the duplicate-token count and can trip the threshold on files that only share license headers or PHPDoc blocks, not logic. Set `"mode": "weak"` to ignore whitespace/formatting-only differences and avoid these false positives — confirmed to eliminate spurious "found too many duplicates" failures caused purely by shared comment blocks.
+
+### Running jscpd
+
+```bash
+# Via npx
+npx jscpd --config Build/.jscpd.json
+
+# Composer script integration
+"ci:test:php:cpd": "npx jscpd --config Build/.jscpd.json"
+```
+
+A `threshold: 0` with a non-zero `exitCode` makes jscpd fail the build on **any** detected duplicate above `minTokens`/`minLines` — tune `threshold` upward (percentage) instead if some duplication is accepted.
 
 ## Composer Script Integration
 
