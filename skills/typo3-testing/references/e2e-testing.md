@@ -579,6 +579,11 @@ use: {
 },
 ```
 
+The replacement in a `MAP` rule may carry a port, and it overrides the
+destination port — so `baseURL` stays port-less even when the instance listens
+somewhere else. Measured: `MAP typo3.localhost probe-web:8080` with
+`page.goto('http://typo3.localhost')` answers 200.
+
 `--unsafely-treat-insecure-origin-as-secure` is the obvious alternative and does
 not work here: Chromium honours it only together with `--user-data-dir`, and
 `browserType.launch()` rejects that argument outright. Measured in the Playwright
@@ -600,7 +605,8 @@ dies with `getaddrinfo ENOTFOUND typo3.localhost`. Give the Playwright container
 a hosts entry as well:
 
 ```bash
-docker run --add-host typo3.localhost:"${apache_ip}" … mcr.microsoft.com/playwright:…
+docker run --add-host "typo3.localhost:${apache_ip}" \
+    mcr.microsoft.com/playwright:v1.62.1-noble npx playwright test
 ```
 
 Measured both ways: without it `page.goto` returns 200 while `page.request` and
@@ -634,9 +640,10 @@ two walls in a containerised instance. PHP-FPM typically runs as root there, so
 the cache files belong to root in a directory that is not group-writable, and the
 Playwright container gets `EACCES` on every attempt. Renaming the directory *is*
 permitted when the parent is world-writable and still does not work: PHP-FPM
-resolves the old path out of its **realpath cache** for another two minutes and
-keeps writing into the directory that was moved aside, so the counter goes on
-climbing in a directory nothing is looking at.
+resolves the old path out of its **realpath cache** until `realpath_cache_ttl`
+expires — 120 seconds by default, and configurable — and keeps writing into the
+directory that was moved aside, so the counter goes on climbing in a directory
+nothing is looking at.
 
 Configure the instance instead — raise the limit, shorten the window — and keep
 the deletion only as the path that works when the instance belongs to whoever
