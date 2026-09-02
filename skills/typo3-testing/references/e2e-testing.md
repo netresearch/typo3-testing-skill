@@ -605,8 +605,16 @@ dies with `getaddrinfo ENOTFOUND typo3.localhost`. Give the Playwright container
 a hosts entry as well:
 
 ```bash
-docker run --add-host "typo3.localhost:${apache_ip}" \
-    mcr.microsoft.com/playwright:v1.62.1-noble npx playwright test
+# The argument to add, alongside whatever the runner already passes
+# (-v "${ROOT_DIR}:${ROOT_DIR}", -w, `npm ci &&`, ${IMAGE_PLAYWRIGHT}):
+--add-host "typo3.localhost:${apache_ip}"
+```
+
+Read the address off the web container once it is up, since it is per run:
+
+```bash
+apache_ip=$(${CONTAINER_BIN} inspect "apache-${SUFFIX}" \
+    --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
 ```
 
 Measured both ways: without it `page.goto` returns 200 while `page.request` and
