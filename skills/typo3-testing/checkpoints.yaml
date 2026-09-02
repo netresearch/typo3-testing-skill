@@ -170,19 +170,34 @@ mechanical:
   # reported a failure on every project. It also relied on an `expected:` field the
   # runner does not parse — the verdict has to be the exit status. Both are fixed
   # here by moving the logic into a screened script body.
+  #
+  # The level is read with `grep -oE` plus a bash suffix strip, not `grep -oP
+  # …\K`: where PCRE is missing (BSD grep), the PCRE spelling captured nothing
+  # from every candidate file and the loop then reported "no PHPStan
+  # configuration declaring a level" — a false failure against a conformant
+  # project on every such machine.
+  #
+  # Every candidate configuration is inspected before the verdict. A project
+  # with Build/phpstan.neon at level 9 and phpstan.neon at level 10 satisfies
+  # the rule; exiting at the first file below 10 reported it as non-conformant.
   - id: TT-35
     type: script
     command: |
+      bad=""
       for f in Build/phpstan.neon Build/phpstan/phpstan.neon phpstan.neon phpstan.neon.dist; do
         [ -f "$f" ] || continue
-        lvl=$(grep -m1 -oP 'level:\s*\K([0-9]+|max)' "$f" 2>/dev/null)
+        lvl=$(grep -m1 -oE 'level:[[:space:]]*([0-9]+|max)' "$f" 2>/dev/null)
+        lvl="${lvl##*[[:space:]:]}"
         [ -z "$lvl" ] && continue
         if [ "$lvl" = "max" ] || [ "$lvl" = "10" ]; then
           exit 0
         fi
-        echo "FAIL: $f declares PHPStan level $lvl; expected 10 or max"
-        exit 1
+        bad="$bad $f=$lvl"
       done
+      if [ -n "$bad" ]; then
+        echo "FAIL: no PHPStan configuration declares level 10 or max; found:$bad"
+        exit 1
+      fi
       echo "FAIL: no PHPStan configuration declaring a level was found"
       exit 1
     severity: warning
@@ -258,10 +273,15 @@ mechanical:
   # Requiring shape 1 alone reported an error-free repo as non-conformant.
   # A composer.json with neither shape still fails: it defines no test entry
   # point at all.
+  #
+  # Read structurally out of `.scripts`, not as a regex over the whole file:
+  # `scripts-descriptions` is a real composer field and NR extensions document
+  # exactly these script names in it, so the text match passed a composer.json
+  # whose `scripts` object defines no test entry point.
   - id: TT-55
-    type: regex
+    type: json_path
     target: composer.json
-    pattern: 'Build/Scripts/runTests\.sh|ci:test:php:(unit|functional)'
+    pattern: '(.scripts // {}) | (has("ci:test:php:unit") or has("ci:test:php:functional") or (tostring | contains("Build/Scripts/runTests.sh")))'
     severity: warning
     desc: "composer.json should define a test entry point — either a script invoking Build/Scripts/runTests.sh, or ci:test:php:unit / ci:test:php:functional scripts"
 
@@ -300,8 +320,11 @@ mechanical:
   # pipeline's status.
   # Known limitations: a call split across a backslash line-continuation (also
   # true of the regex this replaced), and a call that is not in command
-  # position (`cd Build && $(RUNTESTS) unit`), are not seen. Needs grep -P;
-  # where PCRE is missing the check fails open (as TT-35 and TT-105 already do).
+  # position (`cd Build && $(RUNTESTS) unit`), are not seen. Needs grep -P:
+  # where PCRE is missing, `grep -qP` exits 2, the leading `!` inverts that and
+  # the check passes — it fails open instead of reporting every Makefile as
+  # broken. TT-35 and TT-105 do not rely on that; they were switched to a
+  # PCRE-free extraction, because their PCRE spelling failed CLOSED.
   - id: TT-58
     type: command
     pattern: "! grep -qP '^\\t[@+-]*([$][({]RUNTESTS[)}]|\\S*runTests\\.sh)(?!.* -s[ =])' Makefile 2>/dev/null"
@@ -322,12 +345,18 @@ mechanical:
 
   # `||`-chained on one line, so the runner rejected it unread and it failed on
   # every project, including ones that do have PHPStan.
+  #
+  # The composer.json branch reads declared dependency KEYS. `grep -q phpstan
+  # composer.json` also passed on a `description` or `scripts-descriptions`
+  # entry that merely names PHPStan, so the warning was suppressed for projects
+  # that never install it. netresearch/typo3-ci-workflows counts as a key,
+  # because it is the shared CI package this check means by "transitively".
   - id: TT-61
     type: script
     command: |
       [ -f .Build/bin/phpstan ] && exit 0
       [ -f vendor/bin/phpstan ] && exit 0
-      grep -q phpstan composer.json && exit 0
+      jq -e '((.require // {}) + (."require-dev" // {})) | keys | any(test("phpstan") or . == "netresearch/typo3-ci-workflows")' composer.json >/dev/null 2>&1 && exit 0
       grep -rq phpstan .Build/vendor/composer/installed.json 2>/dev/null && exit 0
       grep -rq phpstan vendor/composer/installed.json 2>/dev/null && exit 0
       echo "FAIL: PHPStan is not available directly or transitively"
@@ -519,11 +548,16 @@ mechanical:
   # was rejected unread and failed even where infection.json5 sets a high minMsi.
   # Not applicable when the project does not do mutation testing at all — TT-104
   # already reports the missing configuration.
+  #
+  # PCRE-free extraction for the same reason as TT-35: with `grep -oP …\K` on a
+  # grep without PCRE the capture is empty and the check reported "declares no
+  # minMsi" against a config that declares one.
   - id: TT-105
     type: script
     command: |
       [ -f infection.json5 ] || exit 0
-      msi=$(grep -m1 -oP '"minMsi":\s*\K[0-9]+' infection.json5 2>/dev/null)
+      msi=$(grep -m1 -oE '"minMsi":[[:space:]]*[0-9]+' infection.json5 2>/dev/null)
+      msi="${msi##*[[:space:]:]}"
       if [ -z "$msi" ]; then
         echo "FAIL: infection.json5 declares no minMsi"
         exit 1
@@ -658,10 +692,12 @@ llm_reviews:
     target: "Tests/**/*.php"
     severity: error
     desc: "Tests that call vfsStream::url() must call vfsStream::setup() for the same root in setUp(). On a fresh CI run the virtual-filesystem root does not exist; file_put_contents('vfs://keys/...') fails with 'No such file or directory'. Works locally only when a previous test in the same process already registered the root."
+  # Same candidate paths as TT-30/TT-32/TT-35: a project whose PHPStan config
+  # lives in Build/ was skipped by this review entirely.
   - id: TT-136
     type: llm_review
     domain: static-analysis
-    target: "phpstan.neon"
+    target: "{phpstan.neon,Build/phpstan.neon,Build/phpstan/phpstan.neon}"
     severity: error
     desc: "phpstan.neon must not combine phpstan/extension-installer auto-registration with explicit includes: of the same extension .neon files. When extension-installer is active (via netresearch/typo3-ci-workflows), phpstan-phpunit, phpstan-strict-rules, phpstan-deprecation-rules, phpat, and saschaegerer/phpstan-typo3 are already registered — adding explicit includes: causes 'These files are included multiple times' and PHPStan exits 1. Remove duplicate includes or use Build/phpstan.no-plugins.neon for local runs without extension-installer."
 
