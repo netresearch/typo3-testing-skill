@@ -399,6 +399,51 @@ this skill — overrides the ini, so a suite loading one of those can only be sw
 lifting that pin for the run. Such a pin also removes the second failure mode for that
 suite. It does nothing about the first: 22:00 arrives in UTC like anywhere else.
 
+## Never mock the class under test with `getAccessibleMock()`
+
+`getAccessibleMock($className)` called **without a method list** doubles *every*
+method of the class, the method under test included. Reaching it through
+`_call()` therefore never runs your code — it runs the double, which returns
+whatever PHPUnit generates for the declared return type (`null` for `?array` or
+an untyped method, `[]` for `array`, `false` for `bool`, and so on) or whatever
+the test configured. An assertion written around that value holds for every
+possible implementation: the test asserts nothing and no mutation can redden it.
+
+```php
+// WRONG - parse() is doubled, so $result is the generated value, not your output
+$subject = $this->getAccessibleMock(EmConfReader::class);
+self::assertNull($subject->_call('parse', $code));
+
+// RIGHT - instantiate and call
+$subject = new EmConfReader();
+self::assertNull($subject->parse($code));
+```
+
+Found in a production extension: three tests written the first way, all green,
+all vacuous. On one of them the real call returned `['bar' => 'baz']` for an
+input the test asserted `null` for — and that test was the only thing pinning a
+behaviour which had therefore never been enforced at all.
+
+`getAccessibleMock()` earns its place when you need to reach a `protected` member
+or replace *one* collaborator call on the subject. Then pass the method list
+explicitly, so the method under test is not among the doubles:
+
+```php
+$subject = $this->getAccessibleMock(MyService::class, ['fetchRemoteData']);
+$subject->method('fetchRemoteData')->willReturn($fixture);
+self::assertSame('expected', $subject->_call('transform', $input));
+```
+
+Note that PHPUnit does not double `static`, `final` or `private` methods at all,
+so a subject built around static entry points cannot be partially stubbed this
+way — extract an instance method first.
+
+**How to notice:** the trap hides behind assertions that expect the same value
+PHPUnit would generate anyway — `null`, `[]`, `false`. Add one case that expects
+a real value; if it fails while the implementation plainly produces that value,
+your code never ran. A test that no mutation can redden is disconnected, not
+strict.
+
 ## Mocking Dependencies
 
 Use PHPUnit's built-in mocking (PHPUnit 11/12):
