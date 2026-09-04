@@ -20,9 +20,13 @@ Two real failure modes that no static gate catches:
 
 ### 1. StandaloneView (functional, no browser)
 
-For ViewHelper-level correctness, render the template through `StandaloneView` in a
-functional test (see `functional-testing.md`). This catches namespace registration,
-argument, and output errors **without** a browser and runs in CI.
+For ViewHelper-level correctness, render the template in a functional test (see
+`functional-testing.md`). This catches namespace registration, argument, and output
+errors **without** a browser and runs in CI.
+
+`StandaloneView` is the v13 way and is **gone on 14.3 and main** — resolve the view
+through `ViewFactoryInterface` / `ViewFactoryData` instead, which exist on 13.4,
+14.3 and main and therefore survive the whole CI matrix.
 
 Limitation: it does **not** reproduce the `ModuleTemplate` / backend doc-header
 context, asset inclusion (CSS/JS), or browser layout — so it cannot catch the

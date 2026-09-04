@@ -952,6 +952,13 @@ protected function setUp(): void
 
 ## ViewHelper E2E Tests with StandaloneView
 
+> **v13 only.** `typo3/sysext/fluid/Classes/View/StandaloneView.php` is present on
+> branch `13.4` and **gone on `14.3` and `main`**. A test written this way compiles
+> out of the matrix the moment v14 is added. `ViewFactoryInterface` and
+> `ViewFactoryData` (`typo3/sysext/core/Classes/View/`) exist on 13.4, 14.3 and
+> main, so a test that resolves the view through the factory runs on the whole
+> matrix — prefer it for anything new.
+
 Test Fluid ViewHelpers end-to-end by rendering templates through `StandaloneView`. This verifies the full rendering pipeline including namespace registration, argument handling, and output:
 
 ```php
