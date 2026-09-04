@@ -70,6 +70,41 @@ try {
 
 Each matrix entry (PHP version × TYPO3 version) runs independently. A test passing on `8.2 + v13` but failing on `8.5 + v14` indicates version-specific behavior, not flakiness.
 
+## Run each gate in the image its own CI job uses
+
+A pipeline rarely runs every job in one image, and the differences are not
+cosmetic. In one repository `test:php`, `test:rector` and `test:phpstan` run in
+`ghcr.io/devgine/composer-php:v2-php8.4-alpine` while `test:unit` runs in plain
+`php:8.4` and installs what it needs first:
+
+```yaml
+before_script:
+  - apt-get install git unzip zlib1g-dev libzip-dev -yqq
+  - docker-php-ext-install zip
+```
+
+The alpine image has **no `ext-zip`**. Reproducing the suite there makes every
+zip-touching test error out locally while CI is green, and the failure names the
+test, not the image — so it reads as a broken test. `composer install
+--ignore-platform-reqs`, which these pipelines use, removes the one signal that
+would have said otherwise.
+
+Read `.gitlab-ci.yml` / the workflow file for the `image:` **and** the
+`before_script:` of the specific job before reproducing it, and mirror both. A
+throwaway Dockerfile that copies the job's `before_script` is worth it as soon as
+you run the suite more than twice:
+
+```dockerfile
+FROM php:8.4
+RUN apt-get update -yqq \
+ && apt-get install -yqq git unzip zip zlib1g-dev libzip-dev \
+ && docker-php-ext-install zip
+```
+
+Also mirror the flags: the phpstan job runs `php -d memory_limit=2G`, and without
+it PHPStan dies with *reached configured PHP memory limit: 128M* and reports
+"Found 2 errors" that have nothing to do with the code.
+
 ## Testing-Framework Version Mapping
 
 | testing-framework | PHPUnit | TYPO3 Versions |
