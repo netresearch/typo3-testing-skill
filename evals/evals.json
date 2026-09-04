@@ -393,6 +393,106 @@
           "description": "States that the pinned instant must also drive the test fixtures, not only the context"
         }
       ]
+    },
+    {
+      "id": 22,
+      "name": "application-type-is-an-int-bitmask",
+      "area": "functional-testing",
+      "prompt": "In a TYPO3 functional test I set $GLOBALS['TYPO3_REQUEST'] so the frontend code path works, and I get RuntimeException 1606222812, \"No valid attribute applicationType found in request object\". What exactly do I have to pass as the applicationType attribute?",
+      "assertions": [
+        {
+          "type": "content_contains",
+          "value": "REQUESTTYPE_FE",
+          "description": "Names the int bitmask SystemEnvironmentBuilder::REQUESTTYPE_FE"
+        },
+        {
+          "type": "content_contains",
+          "value": "is_int",
+          "description": "Explains that ApplicationType::fromRequest() guards with is_int(), which the enum case fails"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "get-accessible-mock-stubs-every-method",
+      "area": "unit-testing",
+      "prompt": "This unit test is green, is it a good test?\n\n```php\n$subject = $this->getAccessibleMock(MyService::class);\nself::assertNull($subject->_call('parse', $input));\n```",
+      "assertions": [
+        {
+          "type": "content_contains",
+          "value": "method list",
+          "description": "Points out that getAccessibleMock without a method list doubles every method"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?i)(asserts nothing|vacuous|never runs|no mutation)",
+          "description": "States that the assertion holds for every implementation, so the test proves nothing"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "name": "render-a-fluid-template-without-a-page-tree",
+      "area": "functional-testing",
+      "prompt": "I want to see the markup a Fluid template actually emits, to check one attribute reaches the output. I have no test suite for it and the local instance has no page tree. How do I render it?",
+      "assertions": [
+        {
+          "type": "content_contains",
+          "value": "RenderingContextFactory",
+          "description": "Uses the rendering context factory rather than hand-wiring a view"
+        },
+        {
+          "type": "content_contains",
+          "value": "TYPO3_REQUEST",
+          "description": "Sets the global before the factory call, which reads it itself"
+        },
+        {
+          "type": "content_contains",
+          "value": "renderSection",
+          "description": "Handles a template that opens with f:layout"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "name": "viewhelper-render-test-across-the-v14-matrix",
+      "area": "functional-testing",
+      "prompt": "Write me a ViewHelper render test for an extension whose CI matrix covers TYPO3 12.4, 13.4 and 14.3.",
+      "assertions": [
+        {
+          "type": "content_contains",
+          "value": "ViewFactoryInterface",
+          "description": "Resolves the view through the factory, which exists across the whole matrix"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?i)StandaloneView.{0,200}(13|removed|gone|not available)",
+          "description": "Flags StandaloneView as v13-only rather than offering it for the v14 leg"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "name": "reproduce-a-ci-gate-in-the-right-image",
+      "area": "ci-debugging",
+      "prompt": "Our GitLab pipeline is green, but when I run the same phpunit command locally in the alpine composer image the suite errors on every test that touches a zip file. What is going on?",
+      "assertions": [
+        {
+          "type": "content_contains",
+          "value": "ext-zip",
+          "description": "Identifies the missing zip extension rather than blaming the tests"
+        },
+        {
+          "type": "content_contains",
+          "value": "docker-php-ext-install",
+          "description": "Points at the before_script of the job that installs it"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?i)(before_script|image:)",
+          "description": "Says to mirror the specific job's image and before_script"
+        }
+      ]
     }
   ]
 }
