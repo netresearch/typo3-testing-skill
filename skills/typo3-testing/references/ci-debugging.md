@@ -42,12 +42,13 @@ Setting `$GLOBALS['TYPO3_REQUEST']` in `setUp()` affects ALL tests in the class:
 
 - **v14:** Requires `applicationType` attribute — missing it causes `RuntimeException` in PageRenderer/DI container resolution (63+ errors)
 - **v13:** Enables additional processing paths — existing test assertions may no longer match (7+ failures)
+- **Both:** the attribute value is the int bitmask `SystemEnvironmentBuilder::REQUESTTYPE_FE`/`_BE`, not the `ApplicationType` enum case — `ApplicationType::fromRequest()` guards with `is_int()` and throws `RuntimeException` 1606222812 otherwise
 
 **Fix:** Set the global only in specific test methods that need it, with `try/finally` cleanup:
 
 ```php
 $GLOBALS['TYPO3_REQUEST'] = $this->request
-    ->withAttribute('applicationType', ApplicationType::FRONTEND);
+    ->withAttribute('applicationType', SystemEnvironmentBuilder::REQUESTTYPE_FE);
 
 try {
     // test code

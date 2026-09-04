@@ -859,7 +859,7 @@ The functional test framework provides a database and DI container but does **NO
 ### Setting `$GLOBALS['TYPO3_REQUEST']`
 
 **Caution:** Setting `$GLOBALS['TYPO3_REQUEST']` in `setUp()` affects ALL tests in the class and can cause unexpected side effects:
-- v14 requires `applicationType` attribute (use `ApplicationType::FRONTEND`)
+- The request needs an `applicationType` attribute, and its value is the **int bitmask** `SystemEnvironmentBuilder::REQUESTTYPE_FE` (or `_BE`) — **not** the `ApplicationType` enum case. `ApplicationType::fromRequest()` guards with `is_int($type)`, so passing `ApplicationType::FRONTEND` throws `RuntimeException` 1606222812, *No valid attribute "applicationType" found in request object*. Verified identical on 12.4, 13.4, 14.3 and main.
 - Existing tests may break because TYPO3 enables additional processing paths when the global is present
 - **Best practice:** Set the global only in specific test methods that need it, with `try/finally` cleanup:
 
@@ -867,7 +867,7 @@ The functional test framework provides a database and DI container but does **NO
 public function testThatNeedsRequest(): void
 {
     $GLOBALS['TYPO3_REQUEST'] = $this->request
-        ->withAttribute('applicationType', ApplicationType::FRONTEND);
+        ->withAttribute('applicationType', SystemEnvironmentBuilder::REQUESTTYPE_FE);
 
     try {
         // test code
