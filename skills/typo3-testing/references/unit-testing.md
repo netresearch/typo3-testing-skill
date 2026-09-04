@@ -373,7 +373,8 @@ want the first, assertions about a calendar day the second.
 it resolves `date_default_timezone_set()`, then the `date.timezone` ini, then `UTC`:
 
 ```bash
-TZ=Pacific/Apia php -r 'echo date_default_timezone_get(), PHP_EOL;'   # UTC
+# -n -d pins the ini so the probe shows PHP ignoring TZ, not the local php.ini
+TZ=Pacific/Apia php -n -d date.timezone=UTC -r 'echo date_default_timezone_get(), PHP_EOL;'   # UTC
 ```
 
 Set the ini instead, and read the **exit code** rather than grepping the output. With
