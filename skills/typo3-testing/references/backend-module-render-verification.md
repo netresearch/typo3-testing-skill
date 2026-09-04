@@ -100,6 +100,11 @@ rendering context. This runs against the project's own `vendor/`, so it answers
 for the version that is actually installed:
 
 ```php
+<?php
+// usage: php render.php <template-file> [<section>]
+$templateFile = $argv[1] ?? throw new InvalidArgumentException('template file expected');
+$section      = $argv[2] ?? null;
+
 $classLoader = require '/var/www/html/vendor/autoload.php';
 SystemEnvironmentBuilder::run(0, SystemEnvironmentBuilder::REQUESTTYPE_FE);
 $container = Bootstrap::init($classLoader);
@@ -114,7 +119,10 @@ $context = $container->get(RenderingContextFactory::class)->create();
 $context->setRequest(new ExtbaseRequest($serverRequest));
 $context->getTemplatePaths()->setTemplateSource(file_get_contents($templateFile));
 
-echo (new TemplateView($context))->render();
+$view = new TemplateView($context);
+echo $section === null
+    ? $view->render()
+    : $view->renderSection($section, ['someVariable' => 'value'], true);
 ```
 
 Three things cost time when this is written from scratch:
@@ -125,8 +133,8 @@ Three things cost time when this is written from scratch:
   `RuntimeException` 1606222812 from inside `create()`, before any view helper
   runs, so a `try/catch` around `render()` never sees it.
 - **A template starting with `<f:layout>` fails** with *The Fluid template files ""
-  could not be loaded* unless the layout paths are set. Render the section instead:
-  `$view->renderSection('main', $variables, true)`.
+  could not be loaded* unless the layout paths are set. Pass the section name as
+  the second argument above and the script calls `renderSection()` instead.
 - **`f:form` still needs a real frontend.** It builds its action URI through
   routing, which needs a site and a page tree. Extract the field view helpers into
   a snippet and render those; everything except the `<form>` element is reachable

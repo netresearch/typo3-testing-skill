@@ -401,38 +401,48 @@ suite. It does nothing about the first: 22:00 arrives in UTC like anywhere else.
 
 ## Never mock the class under test with `getAccessibleMock()`
 
-`getAccessibleMock($className)` called **without a method list** stubs *every*
-method of the class. Reaching the method under test through `_call()` then
-returns `null` no matter what the implementation does, and an `assertNull()`
-around it holds for every possible implementation — the test asserts nothing and
-no mutation will ever redden it.
+`getAccessibleMock($className)` called **without a method list** doubles *every*
+method of the class, the method under test included. Reaching it through
+`_call()` therefore never runs your code — it runs the double, which returns
+whatever PHPUnit generates for the declared return type (`null` for `?array` or
+an untyped method, `[]` for `array`, `false` for `bool`, and so on) or whatever
+the test configured. An assertion written around that value holds for every
+possible implementation: the test asserts nothing and no mutation can redden it.
 
 ```php
-// WRONG - $subject->_call() returns NULL because extractEmConf() is stubbed
-$subject = $this->getAccessibleMock(ArchiveUtility::class);
-self::assertNull($subject->_call('extractEmConf', $code));
+// WRONG - parse() is doubled, so $result is the generated value, not your output
+$subject = $this->getAccessibleMock(EmConfReader::class);
+self::assertNull($subject->_call('parse', $code));
 
-// RIGHT - call the method
-self::assertNull(ArchiveUtility::extractEmConf($code));
+// RIGHT - instantiate and call
+$subject = new EmConfReader();
+self::assertNull($subject->parse($code));
 ```
 
-Measured on the same input: the static call returned `['bar' => 'baz']`, the
-`_call()` through the mock returned `NULL`. Three shipped tests in a production
-extension were vacuous this way, and one of them was the only thing pinning a
-behaviour that had in fact never been enforced.
+Found in a production extension: three tests written the first way, all green,
+all vacuous. On one of them the real call returned `['bar' => 'baz']` for an
+input the test asserted `null` for — and that test was the only thing pinning a
+behaviour which had therefore never been enforced at all.
 
-`getAccessibleMock()` exists to reach `protected` members on a *collaborator* or
-on a partially stubbed subject. When you use it on the subject, always pass an
-explicit method list so the method under test is not among the stubs:
+`getAccessibleMock()` earns its place when you need to reach a `protected` member
+or replace *one* collaborator call on the subject. Then pass the method list
+explicitly, so the method under test is not among the doubles:
 
 ```php
-$subject = $this->getAccessibleMock(MyService::class, ['someCollaboratorCall']);
+$subject = $this->getAccessibleMock(MyService::class, ['fetchRemoteData']);
+$subject->method('fetchRemoteData')->willReturn($fixture);
+self::assertSame('expected', $subject->_call('transform', $input));
 ```
 
-**How to notice:** the trap hides behind assertions that expect `null` or `false`,
-because that is exactly what a stub returns. Add one case that expects a real
-value — if it fails while the implementation plainly produces that value, the
-method never ran. A test that no mutation can redden is disconnected, not strict.
+Note that PHPUnit does not double `static`, `final` or `private` methods at all,
+so a subject built around static entry points cannot be partially stubbed this
+way — extract an instance method first.
+
+**How to notice:** the trap hides behind assertions that expect the same value
+PHPUnit would generate anyway — `null`, `[]`, `false`. Add one case that expects
+a real value; if it fails while the implementation plainly produces that value,
+your code never ran. A test that no mutation can redden is disconnected, not
+strict.
 
 ## Mocking Dependencies
 
