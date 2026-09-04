@@ -92,6 +92,46 @@ vendor/bin/typo3 extension:setup
 Take the verification screenshot at **≥1440px** viewport (narrow viewports hide
 sidebar/column overflow). The screenshot doubles as documentation evidence.
 
+## Ad-hoc: render a template from the CLI, no test and no page tree
+
+To settle a "does this attribute actually reach the markup" question without
+writing a test, boot TYPO3 in a CLI script and hand the source straight to a
+rendering context. This runs against the project's own `vendor/`, so it answers
+for the version that is actually installed:
+
+```php
+$classLoader = require '/var/www/html/vendor/autoload.php';
+SystemEnvironmentBuilder::run(0, SystemEnvironmentBuilder::REQUESTTYPE_FE);
+$container = Bootstrap::init($classLoader);
+
+$serverRequest = (new ServerRequest('https://example.local/', 'POST'))
+    // int bitmask, NOT ApplicationType::FRONTEND - see functional-testing.md
+    ->withAttribute('applicationType', SystemEnvironmentBuilder::REQUESTTYPE_FE)
+    ->withAttribute('extbase', new ExtbaseRequestParameters());
+$GLOBALS['TYPO3_REQUEST'] = $serverRequest;
+
+$context = $container->get(RenderingContextFactory::class)->create();
+$context->setRequest(new ExtbaseRequest($serverRequest));
+$context->getTemplatePaths()->setTemplateSource(file_get_contents($templateFile));
+
+echo (new TemplateView($context))->render();
+```
+
+Three things cost time when this is written from scratch:
+
+- **`RenderingContextFactory::create()` reads `$GLOBALS['TYPO3_REQUEST']` itself**
+  (through `ViewHelperResolver`), so the global must be set *before* the factory
+  call — not only on the context. A wrong or missing `applicationType` throws
+  `RuntimeException` 1606222812 from inside `create()`, before any view helper
+  runs, so a `try/catch` around `render()` never sees it.
+- **A template starting with `<f:layout>` fails** with *The Fluid template files ""
+  could not be loaded* unless the layout paths are set. Render the section instead:
+  `$view->renderSection('main', $variables, true)`.
+- **`f:form` still needs a real frontend.** It builds its action URI through
+  routing, which needs a site and a page tree. Extract the field view helpers into
+  a snippet and render those; everything except the `<form>` element is reachable
+  this way.
+
 ## Checklist before declaring a backend module "done"
 
 - [ ] Module opens with **HTTP 200** in a real backend (not just green CI)
