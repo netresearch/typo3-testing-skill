@@ -320,18 +320,23 @@ calendar day. Two failure modes, both measured on one suite.
 day, not all of them:
 
 ```php
-// ❌ Straddles midnight for one hour in twenty-four
+// ❌ The pair is split for one hour in twenty-four
 $currentTime = time();
-$day1  = $currentTime + 3600;
+$day1  = $currentTime + 3600;          // these two are meant to share a calendar day
 $day1b = $currentTime + 7200;
-$day2  = $currentTime + 86400 + 3600;
-
-self::assertCount(2, $result);   // "two calendar days"
+$day2  = $currentTime + 86400 + 3600;  // this one falls on the next
 ```
 
-Run at 00:04 local time, `+1h` and `+2h` fall on either side of midnight, the grouping
-collapses to one day, and the test fails for the hour of day rather than for anything in
-the code. This failed on unmodified `main` and turned 11 CI matrix cells red.
+Between 22:00 and 23:00 in the zone the code groups in, `+1h` is still on today and `+2h`
+is not: the pair that has to share a day is split, and `+2h` joins `+25h` instead. Every
+assertion about which entries belong together then fails for the hour of day rather than
+for anything in the code. It failed on unmodified `main` while the developer's clock read
+00:04, and turned 11 CI matrix cells red. The window is measured in the grouping zone, not
+on the wall clock — 22:04 UTC is 00:04 CEST.
+
+Counting the groups is no guard here. Three entries spanning 25 hours land on two calendar
+days at every hour of the day, so `assertCount(2, $result)` stays green right through the
+window while the entries inside those two days regroup.
 
 **A fixed UTC anchor.** The obvious fix pins the instant but not the calendar day, because
 the grouping happens in the ambient timezone. With
@@ -343,9 +348,9 @@ the grouping happens in the ambient timezone. With
 | `Pacific/Apia` | 2026-06-15 | 2026-06-16 |
 | `Pacific/Midway` | 2026-06-14 | 2026-06-15 |
 
-In both Pacific zones the local midnight splits the pair that has to share a day, so every
-assertion about which entries belong together is wrong there — whether or not the bare
-count happens to survive.
+In both Pacific zones the local midnight splits the pair that has to share a day. The group
+count stays 2 there as well, so again only an assertion naming which entries share a day
+catches it.
 
 **Anchor at local midday instead**: a wall-clock string with *no* timezone argument, read
 in whatever zone the suite runs in, which is the zone the code groups in.
@@ -371,9 +376,12 @@ it resolves `date_default_timezone_set()`, then the `date.timezone` ini, then `U
 TZ=Pacific/Apia php -r 'echo date_default_timezone_get(), PHP_EOL;'   # UTC
 ```
 
-Set the ini instead, and read the **exit code** — PHPUnit's summary line carries ANSI
-colour codes, so `grep -E '^OK'` finds nothing on a green run and reports the opposite of
-what happened:
+Set the ini instead, and read the **exit code** rather than grepping the output. With
+colours forced, PHPUnit's summary line is `\033[30;42mOK (1 test, 1 assertion)\033[0m`, so
+`grep -E '^OK'` finds nothing on a green run and reports the opposite of what happened.
+Measured on PHPUnit 12.5.4: `--colors=always` does this even when the output is redirected,
+while `colors="true"` in the XML alone (as `assets/UnitTests.xml` sets it) does not — which
+is why the trap is invisible in the config.
 
 ```bash
 # The five zones the local-midday anchor above was verified in
@@ -388,7 +396,7 @@ A bootstrap calling `date_default_timezone_set('UTC')` — including the
 `assets/UnitTestsBootstrap.php` and `assets/FunctionalTestsBootstrap.php` templates in
 this skill — overrides the ini, so a suite loading one of those can only be swept by
 lifting that pin for the run. Such a pin also removes the second failure mode for that
-suite. It does nothing about the first: `time()` reaches 00:04 in UTC like anywhere else.
+suite. It does nothing about the first: 22:00 arrives in UTC like anywhere else.
 
 ## Mocking Dependencies
 
