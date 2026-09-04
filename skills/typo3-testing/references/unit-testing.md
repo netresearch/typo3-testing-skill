@@ -311,6 +311,85 @@ GeneralUtility::setSingletonInstance(PageRenderer::class, $pageRendererMock);
 
 Pair this with `protected bool $resetSingletonInstances = true;` so the mock is cleared between tests.
 
+## Time-Dependent Fixtures: Anchor at Local Midday
+
+Pinning the instant (above) is not enough once the code under test groups its result by
+calendar day. Two failure modes, both measured on one suite.
+
+**Fixtures built from `time()`.** The grouping they assert holds for most hours of the
+day, not all of them:
+
+```php
+// ❌ Straddles midnight for one hour in twenty-four
+$currentTime = time();
+$day1  = $currentTime + 3600;
+$day1b = $currentTime + 7200;
+$day2  = $currentTime + 86400 + 3600;
+
+self::assertCount(2, $result);   // "two calendar days"
+```
+
+Run at 00:04 local time, `+1h` and `+2h` fall on either side of midnight, the grouping
+collapses to one day, and the test fails for the hour of day rather than for anything in
+the code. This failed on unmodified `main` and turned 11 CI matrix cells red.
+
+**A fixed UTC anchor.** The obvious fix pins the instant but not the calendar day, because
+the grouping happens in the ambient timezone. With
+`new \DateTimeImmutable('2026-06-15 09:00:00', new \DateTimeZone('UTC'))` as the anchor:
+
+| Ambient timezone | `+1h` | `+2h` |
+|---|---|---|
+| `UTC` | 2026-06-15 | 2026-06-15 |
+| `Pacific/Apia` | 2026-06-15 | 2026-06-16 |
+| `Pacific/Midway` | 2026-06-14 | 2026-06-15 |
+
+In both Pacific zones the local midnight splits the pair that has to share a day, so every
+assertion about which entries belong together is wrong there — whether or not the bare
+count happens to survive.
+
+**Anchor at local midday instead**: a wall-clock string with *no* timezone argument, read
+in whatever zone the suite runs in, which is the zone the code groups in.
+
+```php
+// ✅ Six hours of slack on either side of a day boundary, in every timezone
+$anchor = new \DateTimeImmutable('2026-06-15 12:00:00');
+$day1   = $anchor->modify('+1 hour');
+$day1b  = $anchor->modify('+2 hours');
+$day2   = $anchor->modify('+1 day +1 hour');
+```
+
+The two constructor forms are not interchangeable: `'@<timestamp>'` is a UTC instant, a
+bare `'Y-m-d H:i:s'` string is local wall-clock time. Assertions about a point in time
+want the first, assertions about a calendar day the second.
+
+### Sweeping such a test across timezones
+
+`TZ=Pacific/Apia phpunit` proves nothing. PHP does not read the `TZ` environment variable;
+it resolves `date_default_timezone_set()`, then the `date.timezone` ini, then `UTC`:
+
+```bash
+TZ=Pacific/Apia php -r 'echo date_default_timezone_get(), PHP_EOL;'   # UTC
+```
+
+Set the ini instead, and read the **exit code** — PHPUnit's summary line carries ANSI
+colour codes, so `grep -E '^OK'` finds nothing on a green run and reports the opposite of
+what happened:
+
+```bash
+# The five zones the local-midday anchor above was verified in
+for tz in UTC Pacific/Apia Pacific/Midway Europe/Berlin Asia/Kathmandu; do
+    php -d date.timezone="$tz" .Build/bin/phpunit \
+        -c Build/phpunit/UnitTests.xml --filter TheTest >/dev/null 2>&1
+    echo "$tz: exit $?"
+done
+```
+
+A bootstrap calling `date_default_timezone_set('UTC')` — including the
+`assets/UnitTestsBootstrap.php` and `assets/FunctionalTestsBootstrap.php` templates in
+this skill — overrides the ini, so a suite loading one of those can only be swept by
+lifting that pin for the run. Such a pin also removes the second failure mode for that
+suite. It does nothing about the first: `time()` reaches 00:04 in UTC like anywhere else.
+
 ## Mocking Dependencies
 
 Use PHPUnit's built-in mocking (PHPUnit 11/12):
