@@ -399,6 +399,41 @@ this skill — overrides the ini, so a suite loading one of those can only be sw
 lifting that pin for the run. Such a pin also removes the second failure mode for that
 suite. It does nothing about the first: 22:00 arrives in UTC like anywhere else.
 
+## Never mock the class under test with `getAccessibleMock()`
+
+`getAccessibleMock($className)` called **without a method list** stubs *every*
+method of the class. Reaching the method under test through `_call()` then
+returns `null` no matter what the implementation does, and an `assertNull()`
+around it holds for every possible implementation — the test asserts nothing and
+no mutation will ever redden it.
+
+```php
+// WRONG - $subject->_call() returns NULL because extractEmConf() is stubbed
+$subject = $this->getAccessibleMock(ArchiveUtility::class);
+self::assertNull($subject->_call('extractEmConf', $code));
+
+// RIGHT - call the method
+self::assertNull(ArchiveUtility::extractEmConf($code));
+```
+
+Measured on the same input: the static call returned `['bar' => 'baz']`, the
+`_call()` through the mock returned `NULL`. Three shipped tests in a production
+extension were vacuous this way, and one of them was the only thing pinning a
+behaviour that had in fact never been enforced.
+
+`getAccessibleMock()` exists to reach `protected` members on a *collaborator* or
+on a partially stubbed subject. When you use it on the subject, always pass an
+explicit method list so the method under test is not among the stubs:
+
+```php
+$subject = $this->getAccessibleMock(MyService::class, ['someCollaboratorCall']);
+```
+
+**How to notice:** the trap hides behind assertions that expect `null` or `false`,
+because that is exactly what a stub returns. Add one case that expects a real
+value — if it fails while the implementation plainly produces that value, the
+method never ran. A test that no mutation can redden is disconnected, not strict.
+
 ## Mocking Dependencies
 
 Use PHPUnit's built-in mocking (PHPUnit 11/12):
