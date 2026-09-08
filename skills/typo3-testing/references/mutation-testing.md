@@ -101,8 +101,11 @@ Infection runs the configured PHPUnit suite **once, unmutated**, before applying
 
 1. **Flaky fuzz tests.** `random_int(0, $n)` legitimately returns `0`, and `random_bytes(0)` then throws `\ValueError("random_bytes(): Argument #1 ($length) must be greater than 0")` (PHP 8.0+ — was `\Error` before). The fuzz suite passes most of the time and randomly fails inside Infection's preflight. **Fix:** use `random_int(1, $n)` (or `max(1, $n)`) anywhere a randomly-chosen length feeds into `random_bytes()` / `openssl_random_pseudo_bytes()` / similar zero-rejecting APIs.
 2. **Functional tests included in the unit suite.** If `phpunit.xml` mixes unit and functional suites, Infection tries to boot a database it cannot reach during local mutation runs.
+3. **A test case that asserts nothing.** PHPUnit marks it *risky*, which most project configs tolerate -- but Infection does not run your `phpunit.xml`. It writes its own (`/tmp/infection/phpunitConfiguration.initial.infection.xml`), and that config is strict, so PHPUnit exits 1 and Infection aborts with `Project tests must be in a passing state before running Infection` while the same suite is green in CI. The usual source is a data provider whose expectation is an empty array over which the test loops: `'valid key' => ['ext1', []]` iterates zero times and asserts nothing. **Fix:** compare the whole result (`assertSame($expected, $actual)`) instead of searching it for expected entries -- that closes the real gap, since the "valid" cases were the ones testing nothing.
 
-**Rule of thumb:** before running `infection`, run the exact same command Infection will run (`testFrameworkOptions` from `infection.json5`) and confirm it is green. Fix flakes there, not in Infection's CI logs.
+**Rule of thumb:** before running `infection`, run the exact same command Infection will run (`testFrameworkOptions` from `infection.json5`) and confirm it is green. Fix flakes there, not in Infection's CI logs. Add `--fail-on-risky` to that rehearsal: without it the run passes locally and Infection still aborts, because its generated config is stricter than the project's.
+
+**A local run is not a substitute for CI here.** Infection validates its generated PHPUnit configuration against `https://schema.phpunit.de/<version>/phpunit.xsd` over the network. On a machine without outbound access it dies in `XmlConfigurationManipulator` with `failed to load external entity` before the first mutant, so a green CI job and a broken local run say nothing about each other.
 
 ## Suite Layout: Split Unit/Fuzz From Functional
 
