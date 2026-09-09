@@ -466,7 +466,7 @@
         },
         {
           "type": "content_regex",
-          "value": "(?i)StandaloneView.{0,200}(13|removed|gone|not available)",
+          "value": "(?is)StandaloneView.{0,200}(removed|unavailable|not available|no longer|gone|dropped)",
           "description": "Flags StandaloneView as v13-only rather than offering it for the v14 leg"
         }
       ]
@@ -489,7 +489,7 @@
         },
         {
           "type": "content_regex",
-          "value": "(?i)(before_script|image:)",
+          "value": "(?is)(before_script.*image:|image:.*before_script)",
           "description": "Says to mirror the specific job's image and before_script"
         }
       ]
