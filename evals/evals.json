@@ -495,7 +495,7 @@
       ]
     },
     {
-      "id": 29,
+      "id": 27,
       "name": "errored-mutant-cluster-is-test-autoloading",
       "area": "mutation-testing",
       "prompt": "Infection reports 61 errors on our TYPO3 site project, every one of them 'Class \"Vendor\\Ext\\Tests\\Unit\\Validation\\AbstractValidatorTest\" not found', while the normal phpunit run is green. The covered-code MSI is 78%. Can I trust that number, and what should I fix?",
