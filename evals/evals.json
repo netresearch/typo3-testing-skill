@@ -507,7 +507,7 @@
         },
         {
           "type": "content_regex",
-          "value": "(?is)inflat|overstat|too high|not (be )?trust|(cannot|can't|do not|don't|should not).{0,80}(trust|rely)",
+          "value": "(?is)(MSI|mutation score|score|78 ?%).{0,120}(inflat|overstat|too high|not (be )?trust|(cannot|can't|do not|don't|should not).{0,40}(trust|rely))|(inflat|overstat|too high|not (be )?trust|(cannot|can't|do not|don't|should not).{0,40}(trust|rely)).{0,120}(MSI|mutation score|score|78 ?%)",
           "description": "Concludes that the reported MSI is inflated and cannot be trusted until the errors are fixed"
         },
         {
