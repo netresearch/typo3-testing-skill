@@ -493,6 +493,47 @@
           "description": "Says to mirror the specific job's image and before_script"
         }
       ]
+    },
+    {
+      "id": 27,
+      "name": "extbase-findbyuid-bypasses-default-query-settings",
+      "area": "functional-testing",
+      "prompt": "My Extbase repository calls setDefaultQuerySettings() with setIgnoreEnableFields(true) in initializeObject(). In a functional test findAll() returns a hidden row, but findByUid() on the same uid returns null. And when my own finder runs first, findByUid() suddenly returns the object. What is going on?",
+      "assertions": [
+        {
+          "type": "content_regex",
+          "value": "(?i)(createQueryForType|fresh query|own query|default ?query ?settings)",
+          "description": "Explains that findByUid() builds its own query without the repository's default query settings"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?i)(identity map|persistence session|session)",
+          "description": "Explains the second symptom: the object is answered from the persistence session"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?i)(clearState|order|first)",
+          "description": "Gives the test-side fix: order the lookups or clear the session"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "name": "string-with-matcher-accepts-any-stringable",
+      "area": "mock-validity",
+      "prompt": "I changed findOneByModelId(string $name) to findOneByModelId(ProviderModelName $name), a Stringable value object. My unit test still says ->with('gpt-image-2') and is green. Is it still checking what it should?",
+      "assertions": [
+        {
+          "type": "content_regex",
+          "value": "(?i)(loose|IsEqual|__toString|Stringable)",
+          "description": "Names the loose comparison that lets any Stringable satisfy the string"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?i)with\\(\\s*new\\s+ProviderModelName",
+          "description": "Recommends pinning the value object in the matcher"
+        }
+      ]
     }
   ]
 }
