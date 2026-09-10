@@ -506,6 +506,11 @@
           "description": "Says errored mutants count as killed, so the 78% is inflated"
         },
         {
+          "type": "content_regex",
+          "value": "(?is)inflat|overstat|too high|not (be )?trust|(cannot|can't|do not|don't|should not).{0,80}(trust|rely)",
+          "description": "Concludes that the reported MSI is inflated and cannot be trusted until the errors are fixed"
+        },
+        {
           "type": "content_contains",
           "value": "autoload-dev",
           "description": "Names the missing autoload-dev mapping for the test namespace as the cause"
