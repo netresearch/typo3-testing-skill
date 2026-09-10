@@ -950,6 +950,57 @@ protected function setUp(): void
 
 **Key insight:** Use instance (non-static) properties for repository caches. Static caches persist across tests and require reflection hacks (`ReflectionProperty::setValue(null, [])`) to reset, making tests fragile and coupled to implementation details.
 
+## Extbase `findByUid()`: Fresh Query, Session First
+
+Two properties of `Repository::findByUid()` (→ `findByIdentifier()` →
+`Generic\Backend::getObjectByIdentifier()`) decide what a functional test
+actually measures. Both are visible in `typo3/cms-extbase`, neither in the
+method name.
+
+1. **It ignores the repository's default query settings.**
+   `Repository::createQuery()` applies `defaultQuerySettings` and
+   `defaultOrderings`; `getObjectByIdentifier()` does not call it. It builds its
+   own query through `PersistenceManager::createQueryForType()`, which starts
+   from fresh `QuerySettings`. So whatever a repository sets in
+   `initializeObject()` via `setDefaultQuerySettings()` —
+   `setIgnoreEnableFields(true)`, `setRespectStoragePage(false)` — does not
+   reach a uid lookup. A hidden row that `findAll()` returns comes back `null`
+   from `findByUid()`. When a lookup by uid must honour the repository's
+   settings, write it as a query:
+
+```php
+public function findOneByUid(int $uid): ?Model
+{
+    $query = $this->createQuery(); // carries the default query settings
+    $query->matching($query->equals('uid', $uid));
+    $result = $query->execute()->getFirst();
+
+    return $result instanceof Model ? $result : null;
+}
+```
+
+2. **It answers from the persistence session before it queries.** If any
+   earlier lookup in the same test loaded the row, `getObjectByIdentifier()`
+   returns the object from the identity map and never builds a query. An
+   assertion on `findByUid()` placed *after* another lookup of the same uid
+   therefore measures the session, not the database.
+
+```php
+// Wrong order: findOneByUid() puts uid 803 into the session, and
+// findByUid() then returns it from there. The assertion fails for the
+// wrong reason; with the opposite expectation it would pass for one.
+$found = $this->subject->findOneByUid(803);
+self::assertNull($this->subject->findByUid(803));
+
+// Right order: the Extbase lookup runs against an empty session.
+self::assertNull($this->subject->findByUid(803));
+$found = $this->subject->findOneByUid(803);
+self::assertInstanceOf(Model::class, $found);
+```
+
+Put the lookup whose behaviour is under test first, or empty the session in
+between with `$this->get(PersistenceManagerInterface::class)->clearState()`.
+
 ## ViewHelper E2E Tests with StandaloneView
 
 > **v13 only.** `typo3/sysext/fluid/Classes/View/StandaloneView.php` is present on
