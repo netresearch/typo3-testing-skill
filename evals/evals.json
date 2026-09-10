@@ -493,6 +493,29 @@
           "description": "Says to mirror the specific job's image and before_script"
         }
       ]
+    },
+    {
+      "id": 29,
+      "name": "errored-mutant-cluster-is-test-autoloading",
+      "area": "mutation-testing",
+      "prompt": "Infection reports 61 errors on our TYPO3 site project, every one of them 'Class \"Vendor\\Ext\\Tests\\Unit\\Validation\\AbstractValidatorTest\" not found', while the normal phpunit run is green. The covered-code MSI is 78%. Can I trust that number, and what should I fix?",
+      "assertions": [
+        {
+          "type": "content_regex",
+          "value": "(?is)(error\\w*.{0,120}(count|counted|treated|scored).{0,40}kill|kill\\w*.{0,80}error)",
+          "description": "Says errored mutants count as killed, so the 78% is inflated"
+        },
+        {
+          "type": "content_contains",
+          "value": "autoload-dev",
+          "description": "Names the missing autoload-dev mapping for the test namespace as the cause"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?is)root.{0,60}composer\\.json|composer\\.json.{0,80}root",
+          "description": "Puts the mapping in the root composer.json, not the extension's"
+        }
+      ]
     }
   ]
 }
