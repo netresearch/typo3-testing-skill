@@ -293,10 +293,59 @@ Covered MSI: 86%              ← MSI for covered code only
 |--------|---------|--------|
 | **Killed** | Test failed when mutant introduced | Good - test is effective |
 | **Escaped** | Test passed with mutant | **Bad - add/improve tests** |
-| **Errors** | Mutant caused fatal error | Usually OK (type errors) |
+| **Errors** | Mutant caused fatal error | Counted as killed — read them before trusting the score (below) |
 | **Uncovered** | No test coverage | Add coverage first |
 | **Timeout** | Test took too long with mutant | Usually OK |
 | **Skipped** | Mutant not tested | Check config |
+
+### Errored Mutants Inflate the Score
+
+Infection counts an errored mutant as killed, so errors raise the MSI. A
+few type errors that a mutation provokes are fine. A cluster of errors with
+the **same message** is not: it is a defect of the test setup, and the
+score built on it is too high. Group the messages before reading the number:
+
+```bash
+jq -r '.errored[].processOutput' build/infection-log.json \
+  | grep -E 'Message:|Error:' | sort | uniq -c | sort -rn | head
+```
+
+The typical cluster is `Class "Vendor\Ext\Tests\...\AbstractFooTest" not
+found`. Infection runs PHPUnit once per mutant, filtered to the test files
+that cover it. A test base class that only ever loaded because the
+directory suite happened to read its file first is then missing, while the
+full suite stays green. Reproduce it with one file on its own:
+
+```bash
+vendor/bin/phpunit -c <config> path/to/FooSubclassTest.php   # Class "..." not found
+```
+
+The fix is an autoload mapping for the test namespaces, and it belongs in
+the **root** `composer.json`. In a site project whose extensions come in
+through a `path` repository, an extension's own `autoload-dev` is ignored —
+Composer reads `autoload-dev` from the root package only:
+
+```json
+"autoload-dev": {
+  "psr-4": {
+    "Vendor\\Ext\\Tests\\": "extensions/ext/Tests/"
+  }
+}
+```
+
+Then check that every test class matches the mapping: for each file under
+`Tests/`, `class_exists()` on its declared namespace and class name through
+`vendor/autoload.php` must be true. A namespace missing its `Unit\`
+segment, or a test declared in the production namespace, stays unloadable.
+
+Declare a shared base class `abstract` and give it the suffix `TestCase`.
+A concrete base needs a placeholder test that every subclass inherits, and
+PHPUnit 12 warns about an abstract class in a file that matches the suite's
+`Test.php` suffix.
+
+After the fix the score drops to its honest value — the former errors now
+count as escaped or killed. Derive thresholds such as `minCoveredMsi` from
+that run, not from the inflated one.
 
 ### Target Scores
 
