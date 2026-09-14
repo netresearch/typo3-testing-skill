@@ -9,6 +9,14 @@
 version: 1
 skill_id: typo3-testing
 
+# Only run for TYPO3 extensions: the checks assume extension test infrastructure
+# (runTests.sh, Build/ PHPUnit configs, typo3-ci-workflows). Without this gate
+# /assess ran them against a Python repository and reported 45 failures.
+preconditions:
+  - type: json_path
+    target: composer.json
+    pattern: '.type == "typo3-cms-extension"'
+
 mechanical:
   # === SHARED CI WORKFLOW DETECTION ===
   # Check first — many later checks can be relaxed when a shared CI workflow
