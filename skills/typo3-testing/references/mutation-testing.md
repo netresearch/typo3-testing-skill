@@ -64,7 +64,7 @@ equivalent is `vendor/bin/phpunit -c Build/phpunit/UnitTests.xml --filter=theGua
 the single-class case that [`test-runners.md`](test-runners.md) reserves plain `phpunit --filter`
 for; do not generalise it to running whole suites outside the entry point.
 
-Two traps make this check lie:
+Four traps make this check lie:
 
 - **Verify the mutation applied.** A `sed` pattern that silently matches nothing leaves the
   file untouched, and the suite then "fails" for some unrelated reason — or passes, and you
@@ -74,6 +74,30 @@ Two traps make this check lie:
   (a missing `gd`/`imagick` extension makes unrelated tests error), a non-zero exit proves
   nothing on its own. Scope the run with `--filter`, or compare the failing-test set against
   the baseline.
+- **A mutation that does not compile is not a caught defect.** The trap above assumes the
+  mutated file still parses. When the edit breaks syntax — a dropped semicolon, an unmatched
+  brace, a wrong indent in a Python or YAML fixture — the runner exits non-zero at *load*
+  time, before any assertion runs. The exit code looks like a kill, and comparing against the
+  baseline makes it look like a large one: every test in the file fails, not just the guard.
+  Assert the file parses before you run anything, and read the log for a parse diagnostic
+  rather than trusting the status alone:
+
+  ```bash
+  php -l Classes/Service/Thing.php
+  python3 -c 'import ast, sys; ast.parse(open(sys.argv[1]).read())' tests/test_thing.py
+  node --check src/thing.js
+  ```
+
+  In a language that rejects unused imports, deleting a call breaks the build without touching
+  syntax — `go build ./...` catches that, and `php -l` deliberately does not: an orphaned
+  `use` is valid PHP.
+- **If a test other than the intended one goes red, suspect the mutation.** The guard you
+  wrote should be the thing that catches the defect you built for it. When a different test
+  fails instead — or fails *as well* — the usual cause is that the injected defect is not the
+  one you meant: it fires earlier, or on a broader path, so a coarser test reaches it first
+  and the intended guard is never exercised. That leaves the guard unproven while the run
+  reads like a success. Name which test you expect to fail before running, and if the answer
+  differs, fix the mutation rather than accepting the tally.
 
 Re-run this after any refactor of the test itself — consolidating duplicated test setup can
 quietly detach the assertion from the behaviour it was guarding.
