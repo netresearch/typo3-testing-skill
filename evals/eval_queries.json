@@ -1,0 +1,53 @@
+{
+  "skill_name": "typo3-testing",
+  "note": "Trigger evals in the format agentskills.io documents: realistic requests, labelled with whether this skill should be consulted. They test ROUTING, which the assertion evals in evals.json cannot: those are graded by matching the answer text, so they only ever measure what the skill does once it is already loaded. Prompts are written in the vocabulary a maintainer or a reporter uses, deliberately not in the skill's own. Two rules they must keep. No prompt is copied from a benchmark that measures this skill, and no case identifier or measured figure appears here: a skill that ships a benchmark's own prompts contaminates every run it takes part in. Sharing a subject with a benchmark case is unavoidable and fine; sharing its sentences is not.",
+  "queries": [
+    {
+      "query": "A customer says the list view prints the wrong date format in the frontend. Have a look and sort it out.",
+      "should_trigger": true,
+      "note": "the bug-report shape; the skill is consulted for the failing test that reproduces it before anything is changed"
+    },
+    {
+      "query": "Users report that the detail page shows the previous record after an edit. Can you fix it?",
+      "should_trigger": true,
+      "note": "same shape, different symptom; the request never says the word test"
+    },
+    {
+      "query": "I changed a Fluid partial so it renders a badge only for featured records. The unit suite is green — is that enough?",
+      "should_trigger": true,
+      "note": "a change to rendered output; a unit suite never loads the template"
+    },
+    {
+      "query": "Set up the test infrastructure for this extension, PHPUnit and runTests.sh.",
+      "should_trigger": true
+    },
+    {
+      "query": "Our CI matrix is red on PHP 8.4 only and I cannot tell why from the log.",
+      "should_trigger": true
+    },
+    {
+      "query": "Write a unit test for this validator class.",
+      "should_trigger": true
+    },
+    {
+      "query": "Tag 2.4.2, write the notes and get everything ready to publish, but do not push.",
+      "should_trigger": false,
+      "note": "github-release owns this"
+    },
+    {
+      "query": "Which TYPO3 versions does this extension actually claim to support? I get a different answer depending on where I look.",
+      "should_trigger": false,
+      "note": "typo3-conformance owns what an extension declares"
+    },
+    {
+      "query": "This extension has to work with the current TYPO3 LTS.",
+      "should_trigger": false,
+      "note": "typo3-extension-upgrade owns raising an extension to a newer version"
+    },
+    {
+      "query": "The manual on docs.typo3.org is empty for this extension.",
+      "should_trigger": false,
+      "note": "typo3-docs owns rendered documentation"
+    }
+  ]
+}
