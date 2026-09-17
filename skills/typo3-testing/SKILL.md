@@ -1,9 +1,29 @@
 ---
 name: typo3-testing
-description: "Use when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit 11/12/13, mutation testing, mocking final classes (v14), CI/CD matrix across TYPO3 12/13/14.3 LTS, dev-dependency consolidation via typo3-ci-workflows meta-package, or debugging CI failures. Also triggers on: testing-framework setup, ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
+description: "Use when a reported defect has to be reproduced as a failing test before it is fixed, when a change to a template or to any rendered output has to be proved, or when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit 11/12/13, mutation testing, mocking final classes (v14), CI/CD matrix across TYPO3 12/13/14.3 LTS, dev-dependency consolidation via typo3-ci-workflows meta-package, or debugging CI failures. Also triggers on: testing-framework setup, ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
 ---
 
 # TYPO3 Testing Skill
+
+## A Report Becomes a Failing Test Before It Becomes a Fix
+
+A bug report is a test that does not exist yet. Write it from the report's own
+input and expected output, run it, and see it fail for the reason the report
+gives. A test written after the fix proves only that the code does what it
+does.
+
+**Output produced through a template is not covered by a unit suite.** The unit
+suite loads PHP classes and never renders a Fluid template, so an edit to a
+template leaves the suite green while the page is broken. Prove such a change by
+rendering it: a functional test that calls the rendering path and asserts the
+rendered string.
+
+Read the rendered string, not the exit code. Fluid does not raise on an inline
+expression it cannot parse -- it emits the expression verbatim, so the markup
+reaches the browser with `{f:if(...)}` sitting inside the attribute it was
+written into, and a test asserting only that nothing threw will pass. When an
+inline expression would nest one call inside another, write it as a tag
+(`<f:if>`) or compute the value in PHP and pass it in.
 
 ## Assessment-First Rule
 
