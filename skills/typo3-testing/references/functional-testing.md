@@ -961,12 +961,18 @@ method name.
    `Repository::createQuery()` applies `defaultQuerySettings` and
    `defaultOrderings`; `getObjectByIdentifier()` does not call it. It builds its
    own query through `PersistenceManager::createQueryForType()`, which starts
-   from fresh `QuerySettings`. So whatever a repository sets in
-   `initializeObject()` via `setDefaultQuerySettings()` —
-   `setIgnoreEnableFields(true)`, `setRespectStoragePage(false)` — does not
-   reach a uid lookup. A hidden row that `findAll()` returns comes back `null`
-   from `findByUid()`. When a lookup by uid must honour the repository's
-   settings, write it as a query:
+   from fresh `QuerySettings`, and then sets three of them itself — the language
+   aspect, `setRespectStoragePage(false)` and `setRespectSysLanguage(false)`.
+   `setIgnoreEnableFields()` is not among them, so it keeps the default: enable
+   fields are respected, whatever `initializeObject()` asked for.
+
+   The practical consequence is one-sided, and the asymmetry is the point. A uid
+   lookup ignores the storage page whether you configured that or not, because
+   the backend forces it. A hidden row it will not return, because the one
+   setting that would allow it is the one the backend never touches — so with an
+   empty persistence session, a hidden row that `findAll()` returns comes back
+   `null` from `findByUid()`. (Not with a populated one; see point 2.) When a
+   lookup by uid must honour the repository's own settings, write it as a query:
 
 ```php
 public function findOneByUid(int $uid): ?Model

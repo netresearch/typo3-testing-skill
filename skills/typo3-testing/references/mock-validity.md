@@ -284,7 +284,10 @@ Consequences:
 ### Gotcha: a String in `->with()` Accepts Any `Stringable`
 
 `->with('gpt-image-2')` wraps the literal in `IsEqual`, which compares loosely:
-an object whose `__toString()` returns `'gpt-image-2'` satisfies it. When a
+an object whose `__toString()` returns `'gpt-image-2'` satisfies it — measured on
+PHPUnit 12.5.6 / PHP 8.5.10, including an object of an unrelated class that
+renders the same text. The value-object form rejects it: the failure reads
+`Other Object … is not instance of expected class "Name"`. When a
 parameter changes from `string` to a value object, the old expectation keeps
 passing. That is convenient during the migration, but afterwards it pins only
 the string form: any `Stringable` rendering the same text passes, including an
