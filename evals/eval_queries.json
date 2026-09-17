@@ -1,9 +1,9 @@
 {
   "skill_name": "typo3-testing",
-  "note": "Trigger evals in the format agentskills.io documents: realistic requests, labelled with whether this skill should be consulted. They test ROUTING, which the assertion evals in evals.json cannot: those are graded by matching the answer text, so they only ever measure what the skill does once it is already loaded. Prompts are written in the vocabulary a maintainer or a reporter uses, deliberately not in the skill's own. Two rules they must keep. No prompt is copied from a benchmark that measures this skill, and no case identifier or measured figure appears here: a skill that ships a benchmark's own prompts contaminates every run it takes part in. Sharing a subject with a benchmark case is unavoidable and fine; sharing its sentences is not.",
+  "note": "Trigger evals in the format agentskills.io documents: realistic requests, labelled with whether this skill should be consulted. They test ROUTING, which the assertion evals in evals.json cannot: those are graded by matching the answer text, so they only ever measure what the skill does once it is already loaded. Prompts are written in the vocabulary a maintainer or a reporter uses, deliberately not in the skill's own. Two rules they must keep. No prompt is copied from a benchmark that measures this skill -- not its sentences and not its closing line, which is the part that reads as natural phrasing and is the easiest to reach for -- and no case identifier or measured figure appears here: a skill that ships a benchmark's own prompts contaminates every run it takes part in. Sharing a subject with a benchmark case is unavoidable and fine; sharing its sentences is not.",
   "queries": [
     {
-      "query": "A customer says the list view prints the wrong date format in the frontend. Have a look and sort it out.",
+      "query": "A customer says the list view prints the wrong date format in the frontend. Can you take a look?",
       "should_trigger": true,
       "note": "the bug-report shape; the skill is consulted for the failing test that reproduces it before anything is changed"
     },

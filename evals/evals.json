@@ -526,7 +526,7 @@
       "id": 28,
       "name": "reproduce-report-before-fixing",
       "area": "functional-testing",
-      "prompt": "A user reports that the extension's list view prints the wrong date format in the frontend. Have a look and sort it out.",
+      "prompt": "A user reports that the extension's list view prints the wrong date format in the frontend. Can you get to the bottom of it?",
       "assertions": [
         {
           "type": "content_regex",
