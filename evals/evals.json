@@ -529,9 +529,14 @@
       "prompt": "A user reports that the extension's list view prints the wrong date format in the frontend. Have a look and sort it out.",
       "assertions": [
         {
-          "type": "content_contains",
-          "value": "failing",
-          "description": "Writes a test that fails before the fix rather than after it"
+          "type": "content_regex",
+          "value": "(?i)(fail(s|ing)?[^.]{0,40}(first|before the fix)|before the fix[^.]{0,40}fail|see it fail|watch it fail)",
+          "description": "Requires the test to fail before the fix, not merely to exist"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?i)(from the (bug )?report|the report'?s own|reported (input|output|value|format))",
+          "description": "Builds the test from the report's own input and expected output"
         },
         {
           "type": "content_regex",
@@ -548,13 +553,18 @@
       "assertions": [
         {
           "type": "content_regex",
-          "value": "(?i)(unit (suite|test)s? (does|do) not render|never renders|renders no template)",
-          "description": "States that a unit suite does not render the template"
+          "value": "(?i)(unit (suite|tests?)[^.]{0,80}(does not|do not|never|cannot)[^.]{0,40}(render|load the template)|never renders (the|a) template|renders no template)",
+          "description": "States that the unit suite does not render the template, rather than only that more testing is needed"
         },
         {
           "type": "content_regex",
-          "value": "(?i)render",
-          "description": "Requires the template to be rendered and the output asserted"
+          "value": "(?i)assert[a-z]*[^.\\n]{0,80}(rendered|render(ed)? (string|output|markup)|markup|html|output)",
+          "description": "Requires an assertion on the rendered string, not merely that nothing threw"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?i)functional test",
+          "description": "Names the test type that renders"
         }
       ]
     }
