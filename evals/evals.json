@@ -521,6 +521,42 @@
           "description": "Puts the mapping in the root composer.json, not the extension's"
         }
       ]
+    },
+    {
+      "id": 28,
+      "name": "reproduce-report-before-fixing",
+      "area": "functional-testing",
+      "prompt": "A user reports that the extension's list view prints the wrong date format in the frontend. Have a look and sort it out.",
+      "assertions": [
+        {
+          "type": "content_contains",
+          "value": "failing",
+          "description": "Writes a test that fails before the fix rather than after it"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?i)functional test",
+          "description": "Chooses a functional test, which renders, over a unit test"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "name": "template-change-proved-by-rendering",
+      "area": "functional-testing",
+      "prompt": "I changed a Fluid partial so it renders a badge only for featured records. The unit suite is green. Is that enough to say it works?",
+      "assertions": [
+        {
+          "type": "content_regex",
+          "value": "(?i)(unit (suite|test)s? (does|do) not render|never renders|renders no template)",
+          "description": "States that a unit suite does not render the template"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?i)render",
+          "description": "Requires the template to be rendered and the output asserted"
+        }
+      ]
     }
   ]
 }
