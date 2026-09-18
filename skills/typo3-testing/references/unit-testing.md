@@ -625,7 +625,8 @@ This attribute should be treated as **technical debt** and removed once the test
 
 ### Deprecated Type Assertions
 
-PHPUnit 12 deprecates generic `isType()` in favor of specific methods:
+PHPUnit 12 deprecates generic `isType()` in favor of specific methods, and
+**PHPUnit 13 removes it**:
 
 | Deprecated | Use Instead |
 |------------|-------------|
@@ -636,6 +637,32 @@ PHPUnit 12 deprecates generic `isType()` in favor of specific methods:
 | `$this->isType('float')` | `$this->isFloat()` |
 | `$this->isType('null')` | `$this->isNull()` |
 | `$this->isType('object')` | `$this->isInstanceOf(ClassName::class)` |
+
+The replacements are a version floor, not a rename. `Assert::isString()` and its
+siblings exist from **PHPUnit 11.5** on; 10.5 has only `isType()`. An extension
+that swaps them must raise its `phpunit/phpunit` constraint to at least `^11.5`
+in the same commit, or the cells that resolve 10.x die with
+`Call to undefined method …::isType()` once 13 lands elsewhere in the matrix.
+
+### Moving a suite to PHPUnit 13
+
+Two further changes bite a suite that was green on 11.5.
+
+**`executionOrder="defects"` without the result cache is now a test runner
+warning.** `cacheResult="false"` plus `executionOrder="depends,defects"` emits
+`Tests cannot be ordered by defects because recording of the test run history is
+disabled`, and `failOnWarning="true"` turns that into exit code 1. The ordering
+never worked in that combination anyway — with no history there are no defects
+to sort by — so the fix is to drop `defects`, not to enable the cache.
+
+**`with*()` without `expects()` is deprecated** and goes away in PHPUnit 14.
+`netresearch/typo3-ci-workflows` caps the PHPStan job at `phpunit/phpunit:<13`
+as a migration window and ships an advisory `PHPStan (unpinned PHPUnit)` job that
+analyses one cell without the cap; set `phpstan-unpinned-blocking: true` per repo
+once it is clean. PHPStan only sees the problem where the mock is a
+`createStub()`, because `Stub::method()` returns `InvocationStubber`, which
+declares no `with*()`; a `createMock()` chain stays invisible to it and shows up
+only as a runtime deprecation.
 
 ### Constructor Dependency Drift
 
@@ -765,6 +792,24 @@ This bites hardest on the classes teams most often exclude *and* most often add 
 - Drop the `#[CoversClass]` attribute and rely on `#[CoversNothing]` or no attribute — correct when the class is genuinely trivial and the test exists to pin behaviour, not to claim coverage.
 - Remove the class from `<exclude>` — correct when it turned out to carry logic worth covering.
 
+#### A trait is the second shape, and the script below does not catch it
+
+`#[CoversClass(SomeTrait::class)]` produces the identical message, without any
+`<exclude>` involved: a trait is not a class, so PHPUnit rejects it as a target.
+The fix is `#[CoversTrait(SomeTrait::class)]`, which exists from PHPUnit 11.0 on
+and is therefore safe on a matrix that still resolves 11.x. The detector below
+compares against `<exclude>` only, so it stays silent on this one — grep for
+`CoversClass(` against the traits in `Classes/` as well.
+
+#### The red build is the loud half; the quiet half is lost coverage
+
+A rejected target does not merely warn. That test then contributes **no coverage
+at all**, so a repository whose coverage job tolerates warnings sees only a
+number move. On one extension moving 11.5 → 13.3 this was 85 warnings and
+`Classes/Controller/JsonBodyTrait.php` dropping from 20 of 20 covered statements
+to 8 of 20, with every assertion green and the component gate on Codecov the
+only thing that complained.
+
 Check before you push, rather than after CI tells you. Parse the XML — a
 `grep` for `<directory>` also matches the `<testsuites>` entries and reports
 every test directory as an exclusion:
@@ -774,16 +819,16 @@ every test directory as an exclusion:
 import glob, re, xml.etree.ElementTree as ET
 
 excluded = {
-    (node.text or '').strip().lstrip('./').replace('../', '')
-    for ex in ET.parse('Build/phpunit.xml').getroot().iter('exclude')
+    (node.text or "").strip().lstrip("./").replace("../", "")
+    for ex in ET.parse("Build/phpunit.xml").getroot().iter("exclude")
     for node in ex
 }
-NS = '\\YourVendor\\YourExt\\'          # adjust to the extension namespace
-for path in glob.glob('Tests/**/*.php', recursive=True):
-    for m in re.finditer(r'#\[CoversClass\(\s*\\?([\w\\]+)::class', open(path).read()):
-        target = 'Classes/' + m.group(1).split(NS, 1)[-1].replace('\\', '/') + '.php'
-        if any(target == e or target.startswith(e.rstrip('/') + '/') for e in excluded):
-            print(f'{path}: covers excluded {m.group(1)}')
+NS = "\\YourVendor\\YourExt\\"  # adjust to the extension namespace
+for path in glob.glob("Tests/**/*.php", recursive=True):
+    for m in re.finditer(r"#\[CoversClass\(\s*\\?([\w\\]+)::class", open(path).read()):
+        target = "Classes/" + m.group(1).split(NS, 1)[-1].replace("\\", "/") + ".php"
+        if any(target == e or target.startswith(e.rstrip("/") + "/") for e in excluded):
+            print(f"{path}: covers excluded {m.group(1)}")
 ```
 
 Handles both exclusion shapes — a whole directory (`Classes/Exception`) and a single `<file>` — since teams mix them.
