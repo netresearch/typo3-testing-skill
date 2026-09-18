@@ -210,9 +210,16 @@ run: find . -type f -name '*.php' ! -path "./.Build/*" ! -path "./vendor/*" -pri
      | (! grep -v "No syntax errors detected" )
 ```
 
-Do not "fix" this by dropping `-n` or by filtering the deprecation text: the
-first silences nothing and the second hides real diagnostics on the same
-channel.
+Two tempting non-fixes. **Dropping `-n`** does make the message go away — `-n`
+suppresses `php.ini`, so without it an ini carrying
+`error_reporting = E_ALL & ~E_DEPRECATED` or `display_errors = Off` hides the
+notice and the step goes green (measured: both leave only
+`No syntax errors detected`). That is worse than the bug, because the lint's
+result now depends on ambient ini configuration that differs between the runner
+and every developer machine, and the same suppression hides deprecations in
+*your* code. **Filtering the deprecation text** out of the `grep` hides real
+diagnostics that arrive on the same channel. Scoping the path is the fix that
+narrows *what* is linted rather than *what is reported*.
 
 ### Reproducing one matrix leg locally before pushing
 
@@ -220,6 +227,7 @@ A matrix change is worth verifying per leg, and the official images make that a
 single command — no local PHP juggling, no DDEV:
 
 ```bash
+mkdir -p /tmp/leg85     # tar -x -C exits 2 if the destination does not exist
 tar -c --exclude=vendor --exclude=.Build --exclude=.git . | tar -x -C /tmp/leg85
 docker run --rm -v /tmp/leg85:/app -w /app php:8.5-cli sh -c '
   curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --quiet
@@ -241,10 +249,13 @@ explains a failure. Same repo, same branch, one command apart:
 |---|---|---|
 | `symfony/console` resolved | v7.4.19 | v8.1.7 |
 
-That split is what decides whether a static-analysis job is affected: PHPStan
-1.12 cannot parse Symfony 8, but the analysis job pins a single PHP version, and
-on 8.2 the resolve yields Symfony 7. Without the two numbers, that is an
-argument; with them it is a measurement, and no dependency cap is needed.
+That split is what decides whether a static-analysis job is affected. On the 8.5
+leg, PHPStan 1.12.34 against `symfony/console` v8.1.7 exits 1 with two false
+`Call to an undefined method …Command\Run::getDefinition()` errors — it cannot
+resolve the Symfony 8 base class, so it invents findings in code that is fine.
+The analysis job pins a single PHP version, though, and on 8.2 the resolve
+yields Symfony 7, where the same run is clean. Without the two numbers that is
+an argument; with them it is a measurement, and no dependency cap is needed.
 
 ### Caching Dependencies
 
