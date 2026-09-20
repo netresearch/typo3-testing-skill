@@ -1,6 +1,6 @@
 {
   "name": "typo3-testing",
-  "version": "5.21.3",
+  "version": "5.21.4",
   "description": "TYPO3 extension testing with automated test generation agents",
   "author": {
     "name": "Netresearch DTT GmbH",
