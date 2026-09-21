@@ -420,6 +420,31 @@ mechanical:
     severity: warning
     desc: "If playwright.config.ts exists, it should define at least Chromium and Firefox projects for cross-browser E2E coverage"
 
+  # A suite that exists but is never invoked is not a gate, and it reads like one
+  # in a release note. nr_passkeys_fe 1.0.0 shipped 19 specifications that every
+  # file skipped and no workflow ran.
+  - id: TT-17c
+    type: command
+    command: |
+      ls Tests/E2E/*.spec.ts >/dev/null 2>&1 || exit 0
+      grep -rql 'playwright\|runTests.sh -s e2e\|ci-e2e' .github/workflows/*.yml 2>/dev/null && exit 0
+      echo "FAIL: Tests/E2E holds specifications but no workflow invokes them"
+      exit 1
+    severity: error
+    desc: "If Tests/E2E holds spec files, a workflow must invoke the suite — an uninvoked suite is not a gate"
+
+  - id: TT-17d
+    type: command
+    command: |
+      ls Tests/E2E/*.spec.ts >/dev/null 2>&1 || exit 0
+      skipped=$(grep -lE '^\s*(test|describe)\.skip\(' Tests/E2E/*.spec.ts 2>/dev/null | wc -l)
+      total=$(ls Tests/E2E/*.spec.ts 2>/dev/null | wc -l)
+      [ "$skipped" -eq 0 ] && exit 0
+      echo "FAIL: $skipped of $total E2E spec files are disabled by a file-level skip"
+      exit 1
+    severity: error
+    desc: "No E2E spec file may be disabled by a file-level test.skip()/describe.skip() — a skipped suite passes CI while testing nothing"
+
   # === MUTATION TESTING ===
   - id: TT-18
     type: file_exists
