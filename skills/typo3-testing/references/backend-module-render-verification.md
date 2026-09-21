@@ -28,10 +28,13 @@ both versions until a test asked for it.
 Two things follow:
 
 - **Enumerate the module's routes** from `Configuration/Backend/Modules.php` and
-  open each one. A non-default route's URL is the module path plus the route
-  key: identifier `nr_passkeys_fe` with a route `help` answers at
+  open each one. A non-default route's URL is the module path plus that route's
+  own `path`, and where the route sets none, its identifier serves as the path:
+  module `nr_passkeys_fe` with a route `help` answers at
   `/typo3/module/nr/passkeys/fe/help`, because `ModuleFactory` turns `_` into
-  `/` unless the registration sets an explicit `path`.
+  `/` for the module part unless the registration sets an explicit `path`. Read
+  both levels out of the registration rather than composing the URL from the
+  module identifier alone.
 - **A branch that only renders under a data condition is not covered by opening
   the page.** An infobox shown when every user has completed something renders
   in no ordinary fixture; either seed that state or assert the template through

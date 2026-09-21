@@ -114,10 +114,13 @@ count is the whole output — so an error in the counting reads as a statement a
   caught all six, and the number was two minutes away from being written up as "these tests
   assert nothing". Match on `::`, or on the whole line, and print one captured name per
   mutation while developing the harness.
-- **Accept a run on its case count, not on its exit status.** `Tests: 1` where the file holds
+- **Accept a run on its case count *and* its outcome fields.** `Tests: 1` where the file holds
   four is an aborted run — a collection error, a missing bootstrap, a filter that matched one
   case — and its exit code is indistinguishable from a kill. Parse the `Tests: N` line and
-  compare against the file's case count before the result counts.
+  compare against the file's case count. That is necessary and not sufficient: PHPUnit can
+  report the full count with every case skipped and exit 0. Count a mutant killed only on an
+  assertion failure — exit 1 with `Failures: N` and no `Errors:` — and treat an error, a
+  skipped-only run or any other status as an invalid run rather than a kill.
 
 A tally that comes out at 0 or at 100 % is the moment to verify the harness against a known
 answer: mutate one line you are sure a named test covers, and check the harness reports that

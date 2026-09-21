@@ -646,8 +646,16 @@ Two things decide whether it works:
 
 - **Poll the address the runner published, not the alias the browser uses.**
   `globalSetup` runs in Node, where `--host-resolver-rules` does not apply — the
-  same split as `page.request` above. Use `process.env.TYPO3_BASE_URL`; a
-  `.localhost` alias resolves elsewhere or not at all.
+  same split as `page.request` above. Take `TYPO3_BASE_URL`, and resolve the
+  **same fallback the config uses** when it is unset, or a local run polls
+  nothing while Playwright drives the DDEV URL. Export both from one module and
+  import it in the config and in the setup, rather than repeating the expression:
+
+  ```typescript
+  // Tests/E2E/instance-address.ts
+  export const target = process.env.TYPO3_BASE_URL ?? 'https://my-extension.ddev.site';
+  export const browserBaseUrl = /* the alias, where the runner asks for one */;
+  ```
 - **Fail loudly, with the last observation.** `did not answer 200 within 120s —
   last seen: connect ECONNREFUSED` names the environment; a silent timeout sends
   the reader into the test.
