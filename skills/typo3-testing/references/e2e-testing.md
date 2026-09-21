@@ -620,6 +620,44 @@ apache_ip=$(${CONTAINER_BIN} inspect "apache-${SUFFIX}" \
 Measured both ways: without it `page.goto` returns 200 while `page.request` and
 `request.newContext` both fail; with it all three answer 200.
 
+**Do not start before the instance answers — and ask for every half you drive**
+
+The provisioner hands over once it has seen one page: the shared runner asserts
+that `/` returns 200 and starts the suite. That is the frontend. A suite that
+also drives the backend meets the instance again at `/typo3/login`, and that
+request can fail on its own — observed once in `t3x-nr-passkeys-fe` as Apache's
+`DNS lookup failure for: phpfpm` on two attempts and a TYPO3 503 on the third,
+after the `/` check had passed, while the fourteen tests that ran later all
+passed. The failure lands on whichever specification runs first and reads as a
+defect in the module it happened to open.
+
+A `globalSetup` closes that window: poll the pages the suite needs until each
+answers 200, with a deadline, and abort with what you last saw.
+
+```typescript
+// playwright.config.ts
+export default defineConfig({
+    globalSetup: './Tests/E2E/global-setup.ts',
+    // …
+});
+```
+
+Two things decide whether it works:
+
+- **Poll the address the runner published, not the alias the browser uses.**
+  `globalSetup` runs in Node, where `--host-resolver-rules` does not apply — the
+  same split as `page.request` above. Use `process.env.TYPO3_BASE_URL`; a
+  `.localhost` alias resolves elsewhere or not at all.
+- **Fail loudly, with the last observation.** `did not answer 200 within 120s —
+  last seen: connect ECONNREFUSED` names the environment; a silent timeout sends
+  the reader into the test.
+
+Seen to fail before it is trusted: point the suite at a dead address and the run
+must stop in `globalSetup` with exit 1, before the first test.
+
+What it does not cover: a fault that starts after the suite has begun. Say that
+in the file, so the next reader does not take the gate for more than it is.
+
 **`config/system/additional.php` must assign, not return**
 
 TYPO3 `require`s that file for its side effects and discards its return value

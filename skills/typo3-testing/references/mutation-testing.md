@@ -102,6 +102,44 @@ Four traps make this check lie:
 Re-run this after any refactor of the test itself — consolidating duplicated test setup can
 quietly detach the assertion from the behaviour it was guarding.
 
+### Running a batch: two ways the tally lies
+
+Injecting several defects in a loop and counting kills is the natural next step, and the
+count is the whole output — so an error in the counting reads as a statement about the tests.
+
+- **PHPUnit names a failing test with its full namespace.** The failure line is
+  `1) Vendor\Ext\Tests\Unit\Service\ThingTest::theCase`, so a harness matching on the
+  short class name at the start of the line matches nothing and reports every mutation as
+  survived. Measured: a batch of six defects reported "0 caught" against a suite that in fact
+  caught all six, and the number was two minutes away from being written up as "these tests
+  assert nothing". Match on `::`, or on the whole line, and print one captured name per
+  mutation while developing the harness.
+- **Accept a run on its case count, not on its exit status.** `Tests: 1` where the file holds
+  four is an aborted run — a collection error, a missing bootstrap, a filter that matched one
+  case — and its exit code is indistinguishable from a kill. Parse the `Tests: N` line and
+  compare against the file's case count before the result counts.
+
+A tally that comes out at 0 or at 100 % is the moment to verify the harness against a known
+answer: mutate one line you are sure a named test covers, and check the harness reports that
+test.
+
+### When a mutation survives, ask what level the assertion sits at
+
+A surviving mutation has two readings — the code is untested, or the test looks at the wrong
+thing — and they need different fixes. Two shapes from one review round on a credential
+derivation:
+
+- The test compared a **fingerprint** built from several fields, and the mutation changed only
+  one of them. Dropping the username from the id derivation left every account with the same
+  id, while length and transports still differed per account, so the fingerprints differed and
+  the test passed. The assertion had to move onto the id alone.
+- The test then compared ids for **inequality**, and the mutation still survived: with a shared
+  derivation the ids differ only by the length they are cut to, so one is a prefix of the other.
+  Inequality holds and the disclosure remains. The assertion had to reject a shared prefix.
+
+Both were found by building a mutation for a property rather than for a line. Before accepting
+a test as coverage, name the defect it exists to catch and mutate exactly that.
+
 ## Tools
 
 ### Infection (Recommended)

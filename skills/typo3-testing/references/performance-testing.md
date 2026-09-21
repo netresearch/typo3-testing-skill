@@ -191,6 +191,27 @@ $duration = (\microtime(true) - $startTime) * 1000; // milliseconds
 self::assertLessThan(50, $duration, 'Operation should complete in < 50ms');
 ```
 
+### A constant-time property is asserted as a lower bound
+
+An endpoint that answers in the same time whatever it answers — a login that must not
+disclose whether an account exists — is tested the other way round from a performance
+budget. Assert that each branch takes **at least** the floor:
+
+```php
+private const BUDGET_MS = 150.0;
+
+self::assertGreaterThanOrEqual(self::BUDGET_MS, $this->timeOptionsAction('unknown@example.com'));
+```
+
+A sleep guarantees the lower bound on any machine, so the test is stable in CI. An upper
+bound measures the runner and turns red on a loaded one, which is why an "answers within
+X" assertion does not belong here.
+
+One case per branch, not one case for the endpoint: the point is that the branches cannot
+be told apart, and only a per-branch assertion fails when the floor is removed from one of
+them. Verified by removing it from each branch in turn — each removal must redden that
+branch's case and no other.
+
 ### Memory Measurements
 
 ```php
