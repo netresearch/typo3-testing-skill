@@ -687,6 +687,53 @@ $GLOBALS['TYPO3_CONF_VARS']['SYS']['displayErrors'] = 1;
 Worth an executed check rather than a review comment: cut the generated file
 out, `require` it, and assert the keys arrive in `TYPO3_CONF_VARS`.
 
+**A router script for `php -S` is a tainted-filename sink**
+
+Some E2E setups start the PHP built-in server with a router script
+(`php -S 0.0.0.0:8080 -t .Build/Web Build/Scripts/router.php`). The usual
+router appends the request path to the document root and returns `false`
+when `is_file()` finds it, so the server delivers the static file itself.
+That path comes straight from `REQUEST_URI`, so SAST flags it
+(Semgrep/Opengrep `php.lang.security.injection.tainted-filename.tainted-filename`).
+With `return false` the built-in server still serves only files inside its
+document root, so a request such as `/../secret.txt` falls through to
+TYPO3. A router that reads or includes the file itself (`readfile($file)`)
+does serve it, and there the traversal is real.
+
+Confine the resolved path to the document root with `realpath()`:
+
+```php
+<?php
+// Build/Scripts/router.php
+declare(strict_types=1);
+
+$path    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path    = is_string($path) ? $path : '';
+$docRoot = realpath(__DIR__ . '/../../.Build/Web');
+$file    = $docRoot === false ? false : realpath($docRoot . $path);
+
+// Serve a static file only when its real path stays inside the document root
+if (
+    $file !== false
+    && $docRoot !== false
+    && str_starts_with($file, $docRoot . DIRECTORY_SEPARATOR)
+    && is_file($file)
+) {
+    return false;
+}
+
+// Everything else goes through TYPO3
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['SCRIPT_FILENAME'] = __DIR__ . '/../../.Build/Web/index.php';
+require __DIR__ . '/../../.Build/Web/index.php';
+```
+
+This clears the finding at its source. Do not suppress it with
+`// nosemgrep` instead: the suppression is not reliable, and GitHub code
+scanning can mark the existing alert "fixed" while a new alert opens on the
+suppressed line. Verify the fix with the scanner version CI pins: one
+finding on the unguarded router, zero after the change.
+
 **A server-side file cache usually cannot be reset from the test side**
 
 The instinct — delete the cache directory between tests to clear a counter — hits

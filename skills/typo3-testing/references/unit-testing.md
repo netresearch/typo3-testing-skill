@@ -1355,16 +1355,59 @@ final class TranslationRepositoryTest extends UnitTestCase
 
 ```php
 use PHPUnit\Framework\Attributes\CoversNothing;
+use PHPUnit\Framework\Attributes\Test;
 
 #[CoversNothing]
 final class XxeProtectionTest extends UnitTestCase
 {
     #[Test]
-    public function libxmlDisablesExternalEntityLoading(): void
+    public function externalEntityIsNotExpanded(): void
     {
         // This tests PHP/libxml behavior, not application code
-        $previousValue = libxml_disable_entity_loader(true);
-        self::assertTrue($previousValue || true);
+        $secretFile = tempnam(sys_get_temp_dir(), 'xxe');
+        file_put_contents($secretFile, 'XXE-SECRET');
+        $xml = '<?xml version="1.0"?>'
+            . '<!DOCTYPE root [<!ENTITY xxe SYSTEM "file://' . $secretFile . '">]>'
+            . '<root>&xxe;</root>';
+
+        try {
+            $document = new \DOMDocument();
+            // No LIBXML_NOENT: the entity stays a reference, nothing is read from disk
+            $document->loadXML($xml, LIBXML_NONET);
+        } finally {
+            unlink($secretFile);
+        }
+
+        self::assertStringNotContainsString('XXE-SECRET', $document->textContent);
+        self::assertStringNotContainsString('XXE-SECRET', (string)$document->saveXML());
+    }
+}
+```
+
+Do not build this test on `libxml_disable_entity_loader()`: the function is deprecated since PHP 8.0, because libxml 2.9 and later no longer load external entities by default, and a test that only calls it proves nothing about the parse. Assert on the parsed document instead. The test above fails as soon as the parse passes `LIBXML_NOENT`, the flag that substitutes the external entity.
+
+### XXE and Entity-Expansion Tests: Assert the Contract, Not libxml Details
+
+A scheduled CI run that turns red with no code change since the last green run, failing only in XXE or billion-laughs tests, is usually a libxml update in the runner image, not a regression. Check with `gh run list --branch main --workflow CI --event schedule --json conclusion,headSha,createdAt`: a `success` followed by a `failure` with the same `headSha` points at the environment.
+
+These tests break when they pin details that depend on the libxml version:
+
+- **Exact exception message** -- a newer libxml can reject the payload through a different, equally safe path (for example "external entities are blocked" instead of "entity reference loop").
+- **Exact exception code** -- a parser with several entity-protection paths throws a different code per path, and which path fires depends on libxml. Read every `throw` site before choosing what to assert.
+- **Exact expanded length** -- an older libxml may leave a custom entity unexpanded while a newer one substitutes it. An entity nested two levels deep (10 x 10 x "lol") legitimately expands to 300 characters; that is not a DoS.
+
+Assert the security contract instead: the payload is rejected with the expected exception class and one of the entity-protection codes, or the expansion stays bounded with a limit well above the payload's legitimate full expansion and far below an exponential blowup.
+
+```php
+#[Test]
+public function billionLaughsAttackIsRejected(): void
+{
+    try {
+        $this->subject->parse(self::BILLION_LAUGHS_PAYLOAD);
+        self::fail('Billion-laughs payload was not rejected');
+    } catch (InvalidXmlException $invalidXmlException) {
+        // Any of the entity-protection paths is a pass
+        self::assertContains($invalidXmlException->getCode(), [1700000002, 1700000003]);
     }
 }
 ```
