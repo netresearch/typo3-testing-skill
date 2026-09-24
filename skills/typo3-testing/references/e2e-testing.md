@@ -689,13 +689,16 @@ out, `require` it, and assert the keys arrive in `TYPO3_CONF_VARS`.
 
 **A router script for `php -S` is a tainted-filename sink**
 
-TYPO3 clean URLs need a router script with the PHP built-in server
+Some E2E setups start the PHP built-in server with a router script
 (`php -S 0.0.0.0:8080 -t .Build/Web Build/Scripts/router.php`). The usual
-router appends the request path to the document root and serves the file if
-`is_file()` finds it. That path comes straight from `REQUEST_URI`, so SAST
-flags it (Semgrep/Opengrep `php.lang.security.injection.tainted-filename`),
-and the finding is real: a request such as `/../secret.txt` that resolves to
-an existing file outside the document root can be served.
+router appends the request path to the document root and returns `false`
+when `is_file()` finds it, so the server delivers the static file itself.
+That path comes straight from `REQUEST_URI`, so SAST flags it
+(Semgrep/Opengrep `php.lang.security.injection.tainted-filename.tainted-filename`).
+With `return false` the built-in server still serves only files inside its
+document root, so a request such as `/../secret.txt` falls through to
+TYPO3. A router that reads or includes the file itself (`readfile($file)`)
+does serve it, and there the traversal is real.
 
 Confine the resolved path to the document root with `realpath()`:
 
@@ -725,8 +728,9 @@ $_SERVER['SCRIPT_FILENAME'] = __DIR__ . '/../../.Build/Web/index.php';
 require __DIR__ . '/../../.Build/Web/index.php';
 ```
 
-Do not suppress the finding with `// nosemgrep` instead: an inline
-suppression left the existing GitHub code-scanning alert open on the
+This clears the finding at its source. Do not suppress it with
+`// nosemgrep` instead: the suppression is not reliable, and GitHub code
+scanning can mark the existing alert "fixed" while a new alert opens on the
 suppressed line. Verify the fix with the scanner version CI pins: one
 finding on the unguarded router, zero after the change.
 
