@@ -412,6 +412,27 @@ After the fix the score drops to its honest value — the former errors now
 count as escaped or killed. Derive thresholds such as `minCoveredMsi` from
 that run, not from the inflated one.
 
+### Equivalent Mutants Escape by Design
+
+An equivalent mutant changes the code without changing any observable
+result, so no test can kill it. Recognize the shape before writing tests
+for it. A common one in Extbase validators is the `return` directly after
+`$this->addError(...)`:
+
+```php
+if ($value === '') {
+    $this->addError('Value must not be empty.', 1700000001);
+    return;   // mutant: this return removed
+}
+```
+
+Removing the `return` leaves the error recorded, so the value is still
+invalid; the only difference is that the checks after it may add further
+errors. The mutant is equivalent as long as no caller depends on the exact
+error list. Only if stopping at the first error is a contract does a test
+asserting the complete error list (count and codes) belong here. Otherwise
+leave these escapes in the report instead of chasing the score.
+
 ### Target Scores
 
 | Level | MSI | Covered MSI | Use Case |
@@ -442,6 +463,13 @@ public function testAgeExactly18IsAllowed(): void
     self::assertTrue($this->validator->isAdult(18));
 }
 ```
+
+Time-based checks hide the same gap. An expiry test whose fixtures sit an
+hour away from "now" (`exp = now - 3600` and `now + 3600`) passes for both
+`$expiresAt < $now` and `$expiresAt <= $now`, so the `<` → `<=` mutant
+escapes and nothing pins what happens at the exact second. Decide what the
+boundary must do, freeze the clock, and add a fixture **exactly on the
+boundary** (`exp == now`) that asserts that decision.
 
 ### 3. Add Negative Tests
 

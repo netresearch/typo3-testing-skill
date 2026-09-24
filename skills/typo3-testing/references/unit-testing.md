@@ -1369,6 +1369,32 @@ final class XxeProtectionTest extends UnitTestCase
 }
 ```
 
+### XXE and Entity-Expansion Tests: Assert the Contract, Not libxml Details
+
+A scheduled CI run that turns red with no code change since the last green run, failing only in XXE or billion-laughs tests, is usually a libxml update in the runner image, not a regression. Check with `gh run list --branch main --workflow CI`: a `schedule | success` followed by a `schedule | failure` on the same commit points at the environment.
+
+These tests break when they pin details that depend on the libxml version:
+
+- **Exact exception message** -- a newer libxml can reject the payload through a different, equally safe path (for example "external entities are blocked" instead of "entity reference loop").
+- **Exact exception code** -- a parser with several entity-protection paths throws a different code per path, and which path fires depends on libxml. Read every `throw` site before choosing what to assert.
+- **Exact expanded length** -- an older libxml may leave a custom entity unexpanded while a newer one substitutes it. A two-level entity of 100 x "lol" legitimately expands to 300 characters; that is not a DoS.
+
+Assert the security contract instead: the payload is rejected with the expected exception class and one of the entity-protection codes, or the expansion stays bounded with a limit well above the payload's legitimate full expansion and far below an exponential blowup.
+
+```php
+#[Test]
+public function billionLaughsAttackIsRejected(): void
+{
+    try {
+        $this->subject->parse(self::BILLION_LAUGHS_PAYLOAD);
+        self::fail('Billion-laughs payload was not rejected');
+    } catch (InvalidXmlException $invalidXmlException) {
+        // Any of the entity-protection paths is a pass
+        self::assertContains($invalidXmlException->getCode(), [1700000002, 1700000003]);
+    }
+}
+```
+
 ### #[UsesClass] for Domain Model Dependencies
 
 When a test exercises domain models indirectly (e.g., a repository test creates model instances), declare them with `#[UsesClass]` to keep coverage reports accurate:

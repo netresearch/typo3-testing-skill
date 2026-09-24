@@ -687,6 +687,49 @@ $GLOBALS['TYPO3_CONF_VARS']['SYS']['displayErrors'] = 1;
 Worth an executed check rather than a review comment: cut the generated file
 out, `require` it, and assert the keys arrive in `TYPO3_CONF_VARS`.
 
+**A router script for `php -S` is a tainted-filename sink**
+
+TYPO3 clean URLs need a router script with the PHP built-in server
+(`php -S 0.0.0.0:8080 -t .Build/Web Build/Scripts/router.php`). The usual
+router appends the request path to the document root and serves the file if
+`is_file()` finds it. That path comes straight from `REQUEST_URI`, so SAST
+flags it (Semgrep/Opengrep `php.lang.security.injection.tainted-filename`),
+and the finding is real: a request such as `/../secret.txt` that resolves to
+an existing file outside the document root can be served.
+
+Confine the resolved path to the document root with `realpath()`:
+
+```php
+<?php
+// Build/Scripts/router.php
+declare(strict_types=1);
+
+$path    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path    = is_string($path) ? $path : '';
+$docRoot = realpath(__DIR__ . '/../../.Build/Web');
+$file    = $docRoot === false ? false : realpath($docRoot . $path);
+
+// Serve a static file only when its real path stays inside the document root
+if (
+    $file !== false
+    && $docRoot !== false
+    && str_starts_with($file, $docRoot . DIRECTORY_SEPARATOR)
+    && is_file($file)
+) {
+    return false;
+}
+
+// Everything else goes through TYPO3
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['SCRIPT_FILENAME'] = __DIR__ . '/../../.Build/Web/index.php';
+require __DIR__ . '/../../.Build/Web/index.php';
+```
+
+Do not suppress the finding with `// nosemgrep` instead: an inline
+suppression left the existing GitHub code-scanning alert open on the
+suppressed line. Verify the fix with the scanner version CI pins: one
+finding on the unguarded router, zero after the change.
+
 **A server-side file cache usually cannot be reset from the test side**
 
 The instinct — delete the cache directory between tests to clear a counter — hits
