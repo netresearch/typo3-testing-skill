@@ -427,9 +427,11 @@ if ($value === '') {
 ```
 
 Removing the `return` leaves the error recorded, so the value is still
-invalid; the only difference is that the checks after it may add further
-errors. The mutant is equivalent as long as no caller depends on the exact
-error list. Only if stopping at the first error is a contract does a test
+invalid; the checks after it now run as well. The mutant is equivalent only
+if those checks can do nothing but add further errors (no exception, no
+state change, no call on a collaborator) and no caller depends on the exact
+error list. Read the checks after the `return` before classifying the
+mutant. Only if stopping at the first error is a contract does a test
 asserting the complete error list (count and codes) belong here. Otherwise
 leave these escapes in the report instead of chasing the score.
 
