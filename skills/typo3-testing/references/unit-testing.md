@@ -1360,14 +1360,30 @@ use PHPUnit\Framework\Attributes\CoversNothing;
 final class XxeProtectionTest extends UnitTestCase
 {
     #[Test]
-    public function libxmlDisablesExternalEntityLoading(): void
+    public function externalEntityIsNotExpanded(): void
     {
         // This tests PHP/libxml behavior, not application code
-        $previousValue = libxml_disable_entity_loader(true);
-        self::assertTrue($previousValue || true);
+        $secretFile = tempnam(sys_get_temp_dir(), 'xxe');
+        file_put_contents($secretFile, 'XXE-SECRET');
+        $xml = '<?xml version="1.0"?>'
+            . '<!DOCTYPE root [<!ENTITY xxe SYSTEM "file://' . $secretFile . '">]>'
+            . '<root>&xxe;</root>';
+
+        try {
+            $document = new \DOMDocument();
+            // No LIBXML_NOENT: the entity stays a reference, nothing is read from disk
+            $document->loadXML($xml, LIBXML_NONET);
+        } finally {
+            unlink($secretFile);
+        }
+
+        self::assertStringNotContainsString('XXE-SECRET', $document->textContent);
+        self::assertStringNotContainsString('XXE-SECRET', (string)$document->saveXML());
     }
 }
 ```
+
+Do not build this test on `libxml_disable_entity_loader()`: the function is deprecated since PHP 8.0, because libxml 2.9 and later no longer load external entities by default, and a test that only calls it proves nothing about the parse. Assert on the parsed document instead. The test above fails as soon as the parse passes `LIBXML_NOENT`, the flag that substitutes the external entity.
 
 ### XXE and Entity-Expansion Tests: Assert the Contract, Not libxml Details
 
