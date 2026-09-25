@@ -1003,6 +1003,86 @@ test('handles AJAX timeout gracefully', async ({ page, backend }) => {
 });
 ```
 
+## Ad-hoc Browser Check Without Playwright (CDP Fallback)
+
+Use this when Playwright is not installed and cannot be added right now
+(npm blocked by a proxy, one-off verification on a developer machine) and a
+real browser run is still needed, for example a form whose submission depends
+on client-side JavaScript or server-side state.
+
+**Why not curl:** a scripted POST to an EXT:form form has to reproduce
+`__state`, `__trustedProperties`, the honeypot field and every value the
+page's JavaScript fills in. On any mismatch the form framework re-renders the
+page with HTTP 200 and no visible error, so reconstructing the request costs
+more than driving a browser.
+
+**Why not `--dump-dom`:** `chrome --headless=new --dump-dom` prints the DOM
+after JavaScript ran, but it cannot interact with the page and the process may
+not exit on its own.
+
+**What works:** Node.js >= 22 ships a global `WebSocket`, so the Chrome DevTools
+Protocol needs no dependency. A minimal runner navigates to a URL and evaluates
+one JavaScript expression in the page:
+
+```js
+// cdp-eval.mjs — CHROME=/path/to/chrome node cdp-eval.mjs <url> "<expression>"
+import { spawn } from 'node:child_process';
+
+const [url, expression] = process.argv.slice(2);
+const chrome = spawn(process.env.CHROME ?? 'google-chrome', [
+  '--headless=new', '--disable-gpu', '--ignore-certificate-errors',
+  '--remote-debugging-port=9333', '--user-data-dir=./.cdp-profile', 'about:blank',
+], { stdio: 'ignore' });
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+try {
+  let version;
+  for (let attempt = 0; attempt < 30 && !version; attempt++) {
+    try { version = await (await fetch('http://127.0.0.1:9333/json/version')).json(); } catch { await sleep(300); }
+  }
+  const ws = new WebSocket(version.webSocketDebuggerUrl);
+  await new Promise((resolve) => { ws.onopen = resolve; });
+  let id = 0;
+  const pending = {};
+  ws.onmessage = (event) => { const m = JSON.parse(event.data); if (m.id && pending[m.id]) pending[m.id](m); };
+  const send = (method, params = {}, sessionId) => new Promise((resolve) => {
+    const i = ++id; pending[i] = resolve; ws.send(JSON.stringify({ id: i, method, params, sessionId }));
+  });
+
+  const { result: { targetId } } = await send('Target.createTarget', { url: 'about:blank' });
+  const { result: { sessionId } } = await send('Target.attachToTarget', { targetId, flatten: true });
+  await send('Page.enable', {}, sessionId);
+  await send('Page.navigate', { url }, sessionId);
+  await sleep(3000); // give the page's own JavaScript time; poll the DOM instead if timing matters
+  const { result } = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }, sessionId);
+  console.log(result.result.value);
+} finally {
+  chrome.kill('SIGKILL');
+}
+```
+
+Example expression that fills a form and submits it through the page's own
+submit handlers (clicking the button instead of calling `form.requestSubmit()`
+keeps custom listeners in the loop):
+
+```js
+(async () => {
+  const form = document.querySelector('form');
+  form.querySelector('[name$="[email]"]').value = `tester@${location.hostname}`; // resolves in DDEV, lands in Mailpit
+  form.querySelector('button[type=submit]').click();
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+  return document.body.innerText.slice(0, 300);
+})()
+```
+
+Then verify the server side, not the screen: the record the finisher wrote,
+the mail in the mail catcher (Mailpit in DDEV), the log entry. Two TYPO3
+specifics to keep in mind when choosing test data: `MAIL.validators` may
+contain `DNSCheckValidation`, which rejects the reserved domains `example.*`,
+`test`, `invalid` and `localhost` outright; an address on the DDEV hostname
+(`tester@<project>.ddev.site`) resolves and is caught by Mailpit. EXT:form
+honeypot fields must stay empty.
+
 ## PHP-Based E2E Testing (Alternative)
 
 For extensions that primarily test API interactions without browser UI, PHP-based E2E tests offer a lightweight alternative to Playwright.
