@@ -337,28 +337,83 @@ PHP_FUNCTIONAL_OPTS="-d opcache.enable_cli=1"
 # SQLite functional databases: the testing-framework writes them to
 # <TYPO3_PATH_ROOT>/typo3temp/var/tests/functional-sqlite-dbs/, and
 # typo3/cms-composer-installers sets TYPO3_PATH_ROOT to extra.typo3/cms.web-dir
-# from composer.json, default "public". The tmpfs has to sit on exactly that
-# directory, or the databases land on the bind mount instead. composer.json is
-# parsed by PHP inside the test image, so the host needs no JSON tool.
+# from composer.json. The tmpfs has to sit on exactly that directory, or the
+# databases land on the bind mount instead. composer.json is parsed by PHP
+# inside the test image, so the host needs no JSON tool.
+#
+# The PHP step resolves web-dir the way typo3/cms-composer-installers 5.0.1 and
+# 5.0.2 do (src/Plugin/Config.php, line numbers of 5.0.2):
+#   35       default "public"
+#   71       extra.typo3/cms is used only when it is a non-empty array
+#   213      root package typo3/cms: web-dir "."
+#   91       trailing "/" and "\" are stripped; null becomes "", the composer root
+#   170-179  "" is the composer root, "/..." or "X:..." is absolute,
+#            anything else is relative to the composer root
+#   230-236  the result, normalised by Composer's Filesystem::normalizePath
+#            ("\" to "/", "." and ".." resolved), must start with the composer
+#            root, or web-dir is reset to "public" with a warning
+# It prints web-dir relative to the composer root. Two cases the installer
+# would accept but that point outside the extension (an absolute path below
+# the installer's placeholder root, or a ".." path to a sibling whose name
+# starts with it) and "{$...}" placeholders stop the run instead.
+# PHP exits 3 for a composer.json it cannot use; any other failure is the
+# container step itself.
+#
+# The sqlite branches create the directory on the host before the run and pass
+# mode=1777. A tmpfs over an existing directory takes that directory's 0755 and
+# is owned by root, so the container user cannot write to it without the mode.
+# Without the mkdir, the daemon creates the missing mount point and its parents
+# as root, and the container user can no longer create the test instances
+# next to it in typo3temp/var/tests/.
 if [[ ${TEST_SUITE} =~ ^functional(Parallel|Coverage)$ ]] || [[ ${TEST_SUITE} == "functional" && ${DBMS} == "sqlite" ]]; then
-    # shellcheck disable=SC2016 # the single-quoted $ are PHP variables
-    if ! WEB_DIR=$(${CONTAINER_BIN} run --rm -i "${IMAGE_PHP}" php -r '
+    WEB_DIR_EXIT=0
+    # SC2016: the single-quoted $ are PHP variables. SC2086: CI_PARAMS holds
+    # several options and is split on purpose, as in every other run below.
+    # shellcheck disable=SC2016,SC2086
+    WEB_DIR=$(${CONTAINER_BIN} run --rm -i ${CI_PARAMS} "${IMAGE_PHP}" php -r '
         $c = json_decode(stream_get_contents(STDIN), true);
-        if (!is_array($c)) { fwrite(STDERR, "composer.json is not valid JSON\n"); exit(1); }
-        $d = $c["extra"]["typo3/cms"]["web-dir"] ?? "public";
-        if (!is_string($d)) { fwrite(STDERR, "extra.typo3/cms.web-dir is not a string\n"); exit(1); }
-        $d = preg_replace("#^(\./)+#", "", rtrim($d, "/"));
-        echo $d === "" ? "." : $d;
-    ' < "${ROOT_DIR}/composer.json") || [ -z "${WEB_DIR}" ]; then
-        echo "Could not read extra.typo3/cms.web-dir from ${ROOT_DIR}/composer.json" >&2
+        if (!is_array($c)) { fwrite(STDERR, "composer.json is not valid JSON\n"); exit(3); }
+        if (($c["name"] ?? "") === "typo3/cms") { echo "."; exit(0); }
+        $t = $c["extra"]["typo3/cms"] ?? [];
+        if (!is_array($t) || $t === [] || !array_key_exists("web-dir", $t)) { echo "public"; exit(0); }
+        $v = $t["web-dir"];
+        if ($v === null) {
+            $v = "";
+        } elseif (is_string($v) || is_int($v) || is_float($v)) {
+            $v = (string)$v;
+        } else {
+            fwrite(STDERR, "extra.typo3/cms.web-dir must be a string\n"); exit(3);
+        }
+        if (str_contains($v, "{" . chr(36))) { fwrite(STDERR, "placeholders in extra.typo3/cms.web-dir are not supported\n"); exit(3); }
+        $v = rtrim($v, "/\\");
+        $base = "/fake/root";
+        $isAbs = $v !== "" && ($v[0] === "/" || (isset($v[1]) && $v[1] === ":"));
+        $path = strtr($v === "" ? $base : ($isAbs ? $v : $base . "/" . $v), "\\", "/");
+        $parts = [];
+        foreach (explode("/", $path) as $p) {
+            if ($p === "..") { array_pop($parts); } elseif ($p !== "." && $p !== "") { $parts[] = $p; }
+        }
+        $n = (str_starts_with($path, "/") ? "/" : "") . implode("/", $parts);
+        if (!str_starts_with($n, $base)) {
+            fwrite(STDERR, "Warning: extra.typo3/cms.web-dir is not below the composer root; like typo3/cms-composer-installers, using public\n");
+            echo "public"; exit(0);
+        }
+        if ($n === $base) { echo "."; exit(0); }
+        if ($isAbs || !str_starts_with($n, $base . "/")) {
+            fwrite(STDERR, "extra.typo3/cms.web-dir points outside the extension, which runTests.sh does not support\n"); exit(3);
+        }
+        echo substr($n, strlen($base) + 1);
+    ' < "${ROOT_DIR}/composer.json") || WEB_DIR_EXIT=$?
+    if [[ ${WEB_DIR_EXIT} -eq 3 ]]; then
+        echo "Cannot use extra.typo3/cms.web-dir from ${ROOT_DIR}/composer.json (reason above)" >&2
+        cleanUp
+        exit 1
+    elif [[ ${WEB_DIR_EXIT} -ne 0 || -z ${WEB_DIR} ]]; then
+        echo "The ${IMAGE_PHP} container that reads web-dir from composer.json failed (exit ${WEB_DIR_EXIT})" >&2
         cleanUp
         exit 1
     fi
-    case "${WEB_DIR}" in
-        /*) ;;
-        *) WEB_DIR="${ROOT_DIR}/${WEB_DIR}" ;;
-    esac
-    SQLITE_DB_DIR="${WEB_DIR}/typo3temp/var/tests/functional-sqlite-dbs/"
+    SQLITE_DB_DIR="${ROOT_DIR}/${WEB_DIR}/typo3temp/var/tests/functional-sqlite-dbs/"
 fi
 
 # Suite execution
@@ -438,8 +493,8 @@ case ${TEST_SUITE} in
                 ;;
             sqlite)
                 mkdir -p "${SQLITE_DB_DIR}"
-                CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777"
-                ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} ${IMAGE_PHP} "${COMMAND[@]}"
+                CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite"
+                ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} --tmpfs "${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777" ${IMAGE_PHP} "${COMMAND[@]}"
                 SUITE_EXIT_CODE=$?
                 ;;
         esac
@@ -458,16 +513,16 @@ case ${TEST_SUITE} in
         fi
 
         COMMAND="find Tests/Functional -name '*Test.php' | xargs -P${PARALLEL_JOBS} -I{} php ${PHP_FUNCTIONAL_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml {}"
-        CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777"
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-parallel-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
+        CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite"
+        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-parallel-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} --tmpfs "${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777" ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
         SUITE_EXIT_CODE=$?
         ;;
     functionalCoverage)
         mkdir -p .Build/coverage
         COMMAND=(php -d opcache.enable_cli=1 .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml --coverage-clover=.Build/coverage/functional.xml --coverage-html=.Build/coverage/html-functional --coverage-text "$@")
         mkdir -p "${SQLITE_DB_DIR}"
-        CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777"
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-coverage-${SUFFIX} -e XDEBUG_MODE=coverage ${CONTAINERPARAMS} ${IMAGE_PHP} "${COMMAND[@]}"
+        CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite"
+        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-coverage-${SUFFIX} -e XDEBUG_MODE=coverage ${CONTAINERPARAMS} --tmpfs "${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777" ${IMAGE_PHP} "${COMMAND[@]}"
         SUITE_EXIT_CODE=$?
         ;;
     lint)
