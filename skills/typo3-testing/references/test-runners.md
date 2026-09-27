@@ -487,7 +487,8 @@ mount option in `Build/Scripts/runTests.sh` (every occurrence):
 ```
 
 This is CI-safe (standard Docker hosts are unaffected) and unblocks local functional
-testing on rootless/WSL2.
+testing on rootless/WSL2. The `assets/Build/Scripts/runTests.sh` template carries the
+option; copies taken from it before that change still need the edit.
 
 ### Root-owned Files
 ```bash
