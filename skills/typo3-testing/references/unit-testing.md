@@ -606,7 +606,7 @@ final class MyControllerTest extends UnitTestCase
 
 **Fallback - `#[AllowMockObjectsWithoutExpectations]`:**
 
-> **Warning:** The `#[AllowMockObjectsWithoutExpectations]` attribute is only available in PHPUnit 12+. It does **not** exist in PHPUnit 11 (used in CI for PHP 8.2) and will cause a fatal error. Only use this fallback when the project runs PHPUnit 12 exclusively.
+> **Note:** The `#[AllowMockObjectsWithoutExpectations]` attribute exists from PHPUnit 12.5.2 on. PHPUnit 11.5 (used in CI for PHP 8.2) skips attributes whose class does not exist, so there it has no effect; it is not a fatal error.
 
 When migrating existing test classes with many mocks, you can temporarily suppress the notice with the class-level attribute instead of converting all mocks to stubs at once:
 

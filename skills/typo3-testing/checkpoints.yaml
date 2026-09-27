@@ -240,6 +240,14 @@ mechanical:
     desc: "README should display Codecov badge"
 
   # === RUNTESTS.SH SCRIPT (mandatory for all Netresearch TYPO3 extensions) ===
+  # TT-51/52/53/57/59 read the runner that actually runs. The Netresearch
+  # standard Build/Scripts/runTests.sh is a stub (typo3-ci-workflows
+  # assets/Build/Scripts/runTests.stub.sh) that only execs the shared runner
+  # composer links into the bin dir, so grepping the stub measured nothing.
+  # When the stub is detected, the installed shared runner is checked; on a
+  # clean checkout without it, the check passes by delegation as long as
+  # composer.json requires netresearch/typo3-ci-workflows (the package that
+  # ships the runner), and fails when the stub has nothing to hand over to.
   - id: TT-50
     type: file_exists
     target: Build/Scripts/runTests.sh
@@ -247,23 +255,59 @@ mechanical:
     desc: "Build/Scripts/runTests.sh must exist as the unified test runner for all TYPO3 extensions"
 
   - id: TT-51
-    type: regex
-    target: Build/Scripts/runTests.sh
-    pattern: 'TYPO3_VERSION|typo3/core'
+    type: script
+    command: |
+      f=Build/Scripts/runTests.sh
+      [ -f "$f" ] || exit 1
+      if grep -q 'typo3-ci-workflows' "$f" && grep -qE '^exec[[:blank:]]+"[$][{]?RUNNER[}]?"' "$f"; then
+        f=""
+        for r in .Build/bin/runTests.sh .build/bin/runTests.sh vendor/bin/runTests.sh; do
+          if [ -f "$r" ]; then f="$r"; break; fi
+        done
+        if [ -z "$f" ]; then
+          grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
+          exit $?
+        fi
+      fi
+      grep -qE 'TYPO3_VERSION|typo3/core' "$f"
     severity: warning
     desc: "runTests.sh should support TYPO3 version selection"
 
   - id: TT-52
-    type: regex
-    target: Build/Scripts/runTests.sh
-    pattern: 'PHP_VERSION|php.*version'
+    type: script
+    command: |
+      f=Build/Scripts/runTests.sh
+      [ -f "$f" ] || exit 1
+      if grep -q 'typo3-ci-workflows' "$f" && grep -qE '^exec[[:blank:]]+"[$][{]?RUNNER[}]?"' "$f"; then
+        f=""
+        for r in .Build/bin/runTests.sh .build/bin/runTests.sh vendor/bin/runTests.sh; do
+          if [ -f "$r" ]; then f="$r"; break; fi
+        done
+        if [ -z "$f" ]; then
+          grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
+          exit $?
+        fi
+      fi
+      grep -qE 'PHP_VERSION|php.*version' "$f"
     severity: warning
     desc: "runTests.sh should support PHP version selection (-p flag)"
 
   - id: TT-53
-    type: regex
-    target: Build/Scripts/runTests.sh
-    pattern: 'suite|SUITE'
+    type: script
+    command: |
+      f=Build/Scripts/runTests.sh
+      [ -f "$f" ] || exit 1
+      if grep -q 'typo3-ci-workflows' "$f" && grep -qE '^exec[[:blank:]]+"[$][{]?RUNNER[}]?"' "$f"; then
+        f=""
+        for r in .Build/bin/runTests.sh .build/bin/runTests.sh vendor/bin/runTests.sh; do
+          if [ -f "$r" ]; then f="$r"; break; fi
+        done
+        if [ -z "$f" ]; then
+          grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
+          exit $?
+        fi
+      fi
+      grep -qE 'suite|SUITE' "$f"
     severity: warning
     desc: "runTests.sh should support test suite selection (-s flag)"
 
@@ -302,9 +346,21 @@ mechanical:
 
   # === RUNTESTS.SH QUALITY ===
   - id: TT-57
-    type: regex
-    target: Build/Scripts/runTests.sh
-    pattern: 'ghcr\.io/typo3/core-testing|CONTAINER_BIN|docker\s+run'
+    type: script
+    command: |
+      f=Build/Scripts/runTests.sh
+      [ -f "$f" ] || exit 1
+      if grep -q 'typo3-ci-workflows' "$f" && grep -qE '^exec[[:blank:]]+"[$][{]?RUNNER[}]?"' "$f"; then
+        f=""
+        for r in .Build/bin/runTests.sh .build/bin/runTests.sh vendor/bin/runTests.sh; do
+          if [ -f "$r" ]; then f="$r"; break; fi
+        done
+        if [ -z "$f" ]; then
+          grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
+          exit $?
+        fi
+      fi
+      grep -qE 'ghcr\.io/typo3/core-testing|CONTAINER_BIN|docker\s+run' "$f"
     severity: warning
     desc: "runTests.sh should use Docker containers (TYPO3 core-testing images) for consistent test environments"
 
@@ -340,9 +396,21 @@ mechanical:
     desc: "Makefile recipes that invoke runTests.sh must pass the -s flag (e.g. $(RUNTESTS) -s unit, not $(RUNTESTS) unit). A Makefile that wraps composer scripts instead, or no Makefile at all, satisfies this check."
 
   - id: TT-59
-    type: regex
-    target: Build/Scripts/runTests.sh
-    pattern: 'NETWORK=.*\$\{?SUFFIX'
+    type: script
+    command: |
+      f=Build/Scripts/runTests.sh
+      [ -f "$f" ] || exit 1
+      if grep -q 'typo3-ci-workflows' "$f" && grep -qE '^exec[[:blank:]]+"[$][{]?RUNNER[}]?"' "$f"; then
+        f=""
+        for r in .Build/bin/runTests.sh .build/bin/runTests.sh vendor/bin/runTests.sh; do
+          if [ -f "$r" ]; then f="$r"; break; fi
+        done
+        if [ -z "$f" ]; then
+          grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
+          exit $?
+        fi
+      fi
+      grep -qE 'NETWORK=.*\$\{?SUFFIX' "$f"
     severity: warning
     desc: "Docker network name should include per-run suffix to avoid conflicts with concurrent runs"
 
@@ -506,12 +574,21 @@ mechanical:
     desc: "Test classes creating filesystem artifacts (tempDir, tempFile) must implement tearDown() for cleanup"
     note: "Check manually: only flag when setUp() creates files/dirs but tearDown() is missing"
 
+  # Was `type: regex` — it FAILED every test suite that does not use the
+  # attribute and passed the ones that do. The attribute exists from PHPUnit
+  # 12.5.2 on; PHPUnit 11.5 skips attributes whose class does not exist
+  # (Metadata/Parser/AttributeParser.php, `if (!class_exists(...)) continue`),
+  # so on 11.5 it has no effect, it is not fatal. Kept as an info-level hint
+  # towards createStub(), the approach references/unit-testing.md prefers.
   - id: TT-76
-    type: regex
+    type: regex_not
     target: Tests/**/*Test.php
     pattern: 'AllowMockObjectsWithoutExpectations'
-    severity: error
-    desc: "#[AllowMockObjectsWithoutExpectations] is PHPUnit 12 only — causes fatal error on PHPUnit 11 (PHP 8.2 CI). Use createStub() instead."
+    severity: info
+    provenance: upstream
+    source: https://github.com/sebastianbergmann/phpunit/blob/12.5.2/src/Framework/Attributes/AllowMockObjectsWithoutExpectations.php
+    verified: 2026-09-27
+    desc: "Prefer createStub() for test doubles without expectations: #[AllowMockObjectsWithoutExpectations] exists only from PHPUnit 12.5.2 and has no effect on PHPUnit 11.5"
 
   # === NEGATIVE CHECKS (should NOT exist) ===
 
