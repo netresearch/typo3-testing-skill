@@ -352,10 +352,13 @@ PHP_FUNCTIONAL_OPTS="-d opcache.enable_cli=1"
 #   230-236  the result, normalised by Composer's Filesystem::normalizePath
 #            ("\" to "/", "." and ".." resolved), must start with the composer
 #            root, or web-dir is reset to "public" with a warning
-# It prints web-dir relative to the composer root. Two cases the installer
-# would accept but that point outside the extension (an absolute path below
-# the installer's placeholder root, or a ".." path to a sibling whose name
-# starts with it) and "{$...}" placeholders stop the run instead.
+# It prints web-dir relative to the composer root. The installer checks against
+# a placeholder root, "/fake/root", so it also accepts values that point
+# outside the extension: an absolute path below that placeholder, or a ".."
+# path that climbs out and back in under a name starting with "root"
+# ("../root", "../root/public", "../rootx"). Of the values the installer keeps,
+# any absolute one and any relative one whose segments climb above the composer
+# root at some point stop the run, and so do "{$...}" placeholders.
 # PHP exits 3 for a composer.json it cannot use; any other failure is the
 # container step itself.
 #
@@ -398,8 +401,16 @@ if [[ ${TEST_SUITE} =~ ^functional(Parallel|Coverage)$ ]] || [[ ${TEST_SUITE} ==
             fwrite(STDERR, "Warning: extra.typo3/cms.web-dir is not below the composer root; like typo3/cms-composer-installers, using public\n");
             echo "public"; exit(0);
         }
+        $depth = 0;
+        foreach (explode("/", strtr($v, "\\", "/")) as $p) {
+            if ($p === "..") { $depth--; } elseif ($p !== "." && $p !== "") { $depth++; }
+            if ($depth < 0) { break; }
+        }
+        if ($isAbs || $depth < 0) {
+            fwrite(STDERR, "extra.typo3/cms.web-dir points outside the extension, which runTests.sh does not support\n"); exit(3);
+        }
         if ($n === $base) { echo "."; exit(0); }
-        if ($isAbs || !str_starts_with($n, $base . "/")) {
+        if (!str_starts_with($n, $base . "/")) {
             fwrite(STDERR, "extra.typo3/cms.web-dir points outside the extension, which runTests.sh does not support\n"); exit(3);
         }
         echo substr($n, strlen($base) + 1);
