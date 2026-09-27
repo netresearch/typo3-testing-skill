@@ -490,6 +490,22 @@ This is CI-safe (standard Docker hosts are unaffected) and unblocks local functi
 testing on rootless/WSL2. The `assets/Build/Scripts/runTests.sh` template carries the
 option; copies taken from it before that change still need the edit.
 
+### SQLite tmpfs on a directory the tests never use
+
+The tmpfs only helps when it sits on the directory the testing-framework writes to:
+`<TYPO3_PATH_ROOT>/typo3temp/var/tests/functional-sqlite-dbs/`. For an extension,
+`typo3/cms-composer-installers` sets `TYPO3_PATH_ROOT` to `extra.typo3/cms.web-dir`
+from `composer.json`, and to `public` when that key is absent. Paths are
+case-sensitive, so a `runTests.sh` that mounts `.Build/web` in an extension whose
+`web-dir` is `.Build/Web` mounts an unused directory. The databases then land on the
+bind mount, and the tmpfs, including `mode=1777`, has no effect.
+
+The template therefore reads `web-dir` from `composer.json` with PHP inside the test
+image and mounts the tmpfs on `<web-dir>/typo3temp/var/tests/functional-sqlite-dbs/`
+for `functional` (with `-d sqlite`), `functionalParallel` and `functionalCoverage`.
+To check an older copy, look for a hardcoded web directory in its `--tmpfs` options
+and compare it with `extra.typo3/cms.web-dir`.
+
 ### Root-owned Files
 ```bash
 # Remove root-owned files (requires sudo)

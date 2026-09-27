@@ -270,7 +270,6 @@ ROOT_DIR="${PWD}"
 
 # Create cache directories
 mkdir -p .Build/.cache
-mkdir -p .Build/web/typo3temp/var/tests
 
 IMAGE_PREFIX="docker.io/"
 TYPO3_IMAGE_PREFIX="ghcr.io/typo3/"
@@ -334,6 +333,33 @@ PHP_OPCACHE_OPTS="-d opcache.enable_cli=1 -d opcache.jit=1255 -d opcache.jit_buf
 # below already ran without the JIT. Functional tests are IO-bound, so the
 # JIT buys nothing here anyway.
 PHP_FUNCTIONAL_OPTS="-d opcache.enable_cli=1"
+
+# SQLite functional databases: the testing-framework writes them to
+# <TYPO3_PATH_ROOT>/typo3temp/var/tests/functional-sqlite-dbs/, and
+# typo3/cms-composer-installers sets TYPO3_PATH_ROOT to extra.typo3/cms.web-dir
+# from composer.json, default "public". The tmpfs has to sit on exactly that
+# directory, or the databases land on the bind mount instead. composer.json is
+# parsed by PHP inside the test image, so the host needs no JSON tool.
+if [[ ${TEST_SUITE} =~ ^functional(Parallel|Coverage)$ ]] || [[ ${TEST_SUITE} == "functional" && ${DBMS} == "sqlite" ]]; then
+    # shellcheck disable=SC2016 # the single-quoted $ are PHP variables
+    if ! WEB_DIR=$(${CONTAINER_BIN} run --rm -i "${IMAGE_PHP}" php -r '
+        $c = json_decode(stream_get_contents(STDIN), true);
+        if (!is_array($c)) { fwrite(STDERR, "composer.json is not valid JSON\n"); exit(1); }
+        $d = $c["extra"]["typo3/cms"]["web-dir"] ?? "public";
+        if (!is_string($d)) { fwrite(STDERR, "extra.typo3/cms.web-dir is not a string\n"); exit(1); }
+        $d = preg_replace("#^(\./)+#", "", rtrim($d, "/"));
+        echo $d === "" ? "." : $d;
+    ' < "${ROOT_DIR}/composer.json") || [ -z "${WEB_DIR}" ]; then
+        echo "Could not read extra.typo3/cms.web-dir from ${ROOT_DIR}/composer.json" >&2
+        cleanUp
+        exit 1
+    fi
+    case "${WEB_DIR}" in
+        /*) ;;
+        *) WEB_DIR="${ROOT_DIR}/${WEB_DIR}" ;;
+    esac
+    SQLITE_DB_DIR="${WEB_DIR}/typo3temp/var/tests/functional-sqlite-dbs/"
+fi
 
 # Suite execution
 case ${TEST_SUITE} in
@@ -411,8 +437,8 @@ case ${TEST_SUITE} in
                 SUITE_EXIT_CODE=$?
                 ;;
             sqlite)
-                mkdir -p "${ROOT_DIR}/.Build/web/typo3temp/var/tests/functional-sqlite-dbs/"
-                CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${ROOT_DIR}/.Build/web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid,mode=1777"
+                mkdir -p "${SQLITE_DB_DIR}"
+                CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777"
                 ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} ${IMAGE_PHP} "${COMMAND[@]}"
                 SUITE_EXIT_CODE=$?
                 ;;
@@ -421,7 +447,7 @@ case ${TEST_SUITE} in
     functionalParallel)
         # Parallel functional tests using xargs
         # Each test file runs in isolation with its own SQLite database
-        mkdir -p "${ROOT_DIR}/.Build/web/typo3temp/var/tests/functional-sqlite-dbs/"
+        mkdir -p "${SQLITE_DB_DIR}"
 
         # CI: fixed jobs for predictable resource usage
         # Local: half of available CPUs
@@ -432,15 +458,15 @@ case ${TEST_SUITE} in
         fi
 
         COMMAND="find Tests/Functional -name '*Test.php' | xargs -P${PARALLEL_JOBS} -I{} php ${PHP_FUNCTIONAL_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml {}"
-        CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${ROOT_DIR}/.Build/web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid,mode=1777"
+        CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777"
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-parallel-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
         SUITE_EXIT_CODE=$?
         ;;
     functionalCoverage)
         mkdir -p .Build/coverage
         COMMAND=(php -d opcache.enable_cli=1 .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml --coverage-clover=.Build/coverage/functional.xml --coverage-html=.Build/coverage/html-functional --coverage-text "$@")
-        mkdir -p "${ROOT_DIR}/.Build/web/typo3temp/var/tests/functional-sqlite-dbs/"
-        CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${ROOT_DIR}/.Build/web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid,mode=1777"
+        mkdir -p "${SQLITE_DB_DIR}"
+        CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite --tmpfs ${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777"
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-coverage-${SUFFIX} -e XDEBUG_MODE=coverage ${CONTAINERPARAMS} ${IMAGE_PHP} "${COMMAND[@]}"
         SUITE_EXIT_CODE=$?
         ;;
