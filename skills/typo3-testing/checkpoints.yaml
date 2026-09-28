@@ -738,11 +738,17 @@ mechanical:
   #
   # Spelled `type: script` + `command: |` — the only multi-line shape both the
   # runner and validate-checkpoints.sh accept (see TD-05 in typo3-docs).
+  #
+  # Only files that declare behaviour need a test of their own: interfaces,
+  # abstract classes (tested through their concrete subclasses) and classes or
+  # enums without a single method (constants holders, backed enums) are
+  # skipped. The PHP tokenizer decides, so a docblock mentioning `interface`
+  # does not count.
   - id: TT-120
     type: script
     command: |
       missing=0
-      while IFS= read -r -d '' f; do
+      while IFS= read -r f; do
         base=$(basename "$f" .php)
         rel=${f#Classes/}
         dir=$(dirname "$rel")
@@ -750,10 +756,26 @@ mechanical:
           echo "Missing test for $f"
           missing=$((missing+1))
         fi
-      done < <(find Classes/Service -name '*.php' -not -path '*/.Build/*' -not -path '*/vendor/*' -not -path '*/node_modules/*' -print0 2>/dev/null)
+      done < <(find Classes/Service -name '*.php' -not -path '*/.Build/*' -not -path '*/vendor/*' -not -path '*/node_modules/*' 2>/dev/null | php -r '
+      foreach (array_filter(explode("\n", stream_get_contents(STDIN))) as $f) {
+          $t = array_values(array_filter(token_get_all(file_get_contents($f)), fn($x) => !(is_array($x) && in_array($x[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true))));
+          $kind = null; $abstract = false; $methods = 0;
+          foreach ($t as $i => $x) {
+              if (!is_array($x)) continue;
+              if ($kind === null && in_array($x[0], [T_CLASS, T_INTERFACE, T_TRAIT, T_ENUM], true) && !(is_array($t[$i - 1] ?? null) && $t[$i - 1][0] === T_DOUBLE_COLON)) {
+                  $kind = $x[0];
+                  for ($j = $i - 1; $j >= 0 && is_array($t[$j]) && in_array($t[$j][0], [T_ABSTRACT, T_FINAL, T_READONLY], true); $j--) {
+                      if ($t[$j][0] === T_ABSTRACT) $abstract = true;
+                  }
+              }
+              if ($x[0] === T_FUNCTION) $methods++;
+          }
+          if ($kind === null || $kind === T_INTERFACE || $abstract || $methods === 0) continue;
+          echo $f, "\n";
+      }')
       [ "$missing" -eq 0 ]
     severity: warning
-    desc: "Every class in Classes/Service/ (including subdirectories) should have a corresponding test"
+    desc: "Every class or enum with methods in Classes/Service/ (including subdirectories) should have a corresponding test; interfaces and abstract classes are exempt"
 
   - id: TT-121
     type: script
