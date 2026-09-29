@@ -143,7 +143,7 @@ $mock->method('foo')
 
 PHPUnit 12 shows notices when mocks created with `createMock()` have no configured expectations.
 
-> **WARNING:** `#[AllowMockObjectsWithoutExpectations]` is a PHPUnit 12-only attribute. It does NOT exist in PHPUnit 11 (used on PHP 8.2 CI). Using it causes a fatal error on PHPUnit 11. **Do not use this attribute** in projects that must support PHPUnit 11.
+> **Note:** `#[AllowMockObjectsWithoutExpectations]` exists from PHPUnit 12.5.2 on. PHPUnit 11.5 (used on PHP 8.2 CI) skips it because the class does not exist, so there it has no effect; it is not a fatal error. Prefer `createStub()`.
 
 **Solution: Use `createStub()` instead of `createMock()`** when no expectations are needed:
 
@@ -211,7 +211,7 @@ final class MyTest extends TestCase
 | `#[Group('slow')]` | Test grouping |
 | `#[DataProvider('dataMethod')]` | Data provider |
 | `#[Depends('testFirst')]` | Test dependencies |
-| `#[AllowMockObjectsWithoutExpectations]` | Suppress mock notices (PHPUnit 12 ONLY -- use `createStub()` instead) |
+| `#[AllowMockObjectsWithoutExpectations]` | Suppress mock notices (PHPUnit >= 12.5.2, no effect on 11.5 -- prefer `createStub()`) |
 
 ## Database Credentials for DDEV
 

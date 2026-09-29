@@ -329,11 +329,11 @@ docker run --rm -v "$PWD:/app" -w /app alpine chown -R "$(id -u):$(id -g)" publi
 
 ## PHPUnit Version Compatibility: createMock vs createStub
 
-### AllowMockObjectsWithoutExpectations Is PHPUnit 12 Only
+### AllowMockObjectsWithoutExpectations Needs PHPUnit 12.5.2
 
-The `#[AllowMockObjectsWithoutExpectations]` attribute does NOT exist in PHPUnit 11, which is used in CI for PHP 8.2. Using it causes a fatal error on PHPUnit 11.
+The `#[AllowMockObjectsWithoutExpectations]` attribute exists from PHPUnit 12.5.2 on. PHPUnit 11.5, which PHP 8.2 CI cells run, skips attributes whose class does not exist, so there the attribute has no effect — it is not an error. Measured with PHPUnit 11.5.56: a test class carrying it runs green.
 
-**Never use this attribute** in code that must run on PHPUnit 11 (PHP 8.2 CI environments).
+Prefer `createStub()` over this attribute; checkpoint TT-76 reports the attribute at `info` level.
 
 ### Solution: Use createStub() Instead
 
@@ -341,7 +341,7 @@ When a test double has no configured expectations (no `expects()` calls), use `c
 
 ```php
 // BAD: createMock without expectations triggers PHPUnit notice
-// Adding #[AllowMockObjectsWithoutExpectations] breaks PHPUnit 11
+// #[AllowMockObjectsWithoutExpectations] silences it only on PHPUnit >= 12.5.2
 $dependency = $this->createMock(SomeInterface::class);
 
 // GOOD: createStub() is designed for doubles without expectations
