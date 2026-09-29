@@ -267,7 +267,7 @@ mechanical:
         vd=$(jq -r '.config["vendor-dir"] // "vendor"' composer.json 2>/dev/null) || vd=vendor
         f="${vd:-vendor}/netresearch/typo3-ci-workflows/assets/Build/Scripts/runTests.sh"
         if [ ! -f "$f" ]; then
-          grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
+          jq -e '((.require // {}) + (."require-dev" // {})) | has("netresearch/typo3-ci-workflows")' composer.json >/dev/null 2>&1
           exit $?
         fi
       fi
@@ -284,7 +284,7 @@ mechanical:
         vd=$(jq -r '.config["vendor-dir"] // "vendor"' composer.json 2>/dev/null) || vd=vendor
         f="${vd:-vendor}/netresearch/typo3-ci-workflows/assets/Build/Scripts/runTests.sh"
         if [ ! -f "$f" ]; then
-          grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
+          jq -e '((.require // {}) + (."require-dev" // {})) | has("netresearch/typo3-ci-workflows")' composer.json >/dev/null 2>&1
           exit $?
         fi
       fi
@@ -301,7 +301,7 @@ mechanical:
         vd=$(jq -r '.config["vendor-dir"] // "vendor"' composer.json 2>/dev/null) || vd=vendor
         f="${vd:-vendor}/netresearch/typo3-ci-workflows/assets/Build/Scripts/runTests.sh"
         if [ ! -f "$f" ]; then
-          grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
+          jq -e '((.require // {}) + (."require-dev" // {})) | has("netresearch/typo3-ci-workflows")' composer.json >/dev/null 2>&1
           exit $?
         fi
       fi
@@ -352,7 +352,7 @@ mechanical:
         vd=$(jq -r '.config["vendor-dir"] // "vendor"' composer.json 2>/dev/null) || vd=vendor
         f="${vd:-vendor}/netresearch/typo3-ci-workflows/assets/Build/Scripts/runTests.sh"
         if [ ! -f "$f" ]; then
-          grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
+          jq -e '((.require // {}) + (."require-dev" // {})) | has("netresearch/typo3-ci-workflows")' composer.json >/dev/null 2>&1
           exit $?
         fi
       fi
@@ -400,7 +400,7 @@ mechanical:
         vd=$(jq -r '.config["vendor-dir"] // "vendor"' composer.json 2>/dev/null) || vd=vendor
         f="${vd:-vendor}/netresearch/typo3-ci-workflows/assets/Build/Scripts/runTests.sh"
         if [ ! -f "$f" ]; then
-          grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
+          jq -e '((.require // {}) + (."require-dev" // {})) | has("netresearch/typo3-ci-workflows")' composer.json >/dev/null 2>&1
           exit $?
         fi
       fi
