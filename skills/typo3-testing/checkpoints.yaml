@@ -240,14 +240,18 @@ mechanical:
     desc: "README should display Codecov badge"
 
   # === RUNTESTS.SH SCRIPT (mandatory for all Netresearch TYPO3 extensions) ===
-  # TT-51/52/53/57/59 read the runner that actually runs. The Netresearch
-  # standard Build/Scripts/runTests.sh is a stub (typo3-ci-workflows
-  # assets/Build/Scripts/runTests.stub.sh) that only execs the shared runner
-  # composer links into the bin dir, so grepping the stub measured nothing.
-  # When the stub is detected, the installed shared runner is checked; on a
-  # clean checkout without it, the check passes by delegation as long as
-  # composer.json requires netresearch/typo3-ci-workflows (the package that
-  # ships the runner), and fails when the stub has nothing to hand over to.
+  # TT-51/52/53/57/59 read the shared runner when the extension only carries
+  # the stub. The Netresearch standard Build/Scripts/runTests.sh is a stub
+  # (typo3-ci-workflows assets/Build/Scripts/runTests.stub.sh) that only execs
+  # .Build/bin/runTests.sh, so grepping the stub measured nothing. That bin
+  # file is not the runner either: it is Composer's ~1 KB bin proxy, which
+  # execs the package file. When the stub is detected, the checks read the
+  # package file directly, at <vendor-dir from composer.json, default
+  # "vendor">/netresearch/typo3-ci-workflows/assets/Build/Scripts/runTests.sh.
+  # When that file is absent (a clean checkout), the check passes by
+  # delegation as long as composer.json requires
+  # netresearch/typo3-ci-workflows, and fails when the stub has nothing to
+  # hand over to.
   - id: TT-50
     type: file_exists
     target: Build/Scripts/runTests.sh
@@ -260,11 +264,9 @@ mechanical:
       f=Build/Scripts/runTests.sh
       [ -f "$f" ] || exit 1
       if grep -q 'typo3-ci-workflows' "$f" && grep -qE '^exec[[:blank:]]+"[$][{]?RUNNER[}]?"' "$f"; then
-        f=""
-        for r in .Build/bin/runTests.sh .build/bin/runTests.sh vendor/bin/runTests.sh; do
-          if [ -f "$r" ]; then f="$r"; break; fi
-        done
-        if [ -z "$f" ]; then
+        vd=$(jq -r '.config["vendor-dir"] // "vendor"' composer.json 2>/dev/null) || vd=vendor
+        f="${vd:-vendor}/netresearch/typo3-ci-workflows/assets/Build/Scripts/runTests.sh"
+        if [ ! -f "$f" ]; then
           grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
           exit $?
         fi
@@ -279,11 +281,9 @@ mechanical:
       f=Build/Scripts/runTests.sh
       [ -f "$f" ] || exit 1
       if grep -q 'typo3-ci-workflows' "$f" && grep -qE '^exec[[:blank:]]+"[$][{]?RUNNER[}]?"' "$f"; then
-        f=""
-        for r in .Build/bin/runTests.sh .build/bin/runTests.sh vendor/bin/runTests.sh; do
-          if [ -f "$r" ]; then f="$r"; break; fi
-        done
-        if [ -z "$f" ]; then
+        vd=$(jq -r '.config["vendor-dir"] // "vendor"' composer.json 2>/dev/null) || vd=vendor
+        f="${vd:-vendor}/netresearch/typo3-ci-workflows/assets/Build/Scripts/runTests.sh"
+        if [ ! -f "$f" ]; then
           grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
           exit $?
         fi
@@ -298,11 +298,9 @@ mechanical:
       f=Build/Scripts/runTests.sh
       [ -f "$f" ] || exit 1
       if grep -q 'typo3-ci-workflows' "$f" && grep -qE '^exec[[:blank:]]+"[$][{]?RUNNER[}]?"' "$f"; then
-        f=""
-        for r in .Build/bin/runTests.sh .build/bin/runTests.sh vendor/bin/runTests.sh; do
-          if [ -f "$r" ]; then f="$r"; break; fi
-        done
-        if [ -z "$f" ]; then
+        vd=$(jq -r '.config["vendor-dir"] // "vendor"' composer.json 2>/dev/null) || vd=vendor
+        f="${vd:-vendor}/netresearch/typo3-ci-workflows/assets/Build/Scripts/runTests.sh"
+        if [ ! -f "$f" ]; then
           grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
           exit $?
         fi
@@ -351,11 +349,9 @@ mechanical:
       f=Build/Scripts/runTests.sh
       [ -f "$f" ] || exit 1
       if grep -q 'typo3-ci-workflows' "$f" && grep -qE '^exec[[:blank:]]+"[$][{]?RUNNER[}]?"' "$f"; then
-        f=""
-        for r in .Build/bin/runTests.sh .build/bin/runTests.sh vendor/bin/runTests.sh; do
-          if [ -f "$r" ]; then f="$r"; break; fi
-        done
-        if [ -z "$f" ]; then
+        vd=$(jq -r '.config["vendor-dir"] // "vendor"' composer.json 2>/dev/null) || vd=vendor
+        f="${vd:-vendor}/netresearch/typo3-ci-workflows/assets/Build/Scripts/runTests.sh"
+        if [ ! -f "$f" ]; then
           grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
           exit $?
         fi
@@ -401,11 +397,9 @@ mechanical:
       f=Build/Scripts/runTests.sh
       [ -f "$f" ] || exit 1
       if grep -q 'typo3-ci-workflows' "$f" && grep -qE '^exec[[:blank:]]+"[$][{]?RUNNER[}]?"' "$f"; then
-        f=""
-        for r in .Build/bin/runTests.sh .build/bin/runTests.sh vendor/bin/runTests.sh; do
-          if [ -f "$r" ]; then f="$r"; break; fi
-        done
-        if [ -z "$f" ]; then
+        vd=$(jq -r '.config["vendor-dir"] // "vendor"' composer.json 2>/dev/null) || vd=vendor
+        f="${vd:-vendor}/netresearch/typo3-ci-workflows/assets/Build/Scripts/runTests.sh"
+        if [ ! -f "$f" ]; then
           grep -q '"netresearch/typo3-ci-workflows"' composer.json 2>/dev/null
           exit $?
         fi
@@ -777,8 +771,12 @@ mechanical:
     severity: warning
     desc: "Every class or enum with methods in Classes/Service/ (including subdirectories) should have a corresponding test; interfaces and abstract classes are exempt"
 
-  # Same filter as TT-120: abstract ViewHelper bases and files without a
-  # method are tested through their concrete subclasses.
+  # Abstract ViewHelper bases are exempt: they are tested through their
+  # concrete subclasses. Interfaces, traits and enums are skipped too, since
+  # none of them is a ViewHelper. Unlike TT-120 a concrete class without own
+  # methods is NOT
+  # exempt: `final class FooViewHelper extends AbstractFooViewHelper {}`
+  # inherits render() and is a ViewHelper templates call, so it needs a test.
   - id: TT-121
     type: script
     command: |
@@ -794,7 +792,7 @@ mechanical:
       done < <(find Classes/ViewHelpers -name '*ViewHelper.php' -not -path '*/.Build/*' -not -path '*/vendor/*' -not -path '*/node_modules/*' 2>/dev/null | php -r '
       foreach (array_filter(explode("\n", stream_get_contents(STDIN))) as $f) {
           $t = array_values(array_filter(token_get_all(file_get_contents($f)), fn($x) => !(is_array($x) && in_array($x[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true))));
-          $kind = null; $abstract = false; $methods = 0;
+          $kind = null; $abstract = false;
           foreach ($t as $i => $x) {
               if (!is_array($x)) continue;
               if ($kind === null && in_array($x[0], [T_CLASS, T_INTERFACE, T_TRAIT, T_ENUM], true) && !(is_array($t[$i - 1] ?? null) && $t[$i - 1][0] === T_DOUBLE_COLON)) {
@@ -803,9 +801,8 @@ mechanical:
                       if ($t[$j][0] === T_ABSTRACT) $abstract = true;
                   }
               }
-              if ($x[0] === T_FUNCTION && !(is_array($t[$i - 1] ?? null) && $t[$i - 1][0] === T_USE)) $methods++; // `use function foo;` is an import, not a method
           }
-          if ($kind === null || $kind === T_INTERFACE || $abstract || $methods === 0) continue;
+          if ($kind !== T_CLASS || $abstract) continue;
           echo $f, "\n";
       }')
       [ "$missing" -eq 0 ]
