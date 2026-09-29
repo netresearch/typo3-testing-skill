@@ -776,7 +776,7 @@ mechanical:
   # none of them is a ViewHelper. Unlike TT-120 a concrete class without own
   # methods is NOT
   # exempt: `final class FooViewHelper extends AbstractFooViewHelper {}`
-  # inherits render() and is a ViewHelper templates call, so it needs a test.
+  # inherits render() and is a ViewHelper that templates call, so it needs a test.
   - id: TT-121
     type: script
     command: |
