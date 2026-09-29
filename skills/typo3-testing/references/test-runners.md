@@ -470,24 +470,56 @@ docker ps
 ./Build/Scripts/runTests.sh -s functional -d sqlite
 ```
 
-### SQLite functional tests fail with "unable to open database file" (rootless / WSL2)
+### SQLite functional tests fail with "unable to open database file"
 
-On **rootless Docker** or **WSL2** hosts, the SQLite functional run can fail with
-`unable to open database file` even though the same command works on a standard
-Docker-CE host. Cause: `runTests.sh` mounts the SQLite working directory as a `tmpfs`,
-but the container process runs as a non-root user that has no write permission on the
-default-mode tmpfs.
+The SQLite functional run fails with `unable to open database file` when the tmpfs
+over the SQLite directory is not writable for the container user. `runTests.sh` runs
+the PHP container as the host user (`--user $(id -u)`) and creates the directory on
+the host with `mkdir -p` before the run. A tmpfs mounted over an existing directory
+takes that directory's mode, 0755, and belongs to root, so the host user cannot write
+to it. A tmpfs over a path that does not exist yet comes up as 1777. Measured on
+docker-ce 29.8.1 (not rootless):
 
-Fix: add `,mode=1777` (world-writable, sticky — like `/tmp`) to the SQLite `tmpfs`
-mount option in `Build/Scripts/runTests.sh` (every occurrence):
+| Directory before the run | Mount options | tmpfs | Container user writes |
+|---|---|---|---|
+| created by the host user | `rw,noexec,nosuid` | `755 root` | no |
+| created by the host user | `rw,noexec,nosuid,mode=1777` | `1777 root` | yes |
+| missing | either | `1777 root` | yes, but see below |
+
+Dropping the `mkdir -p` is not a fix: the daemon then creates the missing mount point
+and its parents on the host as root, and the container user can no longer create the
+test instance directories next to it in `typo3temp/var/tests/`.
+
+Fix: keep the `mkdir -p` and add `,mode=1777` (world-writable, sticky, like `/tmp`)
+to every SQLite `--tmpfs` option in `Build/Scripts/runTests.sh`:
 
 ```diff
 - --tmpfs ${CORE_ROOT}/.Build/Web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid
 + --tmpfs ${CORE_ROOT}/.Build/Web/typo3temp/var/tests/functional-sqlite-dbs/:rw,noexec,nosuid,mode=1777
 ```
 
-This is CI-safe (standard Docker hosts are unaffected) and unblocks local functional
-testing on rootless/WSL2.
+The `assets/Build/Scripts/runTests.sh` template carries the option; copies taken from
+it before that change still need the edit.
+
+### SQLite tmpfs on a directory the tests never use
+
+The tmpfs only helps when it sits on the directory the testing-framework writes to:
+`<TYPO3_PATH_ROOT>/typo3temp/var/tests/functional-sqlite-dbs/`. For an extension,
+`typo3/cms-composer-installers` sets `TYPO3_PATH_ROOT` to `extra.typo3/cms.web-dir`
+from `composer.json`, and to `public` when that key is absent. Paths are
+case-sensitive, so a `runTests.sh` that mounts `.Build/web` in an extension whose
+`web-dir` is `.Build/Web` mounts an unused directory. The databases then land on the
+bind mount, and the tmpfs, including `mode=1777`, has no effect.
+
+The template therefore reads `web-dir` from `composer.json` with PHP inside the test
+image and mounts the tmpfs on `<web-dir>/typo3temp/var/tests/functional-sqlite-dbs/`
+for `functional` (with `-d sqlite`), `functionalParallel` and `functionalCoverage`.
+It resolves the value as the installer does: backslashes become slashes, `.` and `..`
+are resolved, `null` means the composer root, and a value outside the composer root is
+reset to `public` with a warning. A value the installer would accept but that still
+points outside the extension stops the run.
+To check an older copy, look for a hardcoded web directory in its `--tmpfs` options
+and compare it with `extra.typo3/cms.web-dir`.
 
 ### Root-owned Files
 ```bash
