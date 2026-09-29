@@ -1011,77 +1011,115 @@ real browser run is still needed, for example a form whose submission depends
 on client-side JavaScript or server-side state.
 
 **Why not curl:** a scripted POST to an EXT:form form has to reproduce
-`__state`, `__trustedProperties`, the honeypot field and every value the
-page's JavaScript fills in. On any mismatch the form framework re-renders the
-page with HTTP 200 and no visible error, so reconstructing the request costs
-more than driving a browser.
+`__state`, `__trustedProperties`, the session cookie (the honeypot field has a
+random name stored in the session) and every value the page's JavaScript fills
+in. A missing `__state` makes the form framework re-render page 1 with HTTP 200
+and no error; a tampered `__state` or `__trustedProperties` throws
+`BadRequestException` (1581862823 / 1581862822), which shows the generic error
+content in production. Reconstructing the request costs more than driving a
+browser when JavaScript fills values.
 
 **Why not `--dump-dom`:** `chrome --headless=new --dump-dom` prints the DOM
-after JavaScript ran, but it cannot interact with the page and the process may
-not exit on its own.
+after JavaScript ran, but it cannot interact with the page, and it does not
+exit if the load event never fires (a hung subresource or body).
 
 **What works:** Node.js >= 22 ships a global `WebSocket`, so the Chrome DevTools
 Protocol needs no dependency. A minimal runner navigates to a URL and evaluates
-one JavaScript expression in the page:
+one or more JavaScript expressions in order, waiting before each one. It picks
+a free debugging port, uses a throwaway profile, and exits non-zero when
+navigation or an expression fails:
 
 ```js
-// cdp-eval.mjs — CHROME=/path/to/chrome node cdp-eval.mjs <url> "<expression>"
+// cdp-eval.mjs — CHROME=/path/to/chrome node cdp-eval.mjs <url> "<expression>" ["<expression>" ...]
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-const [url, expression] = process.argv.slice(2);
-const chrome = spawn(process.env.CHROME ?? 'google-chrome', [
+const [url, ...expressions] = process.argv.slice(2);
+const bin = process.env.CHROME ?? 'google-chrome';
+const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-'));
+const chrome = spawn(bin, [
   '--headless=new', '--disable-gpu', '--ignore-certificate-errors',
-  '--remote-debugging-port=9333', '--user-data-dir=./.cdp-profile', 'about:blank',
+  '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank',
 ], { stdio: 'ignore' });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 try {
-  let version;
-  for (let attempt = 0; attempt < 30 && !version; attempt++) {
-    try { version = await (await fetch('http://127.0.0.1:9333/json/version')).json(); } catch { await sleep(300); }
+  let port;
+  for (let attempt = 0; attempt < 30 && !port; attempt++) {
+    try { port = fs.readFileSync(path.join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch { await sleep(300); }
   }
+  if (!port) throw new Error(`Chrome (${bin}) did not open a DevTools port`);
+  const version = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
   const ws = new WebSocket(version.webSocketDebuggerUrl);
   await new Promise((resolve) => { ws.onopen = resolve; });
   let id = 0;
   const pending = {};
   ws.onmessage = (event) => { const m = JSON.parse(event.data); if (m.id && pending[m.id]) pending[m.id](m); };
-  const send = (method, params = {}, sessionId) => new Promise((resolve) => {
-    const i = ++id; pending[i] = resolve; ws.send(JSON.stringify({ id: i, method, params, sessionId }));
+  const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+    const i = ++id;
+    pending[i] = (m) => (m.error ? reject(new Error(`${method}: ${m.error.message}`)) : resolve(m.result));
+    ws.send(JSON.stringify({ id: i, method, params, sessionId }));
   });
 
-  const { result: { targetId } } = await send('Target.createTarget', { url: 'about:blank' });
-  const { result: { sessionId } } = await send('Target.attachToTarget', { targetId, flatten: true });
+  const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
+  const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
   await send('Page.enable', {}, sessionId);
-  await send('Page.navigate', { url }, sessionId);
-  await sleep(3000); // give the page's own JavaScript time; poll the DOM instead if timing matters
-  const { result } = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }, sessionId);
-  console.log(result.result.value);
+  const nav = await send('Page.navigate', { url }, sessionId);
+  if (nav.errorText) throw new Error(`Navigation to ${url} failed: ${nav.errorText}`);
+  for (const expression of expressions) {
+    await sleep(3000); // give the page's own JavaScript (or a form POST) time; poll the DOM instead if timing matters
+    const { result, exceptionDetails } = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }, sessionId);
+    if (exceptionDetails) throw new Error(exceptionDetails.exception?.description ?? exceptionDetails.text);
+    console.log(result.value);
+  }
+} catch (error) {
+  console.error(error.message);
+  process.exitCode = 1;
 } finally {
   chrome.kill('SIGKILL');
+  fs.rmSync(profile, { recursive: true, force: true });
 }
 ```
 
-Example expression that fills a form and submits it through the page's own
-submit handlers (clicking the button instead of calling `form.requestSubmit()`
-keeps custom listeners in the loop):
+A standard EXT:form submits with a full page load, and that load destroys the
+JavaScript execution context. If the submit and the read happen in one
+expression, CDP fails with `Inspected target navigated or closed` after the POST
+was already sent. Pass a submit expression and a read expression as separate
+arguments; the runner waits before each:
 
 ```js
-(async () => {
+// expression 1: fill and submit; returns before the navigation starts
+(() => {
   const form = document.querySelector('form');
+  // adapt the selector to the form's identifier
   form.querySelector('[name$="[email]"]').value = `tester@${location.hostname}`; // resolves in DDEV, lands in Mailpit
-  form.querySelector('button[type=submit]').click();
-  await new Promise((resolve) => setTimeout(resolve, 5000));
-  return document.body.innerText.slice(0, 300);
+  const submit = [...form.querySelectorAll('button[type=submit]')].at(-1);
+  form.requestSubmit(submit);
 })()
 ```
+
+```js
+// expression 2: runs on the result page
+document.body.innerText.slice(0, 300)
+```
+
+`requestSubmit()` fires the `submit` listeners and runs constraint validation
+like a click; passing the button matters for EXT:form because the navigation
+buttons carry `__currentPage`, which `requestSubmit()` without an argument does
+not send. On page 2 and later of a multi-step form the first `button[type=submit]`
+is the *previous* button, so pick the last one (or the specific button) instead.
 
 Then verify the server side, not the screen: the record the finisher wrote,
 the mail in the mail catcher (Mailpit in DDEV), the log entry. Two TYPO3
 specifics to keep in mind when choosing test data: `MAIL.validators` may
-contain `DNSCheckValidation`, which rejects the reserved domains `example.*`,
-`test`, `invalid` and `localhost` outright; an address on the DDEV hostname
-(`tester@<project>.ddev.site`) resolves and is caught by Mailpit. EXT:form
-honeypot fields must stay empty.
+contain `DNSCheckValidation`, which rejects reserved top-level names (`.test`,
+`.example`, `.invalid`, `.localhost`, `.local`, `.intranet`, `.internal`, ...)
+outright, and `example.com` / `example.org` fail because they publish a null MX
+record; an address on the DDEV hostname (`tester@<project>.ddev.site`)
+resolves via its A record (127.0.0.1, needs public DNS) and is caught by
+Mailpit. EXT:form honeypot fields must stay empty.
 
 ## PHP-Based E2E Testing (Alternative)
 
