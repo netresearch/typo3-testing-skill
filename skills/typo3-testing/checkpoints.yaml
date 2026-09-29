@@ -743,7 +743,7 @@ mechanical:
   # abstract classes (tested through their concrete subclasses) and classes or
   # enums without a single method (constants holders, backed enums) are
   # skipped. The PHP tokenizer decides, so a docblock mentioning `interface`
-  # does not count.
+  # does not count, and neither does a `use function` import.
   - id: TT-120
     type: script
     command: |
@@ -768,7 +768,7 @@ mechanical:
                       if ($t[$j][0] === T_ABSTRACT) $abstract = true;
                   }
               }
-              if ($x[0] === T_FUNCTION) $methods++;
+              if ($x[0] === T_FUNCTION && !(is_array($t[$i - 1] ?? null) && $t[$i - 1][0] === T_USE)) $methods++; // `use function foo;` is an import, not a method
           }
           if ($kind === null || $kind === T_INTERFACE || $abstract || $methods === 0) continue;
           echo $f, "\n";
@@ -803,7 +803,7 @@ mechanical:
                       if ($t[$j][0] === T_ABSTRACT) $abstract = true;
                   }
               }
-              if ($x[0] === T_FUNCTION) $methods++;
+              if ($x[0] === T_FUNCTION && !(is_array($t[$i - 1] ?? null) && $t[$i - 1][0] === T_USE)) $methods++; // `use function foo;` is an import, not a method
           }
           if ($kind === null || $kind === T_INTERFACE || $abstract || $methods === 0) continue;
           echo $f, "\n";
