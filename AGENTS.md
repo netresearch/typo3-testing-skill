@@ -26,15 +26,20 @@ Agent harness for the TYPO3 testing skill repository.
 │   ├── Scripts/                      # Utility scripts
 │   └── hooks/                        # Git hooks (pre-commit, pre-push)
 ├── composer.json                     # Composer package (ai-agent-skill type)
-├── docs/                             # Architecture and planning docs
-│   └── ARCHITECTURE.md
-└── scripts/                          # Harness scripts
-    └── verify-harness.sh
+├── docs/                             # Architecture, security and planning docs
+│   ├── ARCHITECTURE.md
+│   └── SECURITY-ASSURANCE.md
+├── scripts/                          # Harness scripts
+│   └── verify-harness.sh
+└── tests/                            # Behaviour tests for the shipped scripts
+    └── test_scripts.py
 ```
 
 ## Commands
 
 No build system scripts defined in `composer.json`. This is a content-only skill repo.
+
+- `python3 tests/test_scripts.py` -- Behaviour tests for the scripts, hooks and TT-106 (needs `php`); CI runs it in `.github/workflows/tests.yml`
 
 Key skill scripts (run in the target extension root; paths are relative to `skills/typo3-testing/`):
 - `scripts/setup-testing.sh [-a]` -- Initialize testing infrastructure (`-a` adds the Codeception acceptance setup)

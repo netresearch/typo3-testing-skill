@@ -33,6 +33,10 @@ Test cases for validating skill quality and correctness.
 
 Git hooks (pre-commit, pre-push) and utility scripts for repository maintenance.
 
+### Tests (`tests/`)
+
+`test_scripts.py` runs the helper scripts, the Build scripts and hooks, `scripts/verify-harness.sh` and checkpoint TT-106 against layouts built in temporary directories. CI runs it in `.github/workflows/tests.yml`. The security properties of the scripts and their trust boundaries are described in [SECURITY-ASSURANCE.md](SECURITY-ASSURANCE.md).
+
 ## Data Flow
 
 1. Agent loads `SKILL.md` when testing intent is detected
