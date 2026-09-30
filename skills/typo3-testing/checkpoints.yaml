@@ -680,13 +680,25 @@ mechanical:
     severity: warning
     desc: "Infection minMsi should be >= 90% for mature test suites"
 
+  # Printed "consistent" or "mismatch: …" and relied on an `expected:` field the
+  # runner never reads; the runner judges a script by its exit status, and the
+  # final `echo` made that 0 either way, so a mismatch passed. It now exits 1 on
+  # a mismatch. Only a threshold declared in BOTH files can disagree; a missing
+  # file or a file without minMsi is TT-104's and TT-105's concern.
+  #
+  # PCRE-free extraction for the same reason as TT-35 and TT-105.
   - id: TT-106
-    type: command
+    type: script
     command: |
-      MSI1=$(grep -oP '"minMsi":\s*\K[0-9]+' infection.json5 2>/dev/null || echo 0)
-      MSI2=$(grep -oP '"minMsi":\s*\K[0-9]+' infection-full.json5 2>/dev/null || echo $MSI1)
-      [ "$MSI1" = "$MSI2" ] && echo "consistent" || echo "mismatch: $MSI1 vs $MSI2"
-    expected: "^consistent$"
+      [ -f infection.json5 ] && [ -f infection-full.json5 ] || exit 0
+      msi1=$(grep -m1 -oE '"minMsi":[[:space:]]*[0-9]+' infection.json5 2>/dev/null)
+      msi1="${msi1##*[[:space:]:]}"
+      msi2=$(grep -m1 -oE '"minMsi":[[:space:]]*[0-9]+' infection-full.json5 2>/dev/null)
+      msi2="${msi2##*[[:space:]:]}"
+      [ -z "$msi1" ] || [ -z "$msi2" ] && exit 0
+      [ "$msi1" = "$msi2" ] && exit 0
+      echo "FAIL: minMsi is $msi1 in infection.json5 and $msi2 in infection-full.json5"
+      exit 1
     severity: warning
     desc: "All infection config files must use consistent MSI thresholds"
 
