@@ -81,15 +81,17 @@ composer require netresearch/typo3-testing-skill
 Requires [netresearch/composer-agent-skill-plugin](https://github.com/netresearch/composer-agent-skill-plugin).
 ## Quick Start
 
+The paths below assume the clone from [Without a marketplace](#without-a-marketplace). The scripts work on the current directory, so run them from the extension root.
+
 1. **Setup testing infrastructure:**
    ```bash
    cd your-extension
-   ~/.claude/skills/typo3-testing/scripts/setup-testing.sh
+   ~/.claude/skills/typo3-testing/skills/typo3-testing/scripts/setup-testing.sh
    ```
 
 2. **Generate a test:**
    ```bash
-   ~/.claude/skills/typo3-testing/scripts/generate-test.sh unit MyService
+   ~/.claude/skills/typo3-testing/skills/typo3-testing/scripts/generate-test.sh unit MyService
    ```
 
 3. **Run tests:**
@@ -668,8 +670,8 @@ composer ci:tests
 
 ## Documentation
 
-- [SKILL.md](SKILL.md) - Main workflow guide with decision trees
-- [references/](references/) - Detailed testing documentation
+- [SKILL.md](skills/typo3-testing/SKILL.md) - Main workflow guide with decision trees
+- [references/](skills/typo3-testing/references/) - Detailed testing documentation
 - [assets/](skills/typo3-testing/assets/) - PHPUnit configs, AGENTS.md, examples
 
 ## Requirements

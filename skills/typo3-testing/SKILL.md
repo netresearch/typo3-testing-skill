@@ -70,8 +70,8 @@ Netresearch default: `Build/captainhook.json` (declared in composer.json `extra.
 ## Commands
 
 ```bash
-# Setup (from skill dir)
-scripts/setup-testing.sh [--with-e2e]
+# Setup (run in the extension root; paths are relative to this skill)
+scripts/setup-testing.sh [-a]   # -a: Codeception acceptance setup
 scripts/validate-setup.sh
 scripts/generate-test.sh <Type> <Class>
 

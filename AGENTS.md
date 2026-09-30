@@ -9,7 +9,7 @@ Agent harness for the TYPO3 testing skill repository.
 │   ├── SKILL.md                      # Main skill instructions
 │   ├── assets/                       # Template configs (PHPUnit, PHPStan, Rector, etc.)
 │   ├── checkpoints.yaml              # Eval checkpoints
-│   ├── references/                   # Detailed testing docs (21 reference files)
+│   ├── references/                   # Detailed testing docs (34 reference files)
 │   └── scripts/                      # Skill helper scripts
 │       ├── setup-testing.sh          # Initialize test infrastructure
 │       ├── generate-test.sh          # Generate test file scaffolds
@@ -33,8 +33,8 @@ Agent harness for the TYPO3 testing skill repository.
 
 No build system scripts defined in `composer.json`. This is a content-only skill repo.
 
-Key skill scripts (run from skill directory in target extension context):
-- `scripts/setup-testing.sh [--with-e2e]` -- Initialize testing infrastructure
+Key skill scripts (run in the target extension root; paths are relative to `skills/typo3-testing/`):
+- `scripts/setup-testing.sh [-a]` -- Initialize testing infrastructure (`-a` adds the Codeception acceptance setup)
 - `scripts/generate-test.sh <Type> <Class>` -- Generate test file scaffold
 - `scripts/validate-setup.sh` -- Validate existing test setup
 

@@ -12,7 +12,7 @@ The core skill package following the Agent Skills specification:
 
 - **SKILL.md**: Entry point loaded by AI agents. Contains test type selection logic, workflow steps, and scoring requirements.
 - **assets/**: Template files that agents install into target extensions -- PHPUnit configs, PHPStan configs, Rector configs, Makefile, CI workflow templates, Docker configs, and example tests.
-- **references/**: 21 detailed reference documents covering each testing domain (unit, functional, E2E, architecture, mutation, CI/CD, etc.).
+- **references/**: 34 detailed reference documents covering each testing domain (unit, functional, E2E, architecture, mutation, CI/CD, etc.).
 - **scripts/**: Helper scripts for initializing test infrastructure (`setup-testing.sh`), generating test scaffolds (`generate-test.sh`), and validating setups (`validate-setup.sh`).
 - **checkpoints.yaml**: Evaluation checkpoint definitions for skill quality scoring.
 
