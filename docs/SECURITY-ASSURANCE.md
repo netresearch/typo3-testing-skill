@@ -30,7 +30,7 @@ This document states what users of the typo3-testing skill can and cannot expect
 - **Assessment runner**: runs `checkpoints.yaml` in the assessed extension. Its command allowlist (`skills/automated-assessment/scripts/lib/command-allowlist.sh` in that repository) states that it is not a sandbox; it bounds careless checkpoints, not hostile ones.
 - **Maintainers and CI**: change and release this repository.
 
-Boundary 1 lies between the helper scripts and the extension they work on: arguments and `composer.json` are data, checked before they become file names or PHP code. Boundary 2 lies between this repository and the user's machine: releases are built and signed in CI. Running Composer, test tools and `runTests.sh` in the extension does not cross a boundary the user has not already crossed by working on it; the skill adds no isolation to it.
+Boundary 1 lies between the helper scripts and the extension they work on: the class name given to `generate-test.sh` is checked before it becomes a file name or PHP code. The extension's own `composer.json` is trusted as the user's file: the PSR-4 namespace read from it is written into the generated test unchecked. Boundary 2 lies between this repository and the user's machine: releases are built and signed in CI. Running Composer, test tools and `runTests.sh` in the extension does not cross a boundary the user has not already crossed by working on it; the skill adds no isolation to it.
 
 ## Argument per requirement
 
