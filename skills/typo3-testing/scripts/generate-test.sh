@@ -12,7 +12,6 @@ set -e
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Parse arguments
@@ -47,7 +46,6 @@ esac
 
 # Determine paths
 PROJECT_DIR="$(pwd)"
-SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Check if Tests directory exists
 if [ ! -d "${PROJECT_DIR}/Tests" ]; then
@@ -73,6 +71,7 @@ case ${TEST_TYPE} in
 esac
 
 # Extract namespace from composer.json
+# shellcheck disable=SC2016  # PHP code: the $ variables belong to php -r, not to the shell
 NAMESPACE=$(php -r '
     $composer = json_decode(file_get_contents("composer.json"), true);
     foreach ($composer["autoload"]["psr-4"] ?? [] as $ns => $path) {
