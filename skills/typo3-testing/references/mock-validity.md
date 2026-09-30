@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Mock Validity for Multi-Version Dependencies
 
 When extensions support multiple major versions of a dependency (e.g., `"intervention/image": "^3 || ^4"`), test mocks must remain compatible across all supported versions. This reference covers common pitfalls and patterns.

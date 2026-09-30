@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Functional Testing in TYPO3
 
 Functional tests verify components that interact with external systems like databases, using a full TYPO3 instance.

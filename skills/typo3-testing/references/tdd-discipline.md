@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # TDD Discipline
 
 The strict loop used for bug fixes and new features. Prevents "tested and verified" claims that turn out to be wishful thinking.

@@ -1,4 +1,6 @@
 ---
+# SPDX-License-Identifier: CC-BY-SA-4.0
+# SPDX-FileCopyrightText: Netresearch DTT GmbH
 name: "coverage-analyzer"
 description: "Analyze test coverage and suggest missing tests"
 model: "haiku"

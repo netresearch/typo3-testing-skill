@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # SonarCloud for TYPO3 Extensions
 
 > Continuous code quality and security analysis for PHP/TYPO3 projects

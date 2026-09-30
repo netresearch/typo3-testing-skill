@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Test Runners and Orchestration
 
 The `runTests.sh` script is the **required** TYPO3 pattern for test orchestration, following TYPO3 core conventions.

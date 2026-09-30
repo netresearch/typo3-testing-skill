@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # What the DataHandler does not enforce, and what it rewrites in silence
 
 > **Source**: netresearch/t3x-nr-llm [PR 957](https://github.com/netresearch/t3x-nr-llm/pull/957) and [PR 958](https://github.com/netresearch/t3x-nr-llm/pull/958) — agent tools that create records through the DataHandler (2026-09). Line numbers: cms-core / cms-backend 14.3.7 unless stated.

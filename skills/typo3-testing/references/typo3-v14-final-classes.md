@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Testing TYPO3 v14 Final Classes
 
 TYPO3 v14 introduces many `final` and `readonly` classes that cannot be mocked directly. This guide covers patterns to maintain testability.

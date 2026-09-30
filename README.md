@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # TYPO3 Testing Skill
 
 [![Release](https://img.shields.io/github/v/release/netresearch/typo3-testing-skill?sort=semver)](https://github.com/netresearch/typo3-testing-skill/releases)

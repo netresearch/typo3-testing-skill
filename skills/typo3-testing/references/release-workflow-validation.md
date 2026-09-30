@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Release Workflow Validation Before Tagging
 
 Reusable workflows referenced inside `.github/workflows/release.yml` are resolved

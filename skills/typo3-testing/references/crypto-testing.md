@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Cryptographic Testing Patterns
 
 Testing cryptographic code requires specific patterns to ensure security while maintaining testability.

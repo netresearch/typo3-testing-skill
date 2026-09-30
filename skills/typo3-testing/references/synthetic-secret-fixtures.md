@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Synthetic Secret Fixtures in Tests
 
 When writing fuzz or detection tests that must contain fake secrets (to prove the

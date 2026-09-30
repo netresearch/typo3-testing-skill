@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Unit Testing in TYPO3
 
 Unit tests are fast, isolated tests that verify individual components without external dependencies like databases or file systems.

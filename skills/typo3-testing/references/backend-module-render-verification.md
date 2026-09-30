@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Backend Module Render Verification
 
 > Fluid templates escape every static gate — render the actual module before calling it done.
