@@ -62,3 +62,8 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
+        # The templates under assets/ are copied into user extensions and
+        # are linted there; .yamllint.yml skips them for the same reason.
+        # assets/Build/Scripts/runTests.sh fails this hook's default level
+        # (style) and passes the `-S error` level the CI validator uses.
+        exclude: ^skills/typo3-testing/assets/
