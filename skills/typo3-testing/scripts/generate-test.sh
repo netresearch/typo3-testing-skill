@@ -186,6 +186,7 @@ EOF
         # Create fixture file
         FIXTURE_FILE="${PROJECT_DIR}/Tests/Functional/Fixtures/${CLASS_NAME}.csv"
         if [ ! -f "${FIXTURE_FILE}" ]; then
+            mkdir -p "$(dirname "${FIXTURE_FILE}")"
             echo "# Fixture for ${CLASS_NAME}${TEST_SUFFIX}" > "${FIXTURE_FILE}"
             echo -e "${GREEN}✓ Created fixture: ${FIXTURE_FILE}${NC}"
         fi
