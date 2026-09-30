@@ -44,6 +44,15 @@ case ${TEST_TYPE} in
         ;;
 esac
 
+# The class name becomes a file name and a PHP identifier. A path such as
+# Domain/Model/Foo produced a file that does not parse, and ../Foo wrote
+# the file outside Tests/.
+if [[ ! "${CLASS_NAME}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    echo -e "${RED}Error: Invalid class name '${CLASS_NAME}'${NC}"
+    echo "Use the short class name without namespace or path, for example EmailValidator"
+    exit 1
+fi
+
 # Determine paths
 PROJECT_DIR="$(pwd)"
 
