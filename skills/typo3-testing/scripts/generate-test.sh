@@ -120,6 +120,7 @@ declare(strict_types=1);
 
 namespace ${NAMESPACE}\\Tests\\Unit;
 
+use PHPUnit\\Framework\\Attributes\\Test;
 use TYPO3\\TestingFramework\\Core\\Unit\\UnitTestCase;
 use ${NAMESPACE}\\${CLASS_NAME};
 
@@ -136,9 +137,7 @@ final class ${CLASS_NAME}${TEST_SUFFIX} extends UnitTestCase
         \$this->subject = new ${CLASS_NAME}();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function canBeInstantiated(): void
     {
         self::assertInstanceOf(${CLASS_NAME}::class, \$this->subject);
@@ -155,6 +154,7 @@ declare(strict_types=1);
 
 namespace ${NAMESPACE}\\Tests\\Functional;
 
+use PHPUnit\\Framework\\Attributes\\Test;
 use TYPO3\\TestingFramework\\Core\\Functional\\FunctionalTestCase;
 use ${NAMESPACE}\\${CLASS_NAME};
 
@@ -175,9 +175,7 @@ final class ${CLASS_NAME}${TEST_SUFFIX} extends FunctionalTestCase
         \$this->subject = \$this->get(${CLASS_NAME}::class);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function canBeInstantiated(): void
     {
         self::assertInstanceOf(${CLASS_NAME}::class, \$this->subject);
