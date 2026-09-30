@@ -701,6 +701,56 @@ This skill stands on the shoulders of the TYPO3 community's exceptional work. We
 
 - **[TYPO3 Documentation Team](https://typo3.org/community/teams/documentation)** — For the comprehensive testing documentation that guides extension developers toward quality practices.
 
+## Contributing
+
+Changes are proposed as pull requests against `main`. New or changed behaviour of a script, a hook or a script checkpoint needs a test in `tests/test_scripts.py` in the same pull request.
+
+### Tests
+
+`tests/test_scripts.py` holds the behaviour tests. It uses the Python standard library only and needs `python3`, `bash`, `git` and `php` (for `generate-test.sh`):
+
+```bash
+python3 tests/test_scripts.py
+```
+
+What the tests cover:
+
+- `skills/typo3-testing/scripts/setup-testing.sh`: missing `composer.json`, a fresh extension (Composer calls, directories, copied configurations), existing files and dependencies left alone, `-a`, rejected options. `composer` and `vendor/bin/codecept` are stubs that record their arguments.
+- `skills/typo3-testing/scripts/generate-test.sh`: unit, functional and acceptance tests (checked with `php -l`), the fixture file, rejected test types and class names, a missing `Tests/` directory or namespace, no overwrite of an existing test.
+- `skills/typo3-testing/scripts/validate-setup.sh`: errors, warnings and the exit code for an empty, an incomplete and a complete setup, with and without Docker (a stub).
+- Checkpoint TT-106 in `skills/typo3-testing/checkpoints.yaml`, run as the assessment runner runs it, and a guard that no checkpoint uses the `expected:` field, which the runner does not read.
+- `Build/Scripts/validate-skill.sh` through the `Build/hooks/pre-commit` hook, `Build/Scripts/check-plugin-version.sh` through the `Build/hooks/pre-push` hook, and `scripts/verify-harness.sh`.
+
+The templates under `skills/typo3-testing/assets/` have no tests here; they run in the extensions they are copied into.
+
+A passing run prints a dot per test and ends with `OK` and exit code 0. A failure prints `FAIL:` or `ERROR:` with the test class and name and the assertion that failed (most assertions add the script's output), and the exit code is 1. CI runs the same file in the Skill Tests workflow (`.github/workflows/tests.yml`) on every pull request and every push to `main`.
+
+### Dependencies
+
+- **Skill**: the instructions and references have no runtime dependency. The helper scripts need Bash and GNU `grep`; `setup-testing.sh` calls `composer`, `generate-test.sh` calls `php`, and `validate-setup.sh` looks for `docker`. The templates under `skills/typo3-testing/assets/` declare the packages they need (for example `assets/Build/playwright/package.json`); those are installed in the user's extension, not here.
+- **Composer**: `composer.json` requires `netresearch/composer-agent-skill-plugin` for installation through Composer. No `composer.lock` is committed; `Build/Scripts/validate-skill.sh` fails when one exists.
+- **Development and CI tools**: pre-commit hooks are pinned by `rev:` in `.pre-commit-config.yaml`. CI tools come from the shared workflows in `netresearch/.github`, `netresearch/skill-repo-skill` and `netresearch/typo3-ci-workflows`, which this repository calls at `@main` and which pin every action by commit SHA.
+- **Updates**: Renovate (`renovate.json`, `config:recommended` with the `pre-commit` manager enabled) opens update pull requests. For pull requests opened by Renovate or Dependabot, `auto-merge-deps.yml` approves them and enables auto-merge through the shared workflow, unless they carry the label `deps-major` or `deps-no-automerge`.
+- **Checks**: dependency review and Composer Audit (see below) check dependency changes. New dependencies follow the licence and vulnerability rules of the organisation's [handling of dependency and code analysis findings](https://github.com/netresearch/.github/blob/main/SECURITY.md#handling-of-dependency-and-code-analysis-findings).
+
+## Governance and policies
+
+This repository follows the Netresearch organisation policies:
+
+- [Governance](https://github.com/netresearch/.github/blob/main/GOVERNANCE.md): ownership, roles, and how decisions are made and disputes resolved.
+- [Roadmap](https://github.com/netresearch/.github/blob/main/ROADMAP.md): planned and explicitly excluded work for the coming year.
+- [Handling of dependency and code analysis findings](https://github.com/netresearch/.github/blob/main/SECURITY.md#handling-of-dependency-and-code-analysis-findings): thresholds, deadlines and the exception process for dependency (SCA) and static analysis (SAST) findings.
+- [Secret management](https://github.com/netresearch/.github/blob/main/SECURITY.md#secret-management): how CI and release credentials are stored, accessed and rotated. The workflows here reference two secrets, `PROJECT_APP_ID` and `PROJECT_APP_PRIVATE_KEY`, and pass them only to the auto-merge workflow; releases sign through OIDC (`id-token: write`) without a stored key.
+- [Access roster](https://github.com/netresearch/.github/blob/main/docs/access-roster.md): who holds administrative access to this repository and the organisation.
+
+The security assurance case for this skill (threat model, trust boundaries, countermeasures and limits) is in [docs/SECURITY-ASSURANCE.md](docs/SECURITY-ASSURANCE.md); components and data flow are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+Checks that run on pull requests in this repository:
+
+- Every pull request: Skill Validation (`lint.yml`: skill structure, manifest sync, markdownlint, yamllint, actionlint, JSON syntax, ShellCheck at severity `error`, Ruff, checkpoint schema), Eval Validation (`eval-validate.yml`) and Skill Tests (`tests.yml`: `tests/test_scripts.py`).
+- Pull requests to `main`: `security.yml` with Betterleaks (secret scanning), zizmor (workflow static analysis), dependency review (fails on vulnerabilities of severity high or above), Composer Audit and Opengrep SAST (`--config auto`, fails on findings of severity WARNING or above); Harness Verification (`harness-verify.yml`) and Template Drift (`check-template-drift.yml`); CodeQL through GitHub's default setup.
+- Secret detection: Betterleaks in `security.yml` on pull requests to `main` and pushes to `main`, using the allowlist in `.gitleaks.toml`, and GitHub secret scanning with push protection, which is enabled for this repository.
+
 ## License
 
 This project uses split licensing:
