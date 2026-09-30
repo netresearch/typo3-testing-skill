@@ -29,7 +29,7 @@ if [ -z "${TEST_TYPE}" ] || [ -z "${CLASS_NAME}" ]; then
     echo "Example:"
     echo "  $0 unit EmailValidator"
     echo "  $0 functional ProductRepository"
-    echo "  $0 acceptance LoginCest"
+    echo "  $0 acceptance Login"
     exit 1
 fi
 
