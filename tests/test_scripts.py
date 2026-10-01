@@ -7,13 +7,15 @@ Covered:
 
 - skills/typo3-testing/scripts/setup-testing.sh, generate-test.sh and
   validate-setup.sh, run against a small TYPO3 extension layout;
-- the TT-105 and TT-106 script checkpoints in skills/typo3-testing/checkpoints.yaml;
+- the TT-105 and TT-106 script checkpoints in skills/typo3-testing/checkpoints.yaml,
+  and a guard that no checkpoint uses the `expected:` field;
 - Build/Scripts/validate-skill.sh with the Build/hooks/pre-commit hook that
   calls it, Build/Scripts/check-plugin-version.sh with the Build/hooks/pre-push
   hook that calls it, and scripts/verify-harness.sh.
 
-Each test builds its input in a temporary directory, runs one script as a
-subprocess and checks its exit code, its output and the files it wrote.
+The script tests build their input in a temporary directory, run the script as
+a subprocess and check its exit code, its output and the files it wrote; the
+`expected:` guard reads checkpoints.yaml directly.
 `composer`, `vendor/bin/codecept` and `docker` are replaced by stubs that
 record their arguments, so no test installs packages or talks to a daemon.
 generate-test.sh reads composer.json with `php -r`, so these tests need `php`
