@@ -17,7 +17,7 @@ This document states what users of the typo3-testing skill can and cannot expect
 
 ## Security requirements
 
-1. The helper scripts change only the extension in the current directory: through Composer, and by adding files below it. A symbolic link inside the extension takes the files written through it to where it points (see "Symbolic links" below). They never replace an existing file with a template or a generated test.
+1. The helper scripts' own writes go into the extension in the current directory: they add files below it and run Composer there. Writes leave it in three ways: a symbolic link inside the extension takes the files written through it to where it points; Composer writes its cache and configuration in the user's home; and the code Composer and Codeception run can write anywhere (see "Symbolic links" and "Code run in the extension" below). The scripts never replace an existing file with a template or a generated test.
 2. The checkpoints read the assessed extension and write nothing.
 3. The skill and its releases are delivered unmodified from this repository.
 4. Changes to `main` are proposed as pull requests, on which the checks listed in [README.md](../README.md#governance-and-policies) run. Branch protection of `main` requires a subset of them and does not bind administrators.
@@ -34,7 +34,7 @@ Boundary 1 lies between the helper scripts and the extension they work on: the c
 
 ## Argument per requirement
 
-### 1. The helper scripts stay inside the extension and keep existing files
+### 1. The helper scripts write below the extension and keep existing files
 
 - All three scripts take the extension from `$(pwd)` (`PROJECT_DIR`) and build every path they write below it.
 - `setup-testing.sh` accepts only `-a` (`getopts ":a"`; anything else prints the usage and exits 1) and exits 1 when `composer.json` is missing. It creates directories with `mkdir -p` and copies each template only when the target does not exist (`[ ! -f ... ]`); it prints the suggested `composer.json` scripts instead of editing the file.
