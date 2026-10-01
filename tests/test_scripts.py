@@ -7,7 +7,7 @@ Covered:
 
 - skills/typo3-testing/scripts/setup-testing.sh, generate-test.sh and
   validate-setup.sh, run against a small TYPO3 extension layout;
-- the TT-106 script checkpoint in skills/typo3-testing/checkpoints.yaml;
+- the TT-105 and TT-106 script checkpoints in skills/typo3-testing/checkpoints.yaml;
 - Build/Scripts/validate-skill.sh with the Build/hooks/pre-commit hook that
   calls it, Build/Scripts/check-plugin-version.sh with the Build/hooks/pre-push
   hook that calls it, and scripts/verify-harness.sh.
