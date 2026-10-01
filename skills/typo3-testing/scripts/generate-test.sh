@@ -112,6 +112,16 @@ mkdir -p "$(dirname "${TEST_FILE}")"
 
 echo -e "${GREEN}Generating ${TEST_TYPE} test for ${CLASS_NAME}...${NC}"
 
+# The generated test imports the subject class and PHPUnit's Test attribute.
+# PHP class names are case-insensitive, so a subject named Test would clash
+# with the attribute import; alias the attribute in that case.
+TEST_ATTRIBUTE="Test"
+TEST_ATTRIBUTE_IMPORT="PHPUnit\\Framework\\Attributes\\Test"
+if [ "$(printf '%s' "${CLASS_NAME}" | tr '[:upper:]' '[:lower:]')" = "test" ]; then
+    TEST_ATTRIBUTE="TestAttribute"
+    TEST_ATTRIBUTE_IMPORT="PHPUnit\\Framework\\Attributes\\Test as TestAttribute"
+fi
+
 # Generate test class based on type
 case ${TEST_TYPE} in
     unit)
@@ -122,7 +132,7 @@ declare(strict_types=1);
 
 namespace ${NAMESPACE}\\Tests\\Unit;
 
-use PHPUnit\\Framework\\Attributes\\Test;
+use ${TEST_ATTRIBUTE_IMPORT};
 use TYPO3\\TestingFramework\\Core\\Unit\\UnitTestCase;
 use ${NAMESPACE}\\${CLASS_NAME};
 
@@ -139,7 +149,7 @@ final class ${CLASS_NAME}${TEST_SUFFIX} extends UnitTestCase
         \$this->subject = new ${CLASS_NAME}();
     }
 
-    #[Test]
+    #[${TEST_ATTRIBUTE}]
     public function canBeInstantiated(): void
     {
         self::assertInstanceOf(${CLASS_NAME}::class, \$this->subject);
@@ -156,7 +166,7 @@ declare(strict_types=1);
 
 namespace ${NAMESPACE}\\Tests\\Functional;
 
-use PHPUnit\\Framework\\Attributes\\Test;
+use ${TEST_ATTRIBUTE_IMPORT};
 use TYPO3\\TestingFramework\\Core\\Functional\\FunctionalTestCase;
 use ${NAMESPACE}\\${CLASS_NAME};
 
@@ -177,7 +187,7 @@ final class ${CLASS_NAME}${TEST_SUFFIX} extends FunctionalTestCase
         \$this->subject = \$this->get(${CLASS_NAME}::class);
     }
 
-    #[Test]
+    #[${TEST_ATTRIBUTE}]
     public function canBeInstantiated(): void
     {
         self::assertInstanceOf(${CLASS_NAME}::class, \$this->subject);

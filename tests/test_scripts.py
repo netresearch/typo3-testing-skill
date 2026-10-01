@@ -318,6 +318,22 @@ class GenerateTestTest(TempDirTestCase):
             fixture.read_text(encoding="utf-8"), "# Fixture for ProductRepositoryTest\n"
         )
 
+    def test_a_subject_named_test_does_not_clash_with_the_attribute(self) -> None:
+        # PHP class names are case-insensitive: `use ...\\Attributes\\Test;` and
+        # `use Vendor\\Ext\\Test;` in one file is a compile error.
+        for kind, name in (("unit", "Test"), ("functional", "test")):
+            with self.subTest(kind=kind, name=name):
+                result = self.generate(kind, name)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                path = self.project / "Tests" / kind.capitalize() / f"{name}Test.php"
+                content = path.read_text(encoding="utf-8")
+                self.assertIn(
+                    "use PHPUnit\\Framework\\Attributes\\Test as TestAttribute;",
+                    content,
+                )
+                self.assertIn("    #[TestAttribute]\n", content)
+                self.assert_php_parses(path)
+
     def test_acceptance_test(self) -> None:
         result = self.generate("acceptance", "Login")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
