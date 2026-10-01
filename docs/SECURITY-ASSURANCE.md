@@ -20,7 +20,7 @@ This document states what users of the typo3-testing skill can and cannot expect
 1. The helper scripts change only the extension in the current directory: through Composer, and by adding files below it. They never replace an existing file with a template or a generated test.
 2. The checkpoints read the assessed extension and write nothing.
 3. The skill and its releases are delivered unmodified from this repository.
-4. Changes reach `main` only through the checks listed in [README.md](../README.md#governance-and-policies).
+4. Changes to `main` are proposed as pull requests, on which the checks listed in [README.md](../README.md#governance-and-policies) run. Branch protection of `main` requires a subset of them and does not bind administrators.
 
 ## Actors and trust boundaries
 
@@ -44,7 +44,7 @@ Boundary 1 lies between the helper scripts and the extension they work on: the c
 
 ### 2. The checkpoints only read
 
-- The `command` and `script` checkpoints in `checkpoints.yaml` use `test`, `grep`, `find`, `jq`, `wc` and, in TT-120 and TT-121, `php -r` with `token_get_all()` over PHP files under `Classes/`, which tokenises the file without executing it. Their only output redirections go to `/dev/null`.
+- The `command` and `script` checkpoints in `checkpoints.yaml` use read-only tools (`test`, `grep`, `find`, `jq`, `wc`, `xargs`, `printf`, `basename`, `dirname`, `echo`) and, in TT-120 and TT-121, `php -r` with `token_get_all()` over PHP files under `Classes/`, which tokenises the file without executing it. Their only output redirections go to `/dev/null`.
 - The file passes the runner's own `validate-checkpoints.sh` (allowlist and schema) and the checkpoint schema step of the shared Skill Validation job.
 
 ### 3. Delivered content is the reviewed content
@@ -53,7 +53,7 @@ Boundary 1 lies between the helper scripts and the extension they work on: the c
 - `Build/hooks/pre-push` (enabled by `.envrc` through `core.hooksPath`) runs `Build/Scripts/check-plugin-version.sh`, which refuses a push where a semver tag at `HEAD` disagrees with the version in `.claude-plugin/plugin.json`. The shared Skill Validation job checks that `plugin.json` and `.claude-plugin/plugin.json` agree.
 - `.github/workflows/scorecard.yml` runs OpenSSF Scorecard on `main` and weekly.
 
-### 4. Changes pass automated checks
+### 4. Pull requests run automated checks
 
 Every workflow declares `permissions: {}` at the top and grants each job only what its reusable workflow needs. The three workflows that run on `pull_request_target` (`auto-merge-deps.yml`, `labeler.yml`, `pr-quality.yml`) call shared workflows and pass no `secrets: inherit`; `auto-merge-deps.yml` passes only the two merge-app secrets, and `pr-quality.yml` states in its header that no checkout of the pull request head may be added. The checks themselves are listed in [README.md](../README.md#governance-and-policies).
 
@@ -66,7 +66,7 @@ Every workflow declares `permissions: {}` at the top and grants each job only wh
 | CWE-78 OS command injection | Script arguments | No argument is passed to `eval` or built into a command string; `setup-testing.sh` takes no value arguments. |
 | CWE-73 overwriting user files | Templates and generated tests | Every template copy and every generated file in the helper scripts is guarded by an existence check. `composer.json` changes only through `composer require`. |
 | CWE-1104 unmaintained third-party components | Development and CI tools | Pre-commit hooks are pinned by `rev:` in `.pre-commit-config.yaml` and updated by Renovate (`renovate.json`, `pre-commit` manager enabled); the shared workflows pin actions by commit SHA. |
-| CWE-798 secret exposure | Commits | Betterleaks scans pull requests to `main` and pushes to `main` (`security.yml`); `.gitleaks.toml` allowlists one documented fake Stripe key in `references/synthetic-secret-fixtures.md`. GitHub secret scanning with push protection is enabled for the repository. No script reads or stores credentials. |
+| CWE-798 secret exposure | Commits | Betterleaks scans pull requests to `main` and pushes to `main` (`security.yml`); `.gitleaks.toml` keeps the default rule set and allowlists the file `references/synthetic-secret-fixtures.md`, which documents fake secrets, and one fake Stripe key. GitHub secret scanning with push protection is enabled for the repository. No script reads or stores credentials. |
 
 ## What the skill does not protect against
 
