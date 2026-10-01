@@ -126,7 +126,13 @@ $conn->executeStatement("INSERT INTO … VALUES (…)"); // not $conn->insert():
 var_dump((new \Vendor\Ext\Api\Subject('key'))->methodUnderTest());
 ```
 
-Run it per driver in a `php:<version>-cli` container with `docker-php-ext-install mysqli pdo_mysql` against a throwaway MariaDB, once with the old class (`require` a `git show <base>:<file>` copy before the autoloader can load the new one) and once with the new. A table of key × driver × old/new is the evidence the single-driver suite cannot give.
+Run it per driver in a `php:<version>-cli` container, once with the old class (`require` a `git show <base>:<file>` copy before the autoloader can load the new one) and once with the new. A table of key × driver × old/new is the evidence the single-driver suite cannot give. What each driver needs in that image:
+
+| Driver | Extension | Database |
+|---|---|---|
+| `mysqli`, `pdo_mysql` | `docker-php-ext-install mysqli pdo_mysql` | a throwaway `mariadb` container on the same network |
+| `pdo_sqlite` | built into the official image | none — `'path' => '/tmp/x.sqlite'` |
+| `pdo_pgsql` | `apt-get install -y libpq-dev && docker-php-ext-install pdo_pgsql` | a throwaway `postgres` container |
 
 ## Database Fixtures
 
