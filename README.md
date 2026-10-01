@@ -748,7 +748,7 @@ The security assurance case for this skill (threat model, trust boundaries, coun
 Checks that run on pull requests in this repository:
 
 - Every pull request: Skill Validation (`lint.yml`: skill structure, manifest sync, markdownlint, yamllint, actionlint, JSON syntax, ShellCheck at severity `error`, Ruff, checkpoint schema), Eval Validation (`eval-validate.yml`) and Skill Tests (`tests.yml`: `tests/test_scripts.py`).
-- Pull requests to `main`: `security.yml` with Betterleaks (secret scanning), zizmor (workflow static analysis), dependency review (fails on vulnerabilities of severity high or above), Composer Audit and Opengrep SAST (`--config auto`, fails on findings of severity WARNING or above); Harness Verification (`harness-verify.yml`) and Template Drift (`check-template-drift.yml`); CodeQL through GitHub's default setup (Actions and JavaScript/TypeScript, extended query suite).
+- Pull requests to `main`: `security.yml` with Betterleaks (secret scanning), zizmor (workflow static analysis), dependency review (fails on vulnerabilities of severity high or above), Composer Audit and Opengrep SAST (`--config auto`; which findings fail the check is set by the [organisation rule](https://github.com/netresearch/.github/blob/main/SECURITY.md#static-analysis-sast)); Harness Verification (`harness-verify.yml`) and Template Drift (`check-template-drift.yml`); CodeQL through GitHub's default setup (Actions and JavaScript/TypeScript, extended query suite).
 - Secret detection: Betterleaks in `security.yml` on pull requests to `main` and pushes to `main`, using the allowlist in `.gitleaks.toml`, and GitHub secret scanning with push protection, which is enabled for this repository.
 
 ## License
