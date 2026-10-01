@@ -17,7 +17,7 @@ This document states what users of the typo3-testing skill can and cannot expect
 
 ## Security requirements
 
-1. The helper scripts change only the extension in the current directory: through Composer, and by adding files below it. They never replace an existing file with a template or a generated test.
+1. The helper scripts change only the extension in the current directory: through Composer, and by adding files below it. A symbolic link inside the extension takes the files written through it to where it points (see "Symbolic links" below). They never replace an existing file with a template or a generated test.
 2. The checkpoints read the assessed extension and write nothing.
 3. The skill and its releases are delivered unmodified from this repository.
 4. Changes to `main` are proposed as pull requests, on which the checks listed in [README.md](../README.md#governance-and-policies) run. Branch protection of `main` requires a subset of them and does not bind administrators.
