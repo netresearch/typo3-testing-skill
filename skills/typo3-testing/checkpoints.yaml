@@ -671,7 +671,7 @@ mechanical:
     type: script
     command: |
       [ -f infection.json5 ] || exit 0
-      msi=$(grep -m1 -oE '"minMsi":[[:space:]]*[0-9]+' infection.json5 2>/dev/null)
+      msi=$(grep -m1 -oE '"minMsi"[[:space:]]*:[[:space:]]*[0-9]+' infection.json5 2>/dev/null)
       msi="${msi##*[[:space:]:]}"
       if [ -z "$msi" ]; then
         echo "FAIL: infection.json5 declares no minMsi"
@@ -690,13 +690,15 @@ mechanical:
   # file or a file without minMsi is TT-104's and TT-105's concern.
   #
   # PCRE-free extraction for the same reason as TT-35 and TT-105.
+  # JSON5 allows whitespace before the colon (`"minMsi" : 90`); the
+  # patterns accept it, as TT-105's does.
   - id: TT-106
     type: script
     command: |
       [ -f infection.json5 ] && [ -f infection-full.json5 ] || exit 0
-      msi1=$(grep -m1 -oE '"minMsi":[[:space:]]*[0-9]+' infection.json5 2>/dev/null)
+      msi1=$(grep -m1 -oE '"minMsi"[[:space:]]*:[[:space:]]*[0-9]+' infection.json5 2>/dev/null)
       msi1="${msi1##*[[:space:]:]}"
-      msi2=$(grep -m1 -oE '"minMsi":[[:space:]]*[0-9]+' infection-full.json5 2>/dev/null)
+      msi2=$(grep -m1 -oE '"minMsi"[[:space:]]*:[[:space:]]*[0-9]+' infection-full.json5 2>/dev/null)
       msi2="${msi2##*[[:space:]:]}"
       [ -z "$msi1" ] || [ -z "$msi2" ] && exit 0
       [ "$msi1" = "$msi2" ] && exit 0

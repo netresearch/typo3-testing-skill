@@ -427,6 +427,14 @@ class CheckpointTT106Test(TempDirTestCase):
             result.stdout,
         )
 
+    def test_whitespace_before_the_colon_is_read(self) -> None:
+        # JSON5 allows whitespace between a key and its colon.
+        write(self.project / "infection.json5", '{\n    "minMsi" : 70,\n}\n')
+        self.config("infection-full.json5", 90)
+        result = self.check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("minMsi is 70 in infection.json5", result.stdout)
+
     def test_equal_thresholds_pass(self) -> None:
         self.config("infection.json5", 85)
         self.config("infection-full.json5", 85)
