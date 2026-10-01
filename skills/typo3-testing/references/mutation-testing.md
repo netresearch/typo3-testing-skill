@@ -255,7 +255,7 @@ Since Infection 0.31 code that no test covers is not mutated at all unless the r
 nodes inside a tested file are dropped as well. With no uncovered mutants left in the
 denominator, the reported MSI **is** the Covered Code MSI. Both thresholds then compare
 against the same number, the higher one binds, and with the usual pair (`minMsi` below
-`minCoveredMsi`) `minMsi` never fails a run.
+`minCoveredMsi`) `minMsi` never fails a run that `minCoveredMsi` would pass.
 
 The two keys only come apart with the flag. Measured on one TYPO3 extension with Infection
 0.35.5 and an unchanged config: the default run generated 2171 mutants; with

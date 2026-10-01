@@ -637,7 +637,7 @@
         }
       ],
       "samples": {
-        "passing": "Since Infection 0.31 uncovered code is not mutated unless you pass --with-uncovered, so your MSI equals the Covered MSI and minMsi 60 never fails a run. Drop minMsi and keep minCoveredMsi 80 as the gate. Replace the six subdirectories with the whole Classes root so the scope follows the tests.",
+        "passing": "Since Infection 0.31 uncovered code is not mutated unless you pass --with-uncovered, so your MSI equals the Covered MSI and minMsi 60 never fails a run that minCoveredMsi 80 would pass. Drop minMsi and keep minCoveredMsi 80 as the gate. Replace the six subdirectories with the whole Classes root so the scope follows the tests.",
         "failing": [
           "Raise minMsi to 70 and minCoveredMsi to 85, and keep the six subdirectories so the run stays fast.",
           "Your config is fine. minMsi gates all code and minCoveredMsi gates covered code, so keep both."
