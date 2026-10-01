@@ -3,6 +3,11 @@
 
 title = "Gitleaks configuration for typo3-testing-skill"
 
+# Keep the default rule set: a configuration without [extend] replaces it,
+# and this file defines no rules of its own.
+[extend]
+useDefault = true
+
 [allowlist]
   description = "Reference documentation intentionally documents fake secret patterns for educational purposes"
   paths = [
