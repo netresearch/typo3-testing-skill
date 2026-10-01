@@ -154,8 +154,22 @@ PHP mutation testing framework with PHPUnit integration.
 
 **Installation:**
 ```bash
-composer require --dev infection/infection:^0.27
+# The extension supports PHP 8.3 and later
+composer require --dev "infection/infection:^0.35"
+
+# The extension still supports PHP 8.2
+composer require --dev "infection/infection:^0.32 || ^0.35"
 ```
+
+0.32.0 is the floor. Before it Infection accepts only `webmozart/assert ^1`, and in a TYPO3
+project that can downgrade a runtime dependency: TYPO3 reaches `webmozart/assert` through
+`phpdocumentor/reflection-docblock`, which accepts `^1.9.1 || ^2`, so Composer resolves 1.x to
+satisfy the older Infection. 0.32.0 and later accept `^1.11 || ^2.0`. From 0.33.0 on Infection
+requires PHP 8.3, so `^0.35` alone cannot be installed on PHP 8.2; with the second constraint
+Composer resolves 0.32.x on PHP 8.2 and 0.35.x on 8.3 and later. Every option this reference
+uses exists in both lines. Through `netresearch/typo3-ci-workflows` the constraint is wider
+(`>=0.29 <1.0`), so run `composer show infection/infection` -- the resolved version decides
+which options exist (`--only-covered` before 0.31, `--with-uncovered` from 0.31 on).
 
 **Key features:**
 - Mutates PHP code with various operators
@@ -228,12 +242,39 @@ Create `infection.json5` in project root.
         "TrueValue": false,
         "FalseValue": false
     },
-    "minMsi": 60,           // Minimum Mutation Score Indicator
-    "minCoveredMsi": 80,    // Minimum MSI for covered code only
+    "minCoveredMsi": 80,    // The gate: MSI over code the tests cover
     "testFramework": "phpunit",
     "testFrameworkOptions": "-c Build/phpunit/UnitTests.xml"
 }
 ```
+
+### Which Threshold Gates: `minCoveredMsi`, Not `minMsi`
+
+Since Infection 0.31 code that no test covers is not mutated at all unless the run passes
+`--with-uncovered`: untested files are skipped when mutations are generated, and untested
+nodes inside a tested file are dropped as well. With no uncovered mutants left in the
+denominator, the reported MSI **is** the Covered Code MSI. Both thresholds then compare
+against the same number, the higher one binds, and with the usual pair (`minMsi` below
+`minCoveredMsi`) `minMsi` never fails a run that `minCoveredMsi` would pass.
+
+The two keys only come apart with the flag. Measured on one TYPO3 extension with Infection
+0.35.5 and an unchanged config: the default run generated 2171 mutants; with
+`--with-uncovered` it generated 5002, reported a mutation code coverage of 43 % and an MSI of
+34 %. A `minMsi` tuned on the default run means something else entirely once the flag is added,
+while `minCoveredMsi` means the same in both. So pick one of two shapes:
+
+- **Default run (recommended):** gate on `minCoveredMsi` and leave `minMsi` out -- it is
+  redundant here, and a reader takes a declared threshold for a gate.
+- **`--with-uncovered` run:** set `minMsi` as well, as the gate on the share of all code whose
+  mutants are killed, and expect it far below `minCoveredMsi`.
+
+**Point `source.directories` at the extension's `Classes` root(s).** Because uncovered code
+produces no mutants, listing the whole root costs nothing and the scope follows the tests as
+they grow. A hand-picked list of subdirectories falls behind: in the run above it had missed
+five directories that had gained tests since the list was written. One limit to know: a
+directory excluded from coverage in the PHPUnit config's `<source>` element produces no
+mutants either, even when it is listed here -- Infection reads coverage, and that code has
+none.
 
 ## Mutation Operators
 
@@ -302,7 +343,7 @@ $this->save($entity);
             ".Build/bin/infection --threads=4"
         ],
         "ci:test:mutation:quick": [
-            ".Build/bin/infection --threads=4 --only-covered --min-msi=60"
+            ".Build/bin/infection --threads=4 --min-covered-msi=80"
         ]
     }
 }
@@ -327,11 +368,11 @@ mutation)
 ### Directly
 
 ```bash
-# Full mutation test run
+# Default run: mutates only code the tests cover (Infection 0.31+)
 .Build/bin/infection --threads=4
 
-# Quick run (only test covered code)
-.Build/bin/infection --threads=4 --only-covered
+# Also mutate uncovered code (needed for a meaningful minMsi)
+.Build/bin/infection --threads=4 --with-uncovered
 
 # With existing coverage
 .Build/bin/infection --threads=4 --coverage=.Build/logs/coverage-xml
@@ -343,6 +384,9 @@ mutation)
 ## Interpreting Results
 
 ### Mutation Score Indicator (MSI)
+
+Output of a `--with-uncovered` run. Without the flag the uncovered count is 0 and MSI equals
+Covered MSI (see [Which Threshold Gates](#which-threshold-gates-mincoveredmsi-not-minmsi)).
 
 ```
 Mutations:       150 total
@@ -362,7 +406,7 @@ Covered MSI: 86%              ← MSI for covered code only
 | **Killed** | Test failed when mutant introduced | Good - test is effective |
 | **Escaped** | Test passed with mutant | **Bad - add/improve tests** |
 | **Errors** | Mutant caused fatal error | Counted as killed — read them before trusting the score (below) |
-| **Uncovered** | No test coverage | Add coverage first |
+| **Uncovered** | No test coverage (reported only with `--with-uncovered`) | Add coverage first |
 | **Timeout** | Test took too long with mutant | Usually OK |
 | **Skipped** | Mutant not tested | Check config |
 
@@ -415,6 +459,14 @@ After the fix the score drops to its honest value — the former errors now
 count as escaped or killed. Derive thresholds such as `minCoveredMsi` from
 that run, not from the inflated one.
 
+One same-message cluster is harmless: mutants PHP refuses to compile. The
+`Concat` mutator reorders the operands of a concatenation, and on code such
+as `(cond ? 'a' : '') . ',' . (cond2 ? 'b' : '')` the printed mutant can be a
+nested ternary without parentheses, which PHP 8 rejects at compile time. Infection
+reports each as an error ("N errors were encountered") and counts it as
+killed. No test could have caught them and nothing is wrong with the setup;
+they only explain the error count.
+
 ### Equivalent Mutants Escape by Design
 
 An equivalent mutant changes the code without changing any observable
@@ -445,6 +497,9 @@ leave these escapes in the report instead of chasing the score.
 | Basic | 50%+ | 60%+ | Initial implementation |
 | Good | 70%+ | 80%+ | Production code |
 | Excellent | 85%+ | 90%+ | Critical/security code |
+
+The MSI column applies to a `--with-uncovered` run only. In a default run MSI equals Covered
+MSI, so the Covered MSI column is the one to gate on.
 
 ## Improving Mutation Score
 
@@ -605,7 +660,6 @@ mutation:
         .Build/bin/infection \
           --threads=4 \
           --coverage=.Build/logs/coverage-xml \
-          --min-msi=60 \
           --min-covered-msi=80 \
           --skip-initial-tests
 
@@ -625,16 +679,17 @@ mutation:
   run: |
     .Build/bin/infection \
       --threads=4 \
-      --min-msi=60 \
-      --min-covered-msi=80 \
-      --only-covered
+      --min-covered-msi=80
 ```
+
+With `--with-uncovered` added, `--min-msi` becomes a second, independent gate; without it the
+two options test the same number.
 
 ## Best Practices
 
 1. **Run unit tests first** - Mutation testing needs passing tests
 2. **Start with low thresholds** - Increase gradually (50% → 60% → 70%)
-3. **Focus on covered code** - Use `--only-covered` for actionable results
+3. **Focus on covered code** - The default since Infection 0.31 (which removed `--only-covered`); gate on `minCoveredMsi`
 4. **Prioritize escaped mutants** - These indicate weak tests
 5. **Exclude trivial code** - Skip getters/setters/DTOs in config
 6. **Run incrementally** - Use `--git-diff-filter=AM` for changed files only
@@ -649,8 +704,7 @@ For large codebases, run mutation testing only on changed files:
 .Build/bin/infection \
   --threads=4 \
   --git-diff-filter=AM \
-  --git-diff-base=origin/main \
-  --only-covered
+  --git-diff-base=origin/main
 ```
 
 ## Directory Structure

@@ -5,11 +5,13 @@
     //
     // CUSTOMIZATION REQUIRED:
     // - Adjust 'excludes' for your extension structure
-    // - Update 'minMsi' and 'minCoveredMsi' thresholds as needed
+    // - Update the 'minCoveredMsi' threshold as needed
 
     "$schema": "https://raw.githubusercontent.com/infection/infection/0.29.0/resources/schema.json",
 
-    // Source code directories
+    // Source code directories: list the Classes root(s), not a hand-picked
+    // set of subdirectories. Uncovered code is skipped anyway, so the
+    // scope follows the tests; a hand-picked list falls behind them.
     "source": {
         "directories": [
             "Classes"
@@ -63,10 +65,14 @@
         // "LogicalAnd": false,        // If complex boolean logic
     },
 
-    // Mutation Score Indicator thresholds
-    // MSI = Killed / Total mutations
-    // Covered MSI = Killed / Mutations covered by tests
-    "minMsi": 70,
+    // Mutation Score Indicator threshold
+    // Covered MSI = Killed / Mutations in code covered by tests
+    //
+    // Since Infection 0.31 code no test covers is not mutated unless
+    // --with-uncovered is passed, so MSI and Covered MSI are the same
+    // number and 'minMsi' adds nothing. Gate on 'minCoveredMsi', which
+    // means the same with and without the flag. Add 'minMsi' only for a
+    // run with --with-uncovered, where it also counts uncovered code.
     "minCoveredMsi": 80,
 
     // Performance settings

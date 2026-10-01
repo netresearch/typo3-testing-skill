@@ -715,25 +715,24 @@ Create `infection.json5` in the project root:
     "mutators": {
         "@default": true
     },
-    "minMsi": 30,
     "minCoveredMsi": 60
 }
 ```
 
 **Key configuration details:**
 
-- **`source.directories`**: Point at `Classes` (your production code). Never include `Tests/`.
+- **`source.directories`**: Point at the `Classes` root(s) (your production code), not a hand-picked set of subdirectories -- uncovered code is skipped anyway, so the scope follows the tests. Never include `Tests/`.
 - **`phpUnit.configDir`**: Directory containing `UnitTests.xml` (Infection auto-detects PHPUnit config files there).
 - **`phpUnit.customPath`**: Path to the PHPUnit binary. When using `typo3-ci-workflows`, the binary is at `.Build/bin/phpunit` (not `vendor/bin/phpunit`).
-- **`minMsi` / `minCoveredMsi`**: Mutation Score Indicator thresholds. Start conservatively (30% MSI, 60% covered MSI) and increase as test coverage improves. Aiming for 80%+ covered MSI is a good long-term target.
+- **`minCoveredMsi`**: The Mutation Score Indicator threshold that gates. Start conservatively (60%) and increase as test coverage improves; 80%+ is a good long-term target. Since Infection 0.31 uncovered code is not mutated unless the run passes `--with-uncovered`, so MSI equals Covered MSI and `minMsi` adds nothing. Set `minMsi` only for a `--with-uncovered` run -- see [Which Threshold Gates](mutation-testing.md#which-threshold-gates-mincoveredmsi-not-minmsi).
 
 ### Realistic MSI Thresholds
 
-| Stage | minMsi | minCoveredMsi | Notes |
-|-------|--------|---------------|-------|
-| Initial setup | 30 | 60 | Baseline for new extensions |
-| Growing coverage | 50 | 70 | After addressing low-hanging fruit |
-| Mature test suite | 70 | 80 | Well-tested extension |
+| Stage | minCoveredMsi | minMsi (`--with-uncovered` only) | Notes |
+|-------|---------------|----------------------------------|-------|
+| Initial setup | 60 | 30 | Baseline for new extensions |
+| Growing coverage | 70 | 50 | After addressing low-hanging fruit |
+| Mature test suite | 80 | 70 | Well-tested extension |
 
 ### Composer Script Integration
 
@@ -752,8 +751,11 @@ Create `infection.json5` in the project root:
 When using `netresearch/typo3-ci-workflows`, `infection/infection` is provided transitively -- no separate `composer require` is needed. For standalone setups:
 
 ```bash
-composer require --dev infection/infection
+# PHP 8.3 and later; with PHP 8.2 still supported use "^0.32 || ^0.35"
+composer require --dev "infection/infection:^0.35"
 ```
+
+Without a constraint Composer writes the line that installs on the PHP running the command, which can be one the extension's lowest PHP version cannot install. Why 0.32 is the floor and 0.33 needs PHP 8.3: [mutation-testing.md](mutation-testing.md#infection-recommended).
 
 ### Running Mutation Tests
 
