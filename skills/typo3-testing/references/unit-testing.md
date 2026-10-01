@@ -455,8 +455,8 @@ collaborators the action touches, and call the action itself. The helpers are
 where the guard's refusal goes, so a double of them shows whether the action
 *returned* it — the defect a discarded `redirect()` produces since TYPO3 v12
 (see the [typo3-extension-upgrade skill](https://github.com/netresearch/typo3-extension-upgrade-skill),
-`references/api-traps.md` → *A Discarded `redirect()` in a Guard Is an
-Authorization Bypass Since v12*).
+`references/api-traps.md` → *A `redirect()` That Is Not Returned No Longer
+Stops a Guard Since v12*).
 
 ```php
 // BookingController::updateAction(Booking $booking, string $note = '') refuses
