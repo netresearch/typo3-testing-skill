@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: Netresearch DTT GmbH
 
 #
 # Validate TYPO3 testing infrastructure setup
@@ -19,6 +21,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 PROJECT_DIR="$(pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ERRORS=0
 WARNINGS=0
 
@@ -29,20 +32,20 @@ echo
 echo -e "${YELLOW}[1/5] Checking composer.json dependencies...${NC}"
 if [ ! -f "${PROJECT_DIR}/composer.json" ]; then
     echo -e "${RED}✗ composer.json not found${NC}"
-    ((ERRORS++))
+    ERRORS=$((ERRORS + 1))
 else
     if grep -q "typo3/testing-framework" "${PROJECT_DIR}/composer.json"; then
         echo -e "${GREEN}✓ typo3/testing-framework installed${NC}"
     else
         echo -e "${RED}✗ typo3/testing-framework missing${NC}"
-        ((ERRORS++))
+        ERRORS=$((ERRORS + 1))
     fi
 
     if grep -q "phpunit/phpunit" "${PROJECT_DIR}/composer.json"; then
         echo -e "${GREEN}✓ phpunit/phpunit installed${NC}"
     else
         echo -e "${RED}✗ phpunit/phpunit missing${NC}"
-        ((ERRORS++))
+        ERRORS=$((ERRORS + 1))
     fi
 fi
 
@@ -52,21 +55,21 @@ if [ -f "${PROJECT_DIR}/Build/phpunit/UnitTests.xml" ]; then
     echo -e "${GREEN}✓ UnitTests.xml present${NC}"
 else
     echo -e "${RED}✗ UnitTests.xml missing${NC}"
-    ((ERRORS++))
+    ERRORS=$((ERRORS + 1))
 fi
 
 if [ -f "${PROJECT_DIR}/Build/phpunit/FunctionalTests.xml" ]; then
     echo -e "${GREEN}✓ FunctionalTests.xml present${NC}"
 else
     echo -e "${RED}✗ FunctionalTests.xml missing${NC}"
-    ((ERRORS++))
+    ERRORS=$((ERRORS + 1))
 fi
 
 if [ -f "${PROJECT_DIR}/Build/phpunit/FunctionalTestsBootstrap.php" ]; then
     echo -e "${GREEN}✓ FunctionalTestsBootstrap.php present${NC}"
 else
     echo -e "${RED}✗ FunctionalTestsBootstrap.php missing${NC}"
-    ((ERRORS++))
+    ERRORS=$((ERRORS + 1))
 fi
 
 # Check directory structure
@@ -76,7 +79,7 @@ for dir in "Tests/Unit" "Tests/Functional" "Tests/Functional/Fixtures"; do
         echo -e "${GREEN}✓ ${dir}/ exists${NC}"
     else
         echo -e "${YELLOW}⚠ ${dir}/ missing${NC}"
-        ((WARNINGS++))
+        WARNINGS=$((WARNINGS + 1))
     fi
 done
 
@@ -87,7 +90,7 @@ for dir in "Tests/Unit" "Tests/Functional"; do
         echo -e "${GREEN}✓ ${dir}/AGENTS.md present${NC}"
     else
         echo -e "${YELLOW}⚠ ${dir}/AGENTS.md missing${NC}"
-        ((WARNINGS++))
+        WARNINGS=$((WARNINGS + 1))
     fi
 done
 
@@ -100,11 +103,11 @@ if command -v docker &> /dev/null; then
         echo -e "${GREEN}✓ Docker daemon running${NC}"
     else
         echo -e "${YELLOW}⚠ Docker daemon not running${NC}"
-        ((WARNINGS++))
+        WARNINGS=$((WARNINGS + 1))
     fi
 else
     echo -e "${YELLOW}⚠ Docker not installed (required for acceptance tests)${NC}"
-    ((WARNINGS++))
+    WARNINGS=$((WARNINGS + 1))
 fi
 
 # Summary
@@ -116,7 +119,7 @@ if [ ${ERRORS} -eq 0 ] && [ ${WARNINGS} -eq 0 ]; then
     echo
     echo "Your testing infrastructure is ready to use."
     echo "Generate your first test:"
-    echo "  ~/.claude/skills/typo3-testing/scripts/generate-test.sh unit MyClass"
+    echo "  ${SCRIPT_DIR}/generate-test.sh unit MyClass"
     exit 0
 elif [ ${ERRORS} -eq 0 ]; then
     echo -e "${YELLOW}⚠ ${WARNINGS} warnings found${NC}"
@@ -130,6 +133,6 @@ else
     fi
     echo
     echo "Run setup script to fix errors:"
-    echo "  ~/.claude/skills/typo3-testing/scripts/setup-testing.sh"
+    echo "  ${SCRIPT_DIR}/setup-testing.sh"
     exit 1
 fi

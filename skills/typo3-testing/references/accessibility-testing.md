@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Accessibility Testing with axe-core
 
 TYPO3 extensions should test for WCAG 2.0/2.1 compliance at levels A and AA using **axe-core** integrated with Playwright.

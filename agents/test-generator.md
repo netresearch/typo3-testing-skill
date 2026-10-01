@@ -1,4 +1,6 @@
 ---
+# SPDX-License-Identifier: CC-BY-SA-4.0
+# SPDX-FileCopyrightText: Netresearch DTT GmbH
 name: "test-generator"
 description: "Generate unit and functional tests for TYPO3 extensions"
 model: "sonnet"

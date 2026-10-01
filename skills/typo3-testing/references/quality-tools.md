@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Quality Tools for TYPO3 Development
 
 Automated code quality and static analysis tools for TYPO3 extensions.

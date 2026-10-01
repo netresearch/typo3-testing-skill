@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Test Environment Guards
 
 Patterns for writing robust tests that handle different runtime environments gracefully (CI containers running as root, missing PHP extensions, filesystem permissions).

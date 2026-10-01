@@ -1,8 +1,10 @@
 #!/bin/bash
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: Netresearch DTT GmbH
 # validate-skill.sh - Validate Netresearch skill repository structure
 # Usage: ./validate-skill.sh [repo-root-path]
 #
-# Checks: SKILL.md frontmatter, word count, composer.json, plugin.json,
+# Checks: SKILL.md frontmatter, body size, composer.json, plugin.json,
 #          cross-file consistency, required files
 # Exit: 0 = valid, 1 = errors found
 
@@ -85,12 +87,18 @@ if [[ -n "$SKILL_FILE" ]]; then
         error "SKILL.md missing frontmatter (must start with ---)"
     fi
 
-    # Word count check (max 500)
-    WORDS=$(wc -w < "$SKILL_FILE")
-    if [[ $WORDS -le 500 ]]; then
-        success "SKILL.md is $WORDS words (under 500 limit)"
+    # Body size: lines after the front matter, as the shared validator in
+    # netresearch/skill-repo-skill counts them since 5de586c (the Agent Skills
+    # spec recommends a SKILL.md under 500 lines). The former 500-WORD cap on
+    # the whole file failed this repository's own SKILL.md, so the pre-commit
+    # hook rejected every commit while CI passed.
+    BODY_LINES=$(awk 'BEGIN{d=0} /^---$/{d++; next} d>=2{print}' "$SKILL_FILE" | wc -l)
+    if [[ $BODY_LINES -gt 500 ]]; then
+        error "SKILL.md body is $BODY_LINES lines (spec recommends under 500)"
+    elif [[ $BODY_LINES -gt 300 ]]; then
+        warning "SKILL.md body is $BODY_LINES lines (past 300, move reference material into references/)"
     else
-        error "SKILL.md is $WORDS words (max 500)"
+        success "SKILL.md body is $BODY_LINES lines"
     fi
 else
     error "SKILL.md not found (checked root and skills/*/)"

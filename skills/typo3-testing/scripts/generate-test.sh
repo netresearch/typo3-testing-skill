@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: Netresearch DTT GmbH
 
 #
 # Generate TYPO3 test class
@@ -12,7 +14,6 @@ set -e
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Parse arguments
@@ -30,7 +31,7 @@ if [ -z "${TEST_TYPE}" ] || [ -z "${CLASS_NAME}" ]; then
     echo "Example:"
     echo "  $0 unit EmailValidator"
     echo "  $0 functional ProductRepository"
-    echo "  $0 acceptance LoginCest"
+    echo "  $0 acceptance Login"
     exit 1
 fi
 
@@ -45,9 +46,17 @@ case ${TEST_TYPE} in
         ;;
 esac
 
+# The class name becomes a file name and a PHP identifier. A path such as
+# Domain/Model/Foo produced a file that does not parse, and ../Foo wrote
+# the file outside Tests/.
+if [[ ! "${CLASS_NAME}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    echo -e "${RED}Error: Invalid class name '${CLASS_NAME}'${NC}"
+    echo "Use the short class name without namespace or path, for example EmailValidator"
+    exit 1
+fi
+
 # Determine paths
 PROJECT_DIR="$(pwd)"
-SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Check if Tests directory exists
 if [ ! -d "${PROJECT_DIR}/Tests" ]; then
@@ -73,6 +82,7 @@ case ${TEST_TYPE} in
 esac
 
 # Extract namespace from composer.json
+# shellcheck disable=SC2016  # PHP code: the $ variables belong to php -r, not to the shell
 NAMESPACE=$(php -r '
     $composer = json_decode(file_get_contents("composer.json"), true);
     foreach ($composer["autoload"]["psr-4"] ?? [] as $ns => $path) {
@@ -102,6 +112,16 @@ mkdir -p "$(dirname "${TEST_FILE}")"
 
 echo -e "${GREEN}Generating ${TEST_TYPE} test for ${CLASS_NAME}...${NC}"
 
+# The generated test imports the subject class and PHPUnit's Test attribute.
+# PHP class names are case-insensitive, so a subject named Test would clash
+# with the attribute import; alias the attribute in that case.
+TEST_ATTRIBUTE="Test"
+TEST_ATTRIBUTE_IMPORT="PHPUnit\\Framework\\Attributes\\Test"
+if [ "$(printf '%s' "${CLASS_NAME}" | tr '[:upper:]' '[:lower:]')" = "test" ]; then
+    TEST_ATTRIBUTE="TestAttribute"
+    TEST_ATTRIBUTE_IMPORT="PHPUnit\\Framework\\Attributes\\Test as TestAttribute"
+fi
+
 # Generate test class based on type
 case ${TEST_TYPE} in
     unit)
@@ -112,6 +132,7 @@ declare(strict_types=1);
 
 namespace ${NAMESPACE}\\Tests\\Unit;
 
+use ${TEST_ATTRIBUTE_IMPORT};
 use TYPO3\\TestingFramework\\Core\\Unit\\UnitTestCase;
 use ${NAMESPACE}\\${CLASS_NAME};
 
@@ -128,9 +149,7 @@ final class ${CLASS_NAME}${TEST_SUFFIX} extends UnitTestCase
         \$this->subject = new ${CLASS_NAME}();
     }
 
-    /**
-     * @test
-     */
+    #[${TEST_ATTRIBUTE}]
     public function canBeInstantiated(): void
     {
         self::assertInstanceOf(${CLASS_NAME}::class, \$this->subject);
@@ -147,6 +166,7 @@ declare(strict_types=1);
 
 namespace ${NAMESPACE}\\Tests\\Functional;
 
+use ${TEST_ATTRIBUTE_IMPORT};
 use TYPO3\\TestingFramework\\Core\\Functional\\FunctionalTestCase;
 use ${NAMESPACE}\\${CLASS_NAME};
 
@@ -167,9 +187,7 @@ final class ${CLASS_NAME}${TEST_SUFFIX} extends FunctionalTestCase
         \$this->subject = \$this->get(${CLASS_NAME}::class);
     }
 
-    /**
-     * @test
-     */
+    #[${TEST_ATTRIBUTE}]
     public function canBeInstantiated(): void
     {
         self::assertInstanceOf(${CLASS_NAME}::class, \$this->subject);
@@ -180,6 +198,7 @@ EOF
         # Create fixture file
         FIXTURE_FILE="${PROJECT_DIR}/Tests/Functional/Fixtures/${CLASS_NAME}.csv"
         if [ ! -f "${FIXTURE_FILE}" ]; then
+            mkdir -p "$(dirname "${FIXTURE_FILE}")"
             echo "# Fixture for ${CLASS_NAME}${TEST_SUFFIX}" > "${FIXTURE_FILE}"
             echo -e "${GREEN}✓ Created fixture: ${FIXTURE_FILE}${NC}"
         fi

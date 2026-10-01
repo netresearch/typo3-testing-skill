@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Architecture Testing with phpat
 
 PHP Architecture Tester (phpat) enforces architectural rules through automated tests.

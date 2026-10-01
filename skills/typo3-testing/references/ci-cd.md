@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # CI/CD Integration for TYPO3 Testing
 
 Continuous Integration and Continuous Deployment workflows for automated TYPO3 extension testing.

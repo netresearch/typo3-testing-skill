@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Performance Testing for TYPO3 Extensions
 
 Performance tests validate efficiency claims and detect performance regressions.

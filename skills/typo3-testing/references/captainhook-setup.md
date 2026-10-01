@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # CaptainHook Setup for TYPO3 Extensions
 
 CaptainHook is the standard git hook framework for TYPO3/PHP projects.

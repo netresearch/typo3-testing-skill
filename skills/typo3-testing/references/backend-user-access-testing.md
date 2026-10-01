@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Backend-User Access in Functional Tests (non-admin, page & file mounts)
 
 > **Source**: netresearch/t3x-nr-llm — testing per-user access enforcement on tools that egress data to an external LLM (2026-07). Verified on TYPO3 v13.4 / v14.3.

@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Integration Testing for TYPO3 Extensions
 
 Integration tests verify interactions between components with realistic (but mocked) external dependencies.

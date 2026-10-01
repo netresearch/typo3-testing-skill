@@ -1,4 +1,6 @@
 ---
+# SPDX-License-Identifier: CC-BY-SA-4.0
+# SPDX-FileCopyrightText: Netresearch DTT GmbH
 name: typo3-testing
 description: "Use when a reported defect has to be reproduced as a failing test before it is fixed, when a change to a template or to any rendered output has to be proved, or when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit 11/12/13, mutation testing, mocking final classes (v14), CI/CD matrix across TYPO3 12/13/14.3 LTS, dev-dependency consolidation via typo3-ci-workflows meta-package, or debugging CI failures. Also triggers on: testing-framework setup, ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
 ---
@@ -70,8 +72,8 @@ Netresearch default: `Build/captainhook.json` (declared in composer.json `extra.
 ## Commands
 
 ```bash
-# Setup (from skill dir)
-scripts/setup-testing.sh [--with-e2e]
+# Setup (run in the extension root; paths are relative to this skill)
+scripts/setup-testing.sh [-a]   # -a: Codeception acceptance setup
 scripts/validate-setup.sh
 scripts/generate-test.sh <Type> <Class>
 

@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # DDEV Testing for TYPO3 Extensions
 
 DDEV setup and local-environment mechanics are owned by the `typo3-ddev` skill, not this one. See its `references/`:

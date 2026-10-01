@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # JavaScript and CKEditor Testing
 
 **Purpose:** Testing patterns for TYPO3 CKEditor plugins, JavaScript functionality, and frontend code

@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Asset Templates Guide
 
 Templates and configuration files for setting up TYPO3 extension testing infrastructure.

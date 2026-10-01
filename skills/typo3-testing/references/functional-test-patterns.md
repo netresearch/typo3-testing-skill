@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Functional Test Patterns for TYPO3 12/13
 
 > **Source**: Real-world patterns from testing a production TYPO3 extension (2024-12)

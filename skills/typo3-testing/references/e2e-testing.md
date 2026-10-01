@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # E2E Testing with Playwright
 
 TYPO3 Core uses **Playwright** exclusively for end-to-end and accessibility testing. This is the modern standard for browser-based testing in TYPO3 extensions.

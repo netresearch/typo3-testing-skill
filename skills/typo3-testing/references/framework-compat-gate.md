@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Framework Compatibility Gate
 
 A package whose only consumers are TYPO3 projects has a failure mode its own

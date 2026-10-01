@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # Architecture
 
 ## Purpose
@@ -12,7 +15,7 @@ The core skill package following the Agent Skills specification:
 
 - **SKILL.md**: Entry point loaded by AI agents. Contains test type selection logic, workflow steps, and scoring requirements.
 - **assets/**: Template files that agents install into target extensions -- PHPUnit configs, PHPStan configs, Rector configs, Makefile, CI workflow templates, Docker configs, and example tests.
-- **references/**: 21 detailed reference documents covering each testing domain (unit, functional, E2E, architecture, mutation, CI/CD, etc.).
+- **references/**: 34 detailed reference documents covering each testing domain (unit, functional, E2E, architecture, mutation, CI/CD, etc.).
 - **scripts/**: Helper scripts for initializing test infrastructure (`setup-testing.sh`), generating test scaffolds (`generate-test.sh`), and validating setups (`validate-setup.sh`).
 - **checkpoints.yaml**: Evaluation checkpoint definitions for skill quality scoring.
 
@@ -29,6 +32,10 @@ Test cases for validating skill quality and correctness.
 ### Build (`Build/`)
 
 Git hooks (pre-commit, pre-push) and utility scripts for repository maintenance.
+
+### Tests (`tests/`)
+
+`test_scripts.py` runs the helper scripts, the Build scripts and hooks, `scripts/verify-harness.sh` and checkpoints TT-105 and TT-106 against layouts built in temporary directories. CI runs it in `.github/workflows/tests.yml`. The security properties of the scripts and their trust boundaries are described in [SECURITY-ASSURANCE.md](SECURITY-ASSURANCE.md).
 
 ## Data Flow
 

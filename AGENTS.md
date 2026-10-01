@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+<!-- SPDX-FileCopyrightText: Netresearch DTT GmbH -->
+
 # TYPO3 Testing Skill
 
 Agent harness for the TYPO3 testing skill repository.
@@ -9,7 +12,7 @@ Agent harness for the TYPO3 testing skill repository.
 │   ├── SKILL.md                      # Main skill instructions
 │   ├── assets/                       # Template configs (PHPUnit, PHPStan, Rector, etc.)
 │   ├── checkpoints.yaml              # Eval checkpoints
-│   ├── references/                   # Detailed testing docs (21 reference files)
+│   ├── references/                   # Detailed testing docs (34 reference files)
 │   └── scripts/                      # Skill helper scripts
 │       ├── setup-testing.sh          # Initialize test infrastructure
 │       ├── generate-test.sh          # Generate test file scaffolds
@@ -23,18 +26,23 @@ Agent harness for the TYPO3 testing skill repository.
 │   ├── Scripts/                      # Utility scripts
 │   └── hooks/                        # Git hooks (pre-commit, pre-push)
 ├── composer.json                     # Composer package (ai-agent-skill type)
-├── docs/                             # Architecture and planning docs
-│   └── ARCHITECTURE.md
-└── scripts/                          # Harness scripts
-    └── verify-harness.sh
+├── docs/                             # Architecture, security and planning docs
+│   ├── ARCHITECTURE.md
+│   └── SECURITY-ASSURANCE.md
+├── scripts/                          # Harness scripts
+│   └── verify-harness.sh
+└── tests/                            # Behaviour tests for the shipped scripts
+    └── test_scripts.py
 ```
 
 ## Commands
 
 No build system scripts defined in `composer.json`. This is a content-only skill repo.
 
-Key skill scripts (run from skill directory in target extension context):
-- `scripts/setup-testing.sh [--with-e2e]` -- Initialize testing infrastructure
+- `python3 tests/test_scripts.py` -- Behaviour tests for the scripts, hooks, TT-105 and TT-106 (needs `php`); CI runs it in `.github/workflows/tests.yml`
+
+Key skill scripts (run in the target extension root; paths are relative to `skills/typo3-testing/`):
+- `scripts/setup-testing.sh [-a]` -- Initialize testing infrastructure (`-a` adds the Codeception acceptance setup)
 - `scripts/generate-test.sh <Type> <Class>` -- Generate test file scaffold
 - `scripts/validate-setup.sh` -- Validate existing test setup
 
