@@ -379,8 +379,8 @@ mutation)
 
 ### Mutation Score Indicator (MSI)
 
-Output of a `--with-uncovered` run. Without the flag the `Uncovered` line is absent and MSI
-equals Covered MSI (see [Which Threshold Gates](#which-threshold-gates-mincoveredmsi-not-minmsi)).
+Output of a `--with-uncovered` run. Without the flag the uncovered count is 0 and MSI equals
+Covered MSI (see [Which Threshold Gates](#which-threshold-gates-mincoveredmsi-not-minmsi)).
 
 ```
 Mutations:       150 total
@@ -454,9 +454,9 @@ count as escaped or killed. Derive thresholds such as `minCoveredMsi` from
 that run, not from the inflated one.
 
 One same-message cluster is harmless: mutants PHP refuses to compile. The
-`Concat` mutator swaps the operands of a concatenation, and on code such as
-`(cond ? 'a' : '') . ',' . (cond2 ? 'b' : '')` the result can be a nested
-ternary without parentheses, which PHP 8 rejects at compile time. Infection
+`Concat` mutator reorders the operands of a concatenation, and on code such
+as `(cond ? 'a' : '') . ',' . (cond2 ? 'b' : '')` the printed mutant can be a
+nested ternary without parentheses, which PHP 8 rejects at compile time. Infection
 reports each as an error ("N errors were encountered") and counts it as
 killed. No test could have caught them and nothing is wrong with the setup;
 they only explain the error count.
