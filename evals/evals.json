@@ -608,6 +608,34 @@
           "description": "Recommends pinning the value object in the matcher"
         }
       ]
+    },
+    {
+      "id": 32,
+      "name": "infection-thresholds-without-uncovered",
+      "area": "mutation-testing",
+      "prompt": "Our TYPO3 extension runs infection/infection 0.35 as `infection --threads=4` with \"minMsi\": 60 and \"minCoveredMsi\": 80 in infection.json5, and source.directories lists six hand-picked subdirectories of Classes. Which thresholds should we set, and is anything in this config not doing what we think?",
+      "assertions": [
+        {
+          "type": "content_regex",
+          "value": "(?is)with-uncovered",
+          "description": "Names --with-uncovered: since 0.31 uncovered code is not mutated without it"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?is)(minMsi.{0,200}(never|cannot|can't|does ?n.t|won't|redundant|no effect|pointless|same (number|value|score))|(never|cannot|can't|redundant|no effect|same (number|value|score)).{0,200}minMsi)",
+          "description": "Says minMsi cannot gate in a default run, because MSI equals Covered MSI there"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?is)minCoveredMsi.{0,200}(gate|threshold|rely|use|keep)|(gate|rely|keep).{0,120}minCoveredMsi",
+          "description": "Recommends minCoveredMsi as the gate"
+        },
+        {
+          "type": "content_regex",
+          "value": "(?is)Classes.{0,200}(root|whole|entire|all)|(root|whole|entire).{0,120}Classes",
+          "description": "Recommends listing the Classes root instead of hand-picked subdirectories"
+        }
+      ]
     }
   ]
 }

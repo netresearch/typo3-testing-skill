@@ -422,7 +422,7 @@ class ValidateSetupTest(TempDirTestCase):
 
 
 class CheckpointTT105Test(TempDirTestCase):
-    """TT-105: infection.json5 sets minMsi to 90 or more."""
+    """TT-105: the higher of minCoveredMsi and minMsi is 90 or more."""
 
     def check(self, body: str) -> subprocess.CompletedProcess[str]:
         write(self.project / "infection.json5", body)
@@ -434,15 +434,41 @@ class CheckpointTT105Test(TempDirTestCase):
         # JSON5 allows whitespace between a key and its colon.
         result = self.check('{\n    "minMsi" : 70,\n}\n')
         self.assertEqual(result.returncode, 1)
-        self.assertIn("minMsi is 70; expected >= 90", result.stdout)
+        self.assertIn("threshold is 70", result.stdout)
+        self.assertIn("minMsi=70", result.stdout)
 
     def test_high_threshold_with_space_before_the_colon_passes(self) -> None:
         result = self.check('{\n    "minMsi" : 95,\n}\n')
         self.assertEqual(result.returncode, 0, result.stdout)
 
+    def test_covered_msi_alone_passes(self) -> None:
+        # The shape the skill recommends: no minMsi, minCoveredMsi gates.
+        result = self.check('{\n    "minCoveredMsi" : 90,\n}\n')
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_low_covered_msi_alone_fails(self) -> None:
+        result = self.check('{\n    "minCoveredMsi": 80,\n}\n')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("threshold is 80", result.stdout)
+        self.assertIn("minMsi=unset", result.stdout)
+
+    def test_the_higher_threshold_is_judged(self) -> None:
+        # Without --with-uncovered both compare against the same score, so
+        # the higher one gates; a passing minMsi must not be lost.
+        result = self.check('{\n    "minMsi": 92,\n    "minCoveredMsi": 85,\n}\n')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        result = self.check('{\n    "minMsi": 70,\n    "minCoveredMsi": 80,\n}\n')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("threshold is 80", result.stdout)
+
+    def test_no_threshold_fails(self) -> None:
+        result = self.check('{\n    "timeout": 10,\n}\n')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("declares neither minCoveredMsi nor minMsi", result.stdout)
+
 
 class CheckpointTT106Test(TempDirTestCase):
-    """TT-106: infection.json5 and infection-full.json5 agree on minMsi."""
+    """TT-106: infection.json5 and infection-full.json5 agree on thresholds."""
 
     def check(self) -> subprocess.CompletedProcess[str]:
         # The assessment runner runs a multi-line checkpoint as a bash script
@@ -476,6 +502,24 @@ class CheckpointTT106Test(TempDirTestCase):
     def test_equal_thresholds_pass(self) -> None:
         self.config("infection.json5", 85)
         self.config("infection-full.json5", 85)
+        self.assertEqual(self.check().returncode, 0)
+
+    def test_different_covered_thresholds_fail(self) -> None:
+        # Configs that follow the skill declare only minCoveredMsi.
+        write(self.project / "infection.json5", '{\n    "minCoveredMsi": 80,\n}\n')
+        write(
+            self.project / "infection-full.json5", '{\n    "minCoveredMsi" : 90,\n}\n'
+        )
+        result = self.check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "minCoveredMsi is 80 in infection.json5 and 90 in infection-full.json5",
+            result.stdout,
+        )
+
+    def test_equal_covered_thresholds_pass(self) -> None:
+        write(self.project / "infection.json5", '{\n    "minCoveredMsi": 85,\n}\n')
+        write(self.project / "infection-full.json5", '{\n    "minCoveredMsi": 85,\n}\n')
         self.assertEqual(self.check().returncode, 0)
 
     def test_nothing_to_compare_passes(self) -> None:
