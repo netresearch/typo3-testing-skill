@@ -39,7 +39,7 @@ Agent harness for the TYPO3 testing skill repository.
 
 No build system scripts defined in `composer.json`. This is a content-only skill repo.
 
-- `python3 tests/test_scripts.py` -- Behaviour tests for the scripts, hooks and TT-106 (needs `php`); CI runs it in `.github/workflows/tests.yml`
+- `python3 tests/test_scripts.py` -- Behaviour tests for the scripts, hooks, TT-105 and TT-106 (needs `php`); CI runs it in `.github/workflows/tests.yml`
 
 Key skill scripts (run in the target extension root; paths are relative to `skills/typo3-testing/`):
 - `scripts/setup-testing.sh [-a]` -- Initialize testing infrastructure (`-a` adds the Codeception acceptance setup)

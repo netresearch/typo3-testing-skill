@@ -4,8 +4,8 @@ name: Skill Tests
 
 # Runs tests/test_scripts.py, the behaviour tests for the shipped shell
 # scripts (skills/typo3-testing/scripts/*.sh, Build/Scripts/*.sh with the
-# Build/hooks that call them, scripts/verify-harness.sh) and the TT-106
-# checkpoint, through the skill-repo-skill tests reusable. The suite is
+# Build/hooks that call them, scripts/verify-harness.sh) and the TT-105 and
+# TT-106 checkpoints, through the skill-repo-skill tests reusable. The suite is
 # stdlib-only Python and needs php for generate-test.sh; the reusable runs it
 # with python3 on ubuntu-latest and fails the job when it exits non-zero.
 # require_tests makes the job fail if the glob ever matches no test file while
