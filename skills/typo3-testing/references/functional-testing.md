@@ -106,6 +106,34 @@ Set via environment or `FunctionalTests.xml`:
 </php>
 ```
 
+### One driver cannot prove driver-dependent code
+
+A suite pinned to one `typo3DatabaseDriver` passes code that only works on that driver. `Connection::executeStatement('SELECT …')` returns a row count on `mysqli` and nothing usable elsewhere — `pdo_mysql` returns `0` and blocks the connection, `pdo_sqlite` returns the previous write's change count — so `isRegistered()`-style lookups built on it stay green under `mysqli` before *and* after the fix (TER !932). When a change hinges on driver behaviour, run the real method against each driver once. It does not need the testing framework; three settings get TYPO3's `ConnectionPool` going in a plain script:
+
+```php
+require 'vendor/autoload.php';
+use TYPO3\CMS\Core\Database\{ConnectionPool, DriverMiddlewareService};
+use TYPO3\CMS\Core\Service\DependencyOrderingService;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+
+$GLOBALS['TYPO3_CONF_VARS']['DB']['Connections']['Default'] = $config; // ['driver' => 'pdo_sqlite', 'path' => '/tmp/p.sqlite'], …
+$GLOBALS['TYPO3_CONF_VARS']['DB']['globalDriverMiddlewares'] = [];
+GeneralUtility::addInstance(DriverMiddlewareService::class, new DriverMiddlewareService(new DependencyOrderingService()));
+
+$conn = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionByName('Default');
+$conn->executeStatement('CREATE TABLE …');
+$conn->executeStatement("INSERT INTO … VALUES (…)"); // not $conn->insert(): it needs the CacheManager
+var_dump((new \Vendor\Ext\Api\Subject('key'))->methodUnderTest());
+```
+
+Run it per driver in a `php:<version>-cli` container, once with the old class (`require` a `git show <base>:<file>` copy before the autoloader can load the new one) and once with the new. A table of key × driver × old/new is the evidence the single-driver suite cannot give. What each driver needs in that image:
+
+| Driver | Extension | Database |
+|---|---|---|
+| `mysqli`, `pdo_mysql` | `docker-php-ext-install mysqli pdo_mysql` | a throwaway `mariadb` container on the same network |
+| `pdo_sqlite` | built into the official image | none — `'path' => '/tmp/x.sqlite'` |
+| `pdo_pgsql` | `apt-get install -y libpq-dev && docker-php-ext-install pdo_pgsql` | a throwaway `postgres` container |
+
 ## Database Fixtures
 
 > **Migration note (`typo3/testing-framework` v9):** the legacy XML loader `importDataSet()` was removed and replaced by `importCSVDataSet()`. Convert XML fixtures to CSV: one row per record, a leading `,"uid","pid",...` header line per table, and a quoted table-name row above each table. The CSV loader is stricter about column order and quoting -- see the rules below. Extensions on `typo3/testing-framework: ^8.2 || ^9.0` should standardise on CSV so the same fixtures work on TYPO3 v12, v13 and v14.
