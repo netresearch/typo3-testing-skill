@@ -447,6 +447,77 @@ a real value; if it fails while the implementation plainly produces that value,
 your code never ran. A test that no mutation can redden is disconnected, not
 strict.
 
+## Testing an Extbase Action's Guard Without a Request Stack
+
+An ownership or permission check at the top of an Extbase action can be pinned
+as a unit test: double only the response helpers, give the subject the
+collaborators the action touches, and call the action itself. The helpers are
+where the guard's refusal goes, so a double of them shows whether the action
+*returned* it — the defect a discarded `redirect()` produces since TYPO3 v12
+(see the [typo3-extension-upgrade skill](https://github.com/netresearch/typo3-extension-upgrade-skill),
+`references/api-traps.md` → *A Discarded `redirect()` in a Guard Is an
+Authorization Bypass Since v12*).
+
+```php
+// BookingController::updateAction(Booking $booking, string $note = '') refuses
+// a booking of another customer via its own helper denyAccess(), which
+// returns a response; on success it saves and returns successResponse().
+$subject = $this->getMockBuilder(BookingController::class)
+    ->disableOriginalConstructor()
+    // the response helpers only - updateAction() itself runs for real
+    ->onlyMethods(['denyAccess', 'successResponse'])
+    ->getMock();
+foreach ([
+    'bookingRepository' => $this->bookingRepository, // mock: expects never/once update()
+    'noteRepository' => $this->noteRepository,       // mock: lookup after the guard
+    'context' => $context,                           // stub: frontend.user id 42
+] as $name => $value) {
+    // Through the declaring class: a private property is not visible on the
+    // mock subclass. Readonly works only because disableOriginalConstructor()
+    // left it uninitialized, and only once.
+    (new \ReflectionProperty(BookingController::class, $name))->setValue($subject, $value);
+}
+
+$othersBooking = new Booking();
+$othersBooking->setCustomerUid(7);           // not user 42
+$othersBooking->_memorizeCleanState();       // see the third point below
+
+$refusal = new RedirectResponse('https://example.org/', 303);
+$subject->expects($this->once())->method('denyAccess')->willReturn($refusal);
+$subject->expects($this->never())->method('successResponse');
+$this->bookingRepository->expects($this->never())->method('update');
+$this->noteRepository->expects($this->never())->method('findBy');
+
+self::assertSame($refusal, $subject->updateAction($othersBooking, 'a note'));
+```
+
+The helpers you double are the controller's own existing protected or public
+methods, not Extbase API — and neither `static` nor `final`, which
+`onlyMethods()` cannot double; if the action calls
+`redirect()` directly, double `redirect` itself.
+
+Three details decide whether such a test means anything:
+
+- **Assert identity of the returned response and `never()` on the write.** A
+  status-code check alone passes when the action falls through to its own
+  success redirect; the `never()` on `update()` (and on any lookup after the
+  guard, such as the note repository here) is what fails when the guard does
+  not stop.
+- **Keep the owner case next to it.** The same subject with the owning user
+  must reach `update()` once and return the success response; without it, a
+  guard that refuses everyone passes.
+- **Memorize the fixture's clean state.** An entity built with `new` has no
+  clean state, so `_isDirty('prop')` compares against `null` and reports every
+  property with a non-null value as changed — including a default like `''`.
+  Code such as `if ($entity->_isDirty('slug'))` then takes the "changed"
+  branch and may reach services that need a full TYPO3 boot. Calling
+  `$entity->_memorizeCleanState()` after setting the fixture values makes
+  `_isDirty()` answer as for an unchanged row; `_isNew()` stays `true`.
+
+Prove the test against the code without the fix: restore only the controller
+from the base branch, run, and expect the foreign-user case to fail on the
+`never()` expectation while the owner case stays green.
+
 ## Mocking Dependencies
 
 Use PHPUnit's built-in mocking (PHPUnit 11/12):
