@@ -673,21 +673,52 @@ mechanical:
   # equals Covered MSI and the higher threshold is the one that gates. The skill
   # recommends minCoveredMsi alone (references/mutation-testing.md), which this
   # check used to reject as "declares no minMsi".
+  #
+  # json5_num reads a key the way Infection does: `//` and `/* */` comments are
+  # dropped first (outside strings, so the `https://` of `$schema` survives), so
+  # a commented-out `// "minCoveredMsi": 95` is not taken for the active value.
+  # Keys may be double-quoted, single-quoted or bare, values may be decimal
+  # (both JSON5). A string value such as `"90"` is not a number and reads as
+  # unset. Plain POSIX awk; TT-106 carries the same function.
   - id: TT-105
     type: script
     command: |
       [ -f infection.json5 ] || exit 0
-      msi=$(grep -m1 -oE '"minMsi"[[:space:]]*:[[:space:]]*[0-9]+' infection.json5 2>/dev/null)
-      msi="${msi##*[[:space:]:]}"
-      cmsi=$(grep -m1 -oE '"minCoveredMsi"[[:space:]]*:[[:space:]]*[0-9]+' infection.json5 2>/dev/null)
-      cmsi="${cmsi##*[[:space:]:]}"
+      json5_num() {
+        awk -v key="$1" '
+          { text = text $0 "\n" }
+          END {
+            n = length(text); i = 1; q = ""; out = ""
+            while (i <= n) {
+              c = substr(text, i, 1)
+              if (q != "") {
+                out = out c
+                if (c == "\\") { out = out substr(text, i + 1, 1); i += 2; continue }
+                if (c == q) q = ""
+                i++; continue
+              }
+              d = substr(text, i, 2)
+              if (d == "//") { j = index(substr(text, i), "\n"); if (j == 0) break; i += j - 1; continue }
+              if (d == "/*") { j = index(substr(text, i + 2), "*/"); if (j == 0) break; out = out " "; i += j + 3; continue }
+              if (c == "\"" || c == "\047") q = c
+              out = out c; i++
+            }
+            re = "(^|[^A-Za-z0-9_$])[\"\047]?" key "[\"\047]?[ \t\r\n]*:[ \t\r\n]*[0-9]+([.][0-9]+)?"
+            if (match(out, re)) {
+              v = substr(out, RSTART, RLENGTH)
+              sub(/^.*:[ \t\r\n]*/, "", v)
+              print v
+            }
+          }' "$2" 2>/dev/null
+      }
+      msi=$(json5_num minMsi infection.json5)
+      cmsi=$(json5_num minCoveredMsi infection.json5)
       if [ -z "$msi" ] && [ -z "$cmsi" ]; then
         echo "FAIL: infection.json5 declares neither minCoveredMsi nor minMsi"
         exit 1
       fi
-      gate="${cmsi:-0}"
-      [ -n "$msi" ] && [ "$msi" -gt "$gate" ] && gate="$msi"
-      [ "$gate" -ge 90 ] && exit 0
+      gate=$(awk -v a="$msi" -v b="$cmsi" 'BEGIN { if (a == "" || (b != "" && b + 0 >= a + 0)) print b; else print a }')
+      awk -v g="$gate" 'BEGIN { exit !(g + 0 >= 90) }' && exit 0
       echo "FAIL: infection MSI threshold is $gate (minCoveredMsi=${cmsi:-unset}, minMsi=${msi:-unset}); expected >= 90"
       exit 1
     severity: warning
@@ -701,21 +732,47 @@ mechanical:
   # minMsi and minCoveredMsi separately, because a config that follows the
   # skill declares only minCoveredMsi and would otherwise never be compared.
   #
-  # PCRE-free extraction for the same reason as TT-35 and TT-105.
-  # JSON5 allows whitespace before the colon (`"minMsi" : 90`); the
-  # patterns accept it, as TT-105's does.
+  # PCRE-free extraction for the same reason as TT-35 and TT-105, with the same
+  # json5_num as TT-105: comments are ignored, whitespace before the colon
+  # (`"minMsi" : 90`), single-quoted and bare keys are read. Values compare as
+  # numbers, so 80 and 80.0 agree and 80 and 80.5 do not.
   - id: TT-106
     type: script
     command: |
       [ -f infection.json5 ] && [ -f infection-full.json5 ] || exit 0
+      json5_num() {
+        awk -v key="$1" '
+          { text = text $0 "\n" }
+          END {
+            n = length(text); i = 1; q = ""; out = ""
+            while (i <= n) {
+              c = substr(text, i, 1)
+              if (q != "") {
+                out = out c
+                if (c == "\\") { out = out substr(text, i + 1, 1); i += 2; continue }
+                if (c == q) q = ""
+                i++; continue
+              }
+              d = substr(text, i, 2)
+              if (d == "//") { j = index(substr(text, i), "\n"); if (j == 0) break; i += j - 1; continue }
+              if (d == "/*") { j = index(substr(text, i + 2), "*/"); if (j == 0) break; out = out " "; i += j + 3; continue }
+              if (c == "\"" || c == "\047") q = c
+              out = out c; i++
+            }
+            re = "(^|[^A-Za-z0-9_$])[\"\047]?" key "[\"\047]?[ \t\r\n]*:[ \t\r\n]*[0-9]+([.][0-9]+)?"
+            if (match(out, re)) {
+              v = substr(out, RSTART, RLENGTH)
+              sub(/^.*:[ \t\r\n]*/, "", v)
+              print v
+            }
+          }' "$2" 2>/dev/null
+      }
       rc=0
       for key in minMsi minCoveredMsi; do
-        v1=$(grep -m1 -oE "\"$key\"[[:space:]]*:[[:space:]]*[0-9]+" infection.json5 2>/dev/null)
-        v1="${v1##*[[:space:]:]}"
-        v2=$(grep -m1 -oE "\"$key\"[[:space:]]*:[[:space:]]*[0-9]+" infection-full.json5 2>/dev/null)
-        v2="${v2##*[[:space:]:]}"
+        v1=$(json5_num "$key" infection.json5)
+        v2=$(json5_num "$key" infection-full.json5)
         [ -z "$v1" ] || [ -z "$v2" ] && continue
-        [ "$v1" = "$v2" ] && continue
+        awk -v a="$v1" -v b="$v2" 'BEGIN { exit !(a + 0 == b + 0) }' && continue
         echo "FAIL: $key is $v1 in infection.json5 and $v2 in infection-full.json5"
         rc=1
       done

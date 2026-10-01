@@ -466,6 +466,39 @@ class CheckpointTT105Test(TempDirTestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("declares neither minCoveredMsi nor minMsi", result.stdout)
 
+    def test_commented_thresholds_are_ignored(self) -> None:
+        # A higher value in a comment must not pass a config whose active
+        # threshold is 80: line comment, trailing comment, block comment.
+        for body in (
+            '{\n    // "minCoveredMsi": 95,\n    "minCoveredMsi": 80,\n}\n',
+            '{\n    "minCoveredMsi": 80, // "minMsi": 95\n}\n',
+            '{\n    /*\n    "minMsi": 95,\n    */\n    "minCoveredMsi": 80,\n}\n',
+        ):
+            with self.subTest(body=body):
+                result = self.check(body)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("threshold is 80", result.stdout)
+                self.assertIn("minMsi=unset", result.stdout)
+
+    def test_comment_markers_inside_strings_are_kept(self) -> None:
+        # The `//` of a URL is not a comment; the key after it is active.
+        result = self.check(
+            '{\n    "$schema": "https://example.org//schema.json", "minCoveredMsi": 95,\n}\n'
+        )
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_other_json5_key_and_value_forms_are_read(self) -> None:
+        result = self.check("{\n    minCoveredMsi: 90.5,\n}\n")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        result = self.check("{\n    'minCoveredMsi':\n        89.9,\n}\n")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("threshold is 89.9", result.stdout)
+
+    def test_a_string_value_is_not_a_threshold(self) -> None:
+        result = self.check('{\n    "minCoveredMsi": "95",\n}\n')
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("declares neither minCoveredMsi nor minMsi", result.stdout)
+
 
 class CheckpointTT106Test(TempDirTestCase):
     """TT-106: infection.json5 and infection-full.json5 agree on thresholds."""
@@ -521,6 +554,31 @@ class CheckpointTT106Test(TempDirTestCase):
         write(self.project / "infection.json5", '{\n    "minCoveredMsi": 85,\n}\n')
         write(self.project / "infection-full.json5", '{\n    "minCoveredMsi": 85,\n}\n')
         self.assertEqual(self.check().returncode, 0)
+
+    def test_commented_threshold_is_ignored(self) -> None:
+        write(
+            self.project / "infection.json5",
+            '{\n    // "minCoveredMsi": 95,\n    "minCoveredMsi": 80,\n}\n',
+        )
+        write(self.project / "infection-full.json5", '{\n    "minCoveredMsi": 80,\n}\n')
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_thresholds_compare_as_numbers(self) -> None:
+        write(self.project / "infection.json5", '{\n    "minCoveredMsi": 80,\n}\n')
+        write(
+            self.project / "infection-full.json5", '{\n    "minCoveredMsi": 80.0,\n}\n'
+        )
+        self.assertEqual(self.check().returncode, 0)
+        write(
+            self.project / "infection-full.json5", '{\n    "minCoveredMsi": 80.5,\n}\n'
+        )
+        result = self.check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "minCoveredMsi is 80 in infection.json5 and 80.5 in infection-full.json5",
+            result.stdout,
+        )
 
     def test_nothing_to_compare_passes(self) -> None:
         self.assertEqual(self.check().returncode, 0)
