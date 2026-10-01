@@ -751,8 +751,11 @@ Create `infection.json5` in the project root:
 When using `netresearch/typo3-ci-workflows`, `infection/infection` is provided transitively -- no separate `composer require` is needed. For standalone setups:
 
 ```bash
-composer require --dev infection/infection
+# PHP 8.3 and later; with PHP 8.2 still supported use "^0.32 || ^0.35"
+composer require --dev "infection/infection:^0.35"
 ```
+
+Without a constraint Composer writes the line that installs on the PHP running the command, which can be one the extension's lowest PHP version cannot install. Why 0.32 is the floor and 0.33 needs PHP 8.3: [mutation-testing.md](mutation-testing.md#infection-recommended).
 
 ### Running Mutation Tests
 

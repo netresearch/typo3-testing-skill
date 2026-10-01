@@ -154,14 +154,20 @@ PHP mutation testing framework with PHPUnit integration.
 
 **Installation:**
 ```bash
-composer require --dev infection/infection:^0.35
+# The extension supports PHP 8.3 and later
+composer require --dev "infection/infection:^0.35"
+
+# The extension still supports PHP 8.2
+composer require --dev "infection/infection:^0.32 || ^0.35"
 ```
 
-Require `^0.35`, not an older line. Before 0.32.0 Infection accepts only `webmozart/assert ^1`,
-and in a TYPO3 project that can downgrade a runtime dependency: TYPO3 reaches
-`webmozart/assert` through `phpdocumentor/reflection-docblock`, which accepts `^1.9.1 || ^2`,
-so Composer resolves 1.x to satisfy the older Infection. 0.32.0 and later accept
-`^1.11 || ^2.0`. Through `netresearch/typo3-ci-workflows` the constraint is wider
+0.32.0 is the floor. Before it Infection accepts only `webmozart/assert ^1`, and in a TYPO3
+project that can downgrade a runtime dependency: TYPO3 reaches `webmozart/assert` through
+`phpdocumentor/reflection-docblock`, which accepts `^1.9.1 || ^2`, so Composer resolves 1.x to
+satisfy the older Infection. 0.32.0 and later accept `^1.11 || ^2.0`. From 0.33.0 on Infection
+requires PHP 8.3, so `^0.35` alone cannot be installed on PHP 8.2; with the second constraint
+Composer resolves 0.32.x on PHP 8.2 and 0.35.x on 8.3 and later. Every option this reference
+uses exists in both lines. Through `netresearch/typo3-ci-workflows` the constraint is wider
 (`>=0.29 <1.0`), so run `composer show infection/infection` -- the resolved version decides
 which options exist (`--only-covered` before 0.31, `--with-uncovered` from 0.31 on).
 
