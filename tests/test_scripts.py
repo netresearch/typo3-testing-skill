@@ -419,6 +419,26 @@ class ValidateSetupTest(TempDirTestCase):
                 self.assertIn("1 warnings found", result.stdout)
 
 
+class CheckpointTT105Test(TempDirTestCase):
+    """TT-105: infection.json5 sets minMsi to 90 or more."""
+
+    def check(self, body: str) -> subprocess.CompletedProcess[str]:
+        write(self.project / "infection.json5", body)
+        script = self.tmp / "tt105.sh"
+        script.write_text(checkpoint_script("TT-105"), encoding="utf-8")
+        return run([BASH, str(script)], cwd=self.project)
+
+    def test_low_threshold_with_space_before_the_colon_fails(self) -> None:
+        # JSON5 allows whitespace between a key and its colon.
+        result = self.check('{\n    "minMsi" : 70,\n}\n')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("minMsi is 70; expected >= 90", result.stdout)
+
+    def test_high_threshold_with_space_before_the_colon_passes(self) -> None:
+        result = self.check('{\n    "minMsi" : 95,\n}\n')
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+
 class CheckpointTT106Test(TempDirTestCase):
     """TT-106: infection.json5 and infection-full.json5 agree on minMsi."""
 
