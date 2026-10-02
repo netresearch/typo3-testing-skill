@@ -105,6 +105,7 @@ Unit tests required (70%+ coverage). Functional tests required for DB operations
 - Non-admin BE-user access enforcement → `backend-user-access-testing.md`
 - Code writing through the DataHandler (agent tools, importers, API endpoints), values dropped or rewritten without an error → `datahandler-silent-rewrites.md`
 - Package will not install next to TYPO3 → `framework-compat-gate.md`
+- No Playwright / ad-hoc browser check of an EXT:form or JS-driven page → `e2e-testing.md` (CDP fallback)
 
 ## Links
 
