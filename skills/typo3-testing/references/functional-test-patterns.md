@@ -235,13 +235,13 @@ In `Build/phpunit/FunctionalTests.xml`:
 
 | PHPUnit  | TYPO3 Testing Framework | TYPO3 Version    |
 |----------|-------------------------|------------------|
-| ^10.1    | ^8.0                    | 12.4, 13.4       |
+| ^10.1    | ^8.0                    | 12.4, 13.4 (8.0.1+) |
 | ^11.0    | ^8.1                    | 12.4, 13.4       |
 | ^11.2.5  | ^9.0                    | 13.4, 14.3 (9.0.2+) |
 | ^12.1.2  | ^9.2                    | 13.4, 14.3       |
 | ^13.0.2  | ^9.4                    | 13.4, 14.3       |
 
-`scripts/setup-testing.sh` requires `typo3/testing-framework:^8.2 || ^9.0` and `phpunit/phpunit:^11.2.5 || ^12.1.2 || ^13.0.2`, so Composer picks the framework branch for the TYPO3 version and the newest PHPUnit it supports.
+`scripts/setup-testing.sh` requires `typo3/testing-framework:^8.2 || ^9.0` and `phpunit/phpunit:^10.5 || ^11.2.5 || ^12.1.2 || ^13.0.2`, so Composer picks the framework branch for the TYPO3 version and the newest PHPUnit that it and the project's PHP version allow (PHPUnit 11 needs PHP 8.2, 12 needs 8.3, 13 needs 8.4.1).
 
 ## Functional Test with Request Attribute (v13)
 

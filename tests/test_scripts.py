@@ -159,7 +159,7 @@ class SetupTestingTest(TempDirTestCase):
                 "composer require --dev typo3/testing-framework:^8.2 || ^9.0 --no-update",
                 (
                     "composer require --dev"
-                    " phpunit/phpunit:^11.2.5 || ^12.1.2 || ^13.0.2 --no-update"
+                    " phpunit/phpunit:^10.5 || ^11.2.5 || ^12.1.2 || ^13.0.2 --no-update"
                 ),
                 "composer update --no-progress",
             ],
