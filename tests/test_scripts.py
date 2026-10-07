@@ -11,7 +11,10 @@ Covered:
   and a guard that no checkpoint uses the `expected:` field;
 - Build/Scripts/validate-skill.sh with the Build/hooks/pre-commit hook that
   calls it, Build/Scripts/check-plugin-version.sh with the Build/hooks/pre-push
-  hook that calls it, and scripts/verify-harness.sh.
+  hook that calls it, and scripts/verify-harness.sh;
+- the command lines the skills/typo3-testing/assets/Build/Scripts/runTests.sh
+  template hands to the container binary, its exit code, and that it is clean
+  under `shellcheck -S style` (skipped where shellcheck is not installed).
 
 The script tests build their input in a temporary directory, run the script as
 a subprocess and check its exit code, its output and the files it wrote; the
@@ -817,6 +820,129 @@ class VerifyHarnessTest(TempDirTestCase):
         self.assertEqual(self.verify("--level=4").returncode, 1)
         self.assertEqual(self.verify("--check=bogus").returncode, 1)
         self.assertEqual(self.verify("--bogus").returncode, 1)
+
+
+class RunTestsTemplateTest(TempDirTestCase):
+    """The runTests.sh template, run against a stub container binary.
+
+    The stub records every argument as its own `[...]` token, so a test sees
+    exactly how the template splits and quotes its command lines.
+    """
+
+    RUN_TESTS = ASSETS / "Build" / "Scripts" / "runTests.sh"
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.log = self.tmp / "container.log"
+        self.log.write_text("", encoding="utf-8")
+        bindir = self.tmp / "bin"
+        self.exit_file = self.tmp / "exit-code"
+        write(
+            bindir / "docker",
+            "#!/usr/bin/env bash\n"
+            '{ printf %s "$(basename "$0")"; for a in "$@"; do printf " [%s]" "$a"; done;'
+            ' echo; } >> "$STUB_LOG"\n'
+            'case "$*" in *"php -r"*) cat >/dev/null; echo public ;; esac\n'
+            'if [ "$1" = run ] && [ -f "$STUB_EXIT" ]; then exit "$(cat "$STUB_EXIT")"; fi\n',
+            0o755,
+        )
+        (bindir / "podman").symlink_to("docker")
+        write(self.project / "composer.json", '{"name": "vendor/ext"}\n')
+        script = self.project / "Build" / "Scripts" / "runTests.sh"
+        script.parent.mkdir(parents=True)
+        shutil.copy(self.RUN_TESTS, script)
+        self.env = {
+            **ENV,
+            "PATH": f"{bindir}{os.pathsep}{ENV['PATH']}",
+            "STUB_LOG": str(self.log),
+            "STUB_EXIT": str(self.exit_file),
+            "CI": "true",
+        }
+        self.env.pop("CI_PARAMS", None)
+
+    def run_tests(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return run(
+            [BASH, "Build/Scripts/runTests.sh", "-b", "docker", *args],
+            cwd=self.project,
+            env=self.env,
+        )
+
+    def suite_call(self, name: str) -> str:
+        calls = [
+            c for c in self.log.read_text().splitlines() if f"[--name] [{name}-" in c
+        ]
+        self.assertEqual(len(calls), 1, self.log.read_text())
+        return calls[0]
+
+    def test_unit_suite_command_line(self) -> None:
+        result = self.run_tests("-s", "unit", "--", "--filter", "a b")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        call = self.suite_call("unit")
+        root = str(self.project.resolve())
+        self.assertTrue(
+            call.startswith("docker [run] [--rm] [--network] [my-extension-"),
+            call,
+        )
+        self.assertIn(f"[-v] [{root}:{root}] [-w] [{root}]", call)
+        self.assertIn("[-e] [XDEBUG_MODE=off] [-e] [XDEBUG_CONFIG= ]", call)
+        self.assertTrue(
+            call.endswith(
+                "[ghcr.io/typo3/core-testing-php85:latest] [php] [-d] [opcache.enable_cli=1]"
+                " [-d] [opcache.jit=1255] [-d] [opcache.jit_buffer_size=128M]"
+                " [-dxdebug.mode=off] [.Build/bin/phpunit] [-c] [Tests/Build/phpunit.xml]"
+                " [--testsuite] [Unit] [--filter] [a b]"
+            ),
+            call,
+        )
+
+    def test_ci_params_are_split_into_options(self) -> None:
+        self.env["CI_PARAMS"] = "--cpus=2 --memory=1g"
+        result = self.run_tests("-b", "podman", "-s", "phpstan")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "[run] [--cpus=2] [--memory=1g] [--rm]", self.suite_call("phpstan")
+        )
+
+    def test_shell_suites_get_one_command_string(self) -> None:
+        result = self.run_tests("-s", "cgl", "-n")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(
+            self.suite_call("cgl").endswith(
+                "[/bin/sh] [-c] [php -d opcache.enable_cli=1 -d opcache.jit=1255"
+                " -d opcache.jit_buffer_size=128M -dxdebug.mode=off"
+                " .Build/bin/php-cs-fixer fix -v --dry-run --diff]"
+            )
+        )
+
+    def test_sqlite_functional_suite_mounts_the_database_tmpfs(self) -> None:
+        result = self.run_tests("-s", "functional")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        root = str(self.project.resolve())
+        call = self.suite_call("functional")
+        self.assertIn(
+            f"[--tmpfs] [{root}/public/typo3temp/var/tests/functional-sqlite-dbs/"
+            ":rw,noexec,nosuid,mode=1777]",
+            call,
+        )
+        self.assertIn("[--exclude-group] [not-sqlite]", call)
+
+    def test_suite_exit_code_is_the_script_exit_code(self) -> None:
+        self.exit_file.write_text("3", encoding="utf-8")
+        result = self.run_tests("-s", "lint")
+        self.assertEqual(result.returncode, 3)
+        self.assertIn("FAILURE", result.stderr)
+
+    def test_suites_without_a_container_run_exit_zero(self) -> None:
+        result = self.run_tests("-s", "clean")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("SUCCESS", result.stderr)
+
+    def test_shellcheck_style_clean(self) -> None:
+        shellcheck = shutil.which("shellcheck")
+        if shellcheck is None:
+            self.skipTest("shellcheck is not installed")
+        result = run([shellcheck, "-x", "-S", "style", str(self.RUN_TESTS)], cwd=ROOT)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

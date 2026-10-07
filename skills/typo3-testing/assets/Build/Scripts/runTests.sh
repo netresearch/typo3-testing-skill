@@ -4,6 +4,12 @@
 # Derived from Build/Scripts/runTests.sh of TYPO3 CMS Core
 # (https://github.com/TYPO3/typo3), which is licensed GPL-2.0-or-later;
 # this adaptation is distributed under the same licence.
+#
+# ShellCheck SC2086 is disabled for the whole file: CONTAINER_COMMON_PARAMS,
+# CI_PARAMS, XDEBUG_MODE and CONTAINERPARAMS each hold several options and
+# are split into words on purpose, as in TYPO3 Core's runner. Every other
+# expansion that ends up on a command line is quoted.
+# shellcheck disable=SC2086
 
 #
 # TYPO3 Extension Test Runner
@@ -35,12 +41,14 @@ waitFor() {
             COUNT=\$((COUNT + 1));
         done;
     "
-    ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name wait-for-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${IMAGE_ALPINE} /bin/sh -c "${TESTCOMMAND}"
-    if [[ $? -gt 0 ]]; then
+    if ! "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "wait-for-${SUFFIX}" ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" "${IMAGE_ALPINE}" /bin/sh -c "${TESTCOMMAND}"; then
         kill -SIGINT -$$
     fi
 }
 
+# Not called by the suites below; kept for suites that start an HTTP service
+# (see references/test-runners.md, "waitForHttp").
+# shellcheck disable=SC2329
 waitForHttp() {
     local URL=${1}
     local MAX_ATTEMPTS=${2:-30}
@@ -56,18 +64,17 @@ waitForHttp() {
         done;
         echo \"HTTP endpoint ${URL} is ready.\";
     "
-    ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name wait-for-http-${SUFFIX} ${IMAGE_ALPINE} /bin/sh -c "${TESTCOMMAND}"
-    if [[ $? -gt 0 ]]; then
+    if ! "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "wait-for-http-${SUFFIX}" "${IMAGE_ALPINE}" /bin/sh -c "${TESTCOMMAND}"; then
         kill -SIGINT -$$
     fi
 }
 
 cleanUp() {
-    ATTACHED_CONTAINERS=$(${CONTAINER_BIN} ps --filter network=${NETWORK} --format='{{.Names}}' 2>/dev/null)
+    ATTACHED_CONTAINERS=$("${CONTAINER_BIN}" ps --filter "network=${NETWORK}" --format='{{.Names}}' 2>/dev/null)
     for ATTACHED_CONTAINER in ${ATTACHED_CONTAINERS}; do
-        ${CONTAINER_BIN} rm -f ${ATTACHED_CONTAINER} >/dev/null 2>&1
+        "${CONTAINER_BIN}" rm -f "${ATTACHED_CONTAINER}" >/dev/null 2>&1
     done
-    ${CONTAINER_BIN} network rm ${NETWORK} >/dev/null 2>&1
+    "${CONTAINER_BIN}" network rm "${NETWORK}" >/dev/null 2>&1
 }
 
 cleanCacheFiles() {
@@ -236,6 +243,7 @@ CGLCHECK_DRY_RUN=0
 CI_PARAMS="${CI_PARAMS:-}"
 CONTAINER_BIN=""
 CONTAINER_HOST="host.docker.internal"
+SUITE_EXIT_CODE=0
 
 # Parse options
 OPTIND=1
@@ -263,7 +271,7 @@ COMPOSER_ROOT_VERSION="1.x-dev"
 
 HOST_UID=$(id -u)
 USERSET=""
-if [ $(uname) != "Darwin" ]; then
+if [ "$(uname)" != "Darwin" ]; then
     USERSET="--user $HOST_UID"
 fi
 
@@ -309,18 +317,18 @@ IMAGE_PLAYWRIGHT="mcr.microsoft.com/playwright:v1.57.0-noble"
 shift $((OPTIND - 1))
 
 # CUSTOMIZE: Replace 'my-extension' with your extension key
-SUFFIX=$(echo $RANDOM)
+SUFFIX=${RANDOM}
 NETWORK="my-extension-${SUFFIX}"
-${CONTAINER_BIN} network create ${NETWORK} >/dev/null
+"${CONTAINER_BIN}" network create "${NETWORK}" >/dev/null
 
-if [ ${CONTAINER_BIN} = "docker" ]; then
+if [ "${CONTAINER_BIN}" = "docker" ]; then
     CONTAINER_COMMON_PARAMS="${CONTAINER_INTERACTIVE} --rm --network ${NETWORK} --add-host "${CONTAINER_HOST}:host-gateway" ${USERSET} -v ${ROOT_DIR}:${ROOT_DIR} -w ${ROOT_DIR}"
 else
     CONTAINER_HOST="host.containers.internal"
     CONTAINER_COMMON_PARAMS="${CONTAINER_INTERACTIVE} ${CI_PARAMS} --rm --network ${NETWORK} -v ${ROOT_DIR}:${ROOT_DIR} -w ${ROOT_DIR}"
 fi
 
-if [ ${PHP_XDEBUG_ON} -eq 0 ]; then
+if [ "${PHP_XDEBUG_ON}" -eq 0 ]; then
     XDEBUG_MODE="-e XDEBUG_MODE=off"
     XDEBUG_CONFIG=" "
 else
@@ -329,7 +337,7 @@ else
 fi
 
 # PHP performance options
-PHP_OPCACHE_OPTS="-d opcache.enable_cli=1 -d opcache.jit=1255 -d opcache.jit_buffer_size=128M"
+PHP_OPCACHE_OPTS=(-d opcache.enable_cli=1 -d opcache.jit=1255 -d opcache.jit_buffer_size=128M)
 # Functional/e2e-backend suites run WITHOUT the JIT: the tracing JIT in the
 # container PHP builds (reproduced on 8.3 and 8.5) can segfault silently
 # during suite bootstrap for certain - perfectly valid - source shapes
@@ -337,7 +345,7 @@ PHP_OPCACHE_OPTS="-d opcache.enable_cli=1 -d opcache.jit=1255 -d opcache.jit_buf
 # flipped it). Identical runs with opcache.jit=off pass; functionalCoverage
 # below already ran without the JIT. Functional tests are IO-bound, so the
 # JIT buys nothing here anyway.
-PHP_FUNCTIONAL_OPTS="-d opcache.enable_cli=1"
+PHP_FUNCTIONAL_OPTS=(-d opcache.enable_cli=1)
 
 # SQLite functional databases: the testing-framework writes them to
 # <TYPO3_PATH_ROOT>/typo3temp/var/tests/functional-sqlite-dbs/, and
@@ -436,11 +444,11 @@ fi
 case ${TEST_SUITE} in
     cgl)
         if [ "${CGLCHECK_DRY_RUN}" -eq 1 ]; then
-            COMMAND="php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/php-cs-fixer fix -v --dry-run --diff"
+            SHELL_COMMAND="php ${PHP_OPCACHE_OPTS[*]} -dxdebug.mode=off .Build/bin/php-cs-fixer fix -v --dry-run --diff"
         else
-            COMMAND="php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/php-cs-fixer fix -v"
+            SHELL_COMMAND="php ${PHP_OPCACHE_OPTS[*]} -dxdebug.mode=off .Build/bin/php-cs-fixer fix -v"
         fi
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name cgl-${SUFFIX} -e COMPOSER_CACHE_DIR=.Build/.cache/composer -e COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION} ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "cgl-${SUFFIX}" -e COMPOSER_CACHE_DIR=.Build/.cache/composer -e "COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION}" "${IMAGE_PHP}" /bin/sh -c "${SHELL_COMMAND}"
         SUITE_EXIT_CODE=$?
         ;;
     clean)
@@ -448,13 +456,13 @@ case ${TEST_SUITE} in
         ;;
     composer)
         COMMAND=(composer "$@")
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name composer-${SUFFIX} -e COMPOSER_CACHE_DIR=.Build/.cache/composer -e COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION} ${IMAGE_PHP} "${COMMAND[@]}"
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "composer-${SUFFIX}" -e COMPOSER_CACHE_DIR=.Build/.cache/composer -e "COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION}" "${IMAGE_PHP}" "${COMMAND[@]}"
         SUITE_EXIT_CODE=$?
         ;;
     composerUpdate)
         rm -rf .Build/bin/ .Build/vendor ./composer.lock
         COMMAND=(composer install --no-ansi --no-interaction --no-progress)
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name composer-${SUFFIX} -e COMPOSER_CACHE_DIR=.Build/.cache/composer -e COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION} ${IMAGE_PHP} "${COMMAND[@]}"
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "composer-${SUFFIX}" -e COMPOSER_CACHE_DIR=.Build/.cache/composer -e "COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION}" "${IMAGE_PHP}" "${COMMAND[@]}"
         SUITE_EXIT_CODE=$?
         ;;
     e2e)
@@ -472,45 +480,45 @@ case ${TEST_SUITE} in
             exit 1
         fi
 
-        COMMAND="npm ci && npx playwright test $*"
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name e2e-${SUFFIX} \
+        SHELL_COMMAND="npm ci && npx playwright test $*"
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name e2e-${SUFFIX} \
             -e TYPO3_BASE_URL="${TYPO3_BASE_URL}" \
             -e CI="${CI:-}" \
             -e npm_config_cache="${ROOT_DIR}/.Build/.cache/npm" \
-            ${IMAGE_PLAYWRIGHT} /bin/bash -c "${COMMAND}"
+            "${IMAGE_PLAYWRIGHT}" /bin/bash -c "${SHELL_COMMAND}"
         SUITE_EXIT_CODE=$?
         ;;
     functional)
-        COMMAND=(php ${PHP_FUNCTIONAL_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml --exclude-group not-${DBMS} "$@")
+        COMMAND=(php "${PHP_FUNCTIONAL_OPTS[@]}" -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml --exclude-group "not-${DBMS}" "$@")
 
         case ${DBMS} in
             mariadb)
                 echo "Using driver: ${DATABASE_DRIVER}"
-                ${CONTAINER_BIN} run --rm ${CI_PARAMS} --name mariadb-func-${SUFFIX} --network ${NETWORK} -d -e MYSQL_ROOT_PASSWORD=funcp --tmpfs /var/lib/mysql/:rw,noexec,nosuid ${IMAGE_MARIADB} >/dev/null
-                waitFor mariadb-func-${SUFFIX} 3306
+                "${CONTAINER_BIN}" run --rm ${CI_PARAMS} --name "mariadb-func-${SUFFIX}" --network "${NETWORK}" -d -e MYSQL_ROOT_PASSWORD=funcp --tmpfs /var/lib/mysql/:rw,noexec,nosuid "${IMAGE_MARIADB}" >/dev/null
+                waitFor "mariadb-func-${SUFFIX}" 3306
                 CONTAINERPARAMS="-e typo3DatabaseDriver=${DATABASE_DRIVER} -e typo3DatabaseName=func_test -e typo3DatabaseUsername=root -e typo3DatabaseHost=mariadb-func-${SUFFIX} -e typo3DatabasePassword=funcp"
-                ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} ${IMAGE_PHP} "${COMMAND[@]}"
+                "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "functional-${SUFFIX}" ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} "${IMAGE_PHP}" "${COMMAND[@]}"
                 SUITE_EXIT_CODE=$?
                 ;;
             mysql)
                 echo "Using driver: ${DATABASE_DRIVER}"
-                ${CONTAINER_BIN} run --rm ${CI_PARAMS} --name mysql-func-${SUFFIX} --network ${NETWORK} -d -e MYSQL_ROOT_PASSWORD=funcp --tmpfs /var/lib/mysql/:rw,noexec,nosuid ${IMAGE_MYSQL} >/dev/null
-                waitFor mysql-func-${SUFFIX} 3306
+                "${CONTAINER_BIN}" run --rm ${CI_PARAMS} --name "mysql-func-${SUFFIX}" --network "${NETWORK}" -d -e MYSQL_ROOT_PASSWORD=funcp --tmpfs /var/lib/mysql/:rw,noexec,nosuid "${IMAGE_MYSQL}" >/dev/null
+                waitFor "mysql-func-${SUFFIX}" 3306
                 CONTAINERPARAMS="-e typo3DatabaseDriver=${DATABASE_DRIVER} -e typo3DatabaseName=func_test -e typo3DatabaseUsername=root -e typo3DatabaseHost=mysql-func-${SUFFIX} -e typo3DatabasePassword=funcp"
-                ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} ${IMAGE_PHP} "${COMMAND[@]}"
+                "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "functional-${SUFFIX}" ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} "${IMAGE_PHP}" "${COMMAND[@]}"
                 SUITE_EXIT_CODE=$?
                 ;;
             postgres)
-                ${CONTAINER_BIN} run --rm ${CI_PARAMS} --name postgres-func-${SUFFIX} --network ${NETWORK} -d -e POSTGRES_PASSWORD=funcp -e POSTGRES_USER=funcu --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid ${IMAGE_POSTGRES} >/dev/null
-                waitFor postgres-func-${SUFFIX} 5432
+                "${CONTAINER_BIN}" run --rm ${CI_PARAMS} --name "postgres-func-${SUFFIX}" --network "${NETWORK}" -d -e POSTGRES_PASSWORD=funcp -e POSTGRES_USER=funcu --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid "${IMAGE_POSTGRES}" >/dev/null
+                waitFor "postgres-func-${SUFFIX}" 5432
                 CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_pgsql -e typo3DatabaseName=bamboo -e typo3DatabaseUsername=funcu -e typo3DatabaseHost=postgres-func-${SUFFIX} -e typo3DatabasePassword=funcp"
-                ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} ${IMAGE_PHP} "${COMMAND[@]}"
+                "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "functional-${SUFFIX}" ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} "${IMAGE_PHP}" "${COMMAND[@]}"
                 SUITE_EXIT_CODE=$?
                 ;;
             sqlite)
                 mkdir -p "${SQLITE_DB_DIR}"
                 CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite"
-                ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} --tmpfs "${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777" ${IMAGE_PHP} "${COMMAND[@]}"
+                "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "functional-${SUFFIX}" ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} --tmpfs "${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777" "${IMAGE_PHP}" "${COMMAND[@]}"
                 SUITE_EXIT_CODE=$?
                 ;;
         esac
@@ -528,9 +536,9 @@ case ${TEST_SUITE} in
             PARALLEL_JOBS="\$(((\$(nproc) + 1) / 2))"
         fi
 
-        COMMAND="find Tests/Functional -name '*Test.php' | xargs -P${PARALLEL_JOBS} -I{} php ${PHP_FUNCTIONAL_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml {}"
+        SHELL_COMMAND="find Tests/Functional -name '*Test.php' | xargs -P${PARALLEL_JOBS} -I{} php ${PHP_FUNCTIONAL_OPTS[*]} -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml {}"
         CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite"
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-parallel-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} --tmpfs "${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777" ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "functional-parallel-${SUFFIX}" ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${CONTAINERPARAMS} --tmpfs "${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777" "${IMAGE_PHP}" /bin/sh -c "${SHELL_COMMAND}"
         SUITE_EXIT_CODE=$?
         ;;
     functionalCoverage)
@@ -538,43 +546,43 @@ case ${TEST_SUITE} in
         COMMAND=(php -d opcache.enable_cli=1 .Build/bin/phpunit -c Tests/Build/FunctionalTests.xml --coverage-clover=.Build/coverage/functional.xml --coverage-html=.Build/coverage/html-functional --coverage-text "$@")
         mkdir -p "${SQLITE_DB_DIR}"
         CONTAINERPARAMS="-e typo3DatabaseDriver=pdo_sqlite"
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name functional-coverage-${SUFFIX} -e XDEBUG_MODE=coverage ${CONTAINERPARAMS} --tmpfs "${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777" ${IMAGE_PHP} "${COMMAND[@]}"
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "functional-coverage-${SUFFIX}" -e XDEBUG_MODE=coverage ${CONTAINERPARAMS} --tmpfs "${SQLITE_DB_DIR}:rw,noexec,nosuid,mode=1777" "${IMAGE_PHP}" "${COMMAND[@]}"
         SUITE_EXIT_CODE=$?
         ;;
     lint)
-        COMMAND="find . -name \\*.php ! -path \"./.Build/\\*\" -print0 | xargs -0 -n1 -P\$(nproc) php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off -l >/dev/null"
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name lint-${SUFFIX} ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
+        SHELL_COMMAND="find . -name \\*.php ! -path \"./.Build/\\*\" -print0 | xargs -0 -n1 -P\$(nproc) php ${PHP_OPCACHE_OPTS[*]} -dxdebug.mode=off -l >/dev/null"
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "lint-${SUFFIX}" "${IMAGE_PHP}" /bin/sh -c "${SHELL_COMMAND}"
         SUITE_EXIT_CODE=$?
         ;;
     phpstan)
-        COMMAND="php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpstan analyse"
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name phpstan-${SUFFIX} -e COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION} ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
+        SHELL_COMMAND="php ${PHP_OPCACHE_OPTS[*]} -dxdebug.mode=off .Build/bin/phpstan analyse"
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "phpstan-${SUFFIX}" -e "COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION}" "${IMAGE_PHP}" /bin/sh -c "${SHELL_COMMAND}"
         SUITE_EXIT_CODE=$?
         ;;
     unit)
-        COMMAND=(php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/phpunit.xml --testsuite Unit "$@")
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name unit-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${IMAGE_PHP} "${COMMAND[@]}"
+        COMMAND=(php "${PHP_OPCACHE_OPTS[@]}" -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/phpunit.xml --testsuite Unit "$@")
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "unit-${SUFFIX}" ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" "${IMAGE_PHP}" "${COMMAND[@]}"
         SUITE_EXIT_CODE=$?
         ;;
     unitCoverage)
         mkdir -p .Build/coverage
         COMMAND=(php -d opcache.enable_cli=1 .Build/bin/phpunit -c Tests/Build/phpunit.xml --testsuite Unit --coverage-clover=.Build/coverage/unit.xml --coverage-html=.Build/coverage/html-unit --coverage-text "$@")
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name unit-coverage-${SUFFIX} -e XDEBUG_MODE=coverage ${IMAGE_PHP} "${COMMAND[@]}"
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "unit-coverage-${SUFFIX}" -e XDEBUG_MODE=coverage "${IMAGE_PHP}" "${COMMAND[@]}"
         SUITE_EXIT_CODE=$?
         ;;
     fuzz)
-        COMMAND=(php ${PHP_OPCACHE_OPTS} -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/phpunit.xml --testsuite Fuzz "$@")
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name fuzz-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${IMAGE_PHP} "${COMMAND[@]}"
+        COMMAND=(php "${PHP_OPCACHE_OPTS[@]}" -dxdebug.mode=off .Build/bin/phpunit -c Tests/Build/phpunit.xml --testsuite Fuzz "$@")
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "fuzz-${SUFFIX}" ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" "${IMAGE_PHP}" "${COMMAND[@]}"
         SUITE_EXIT_CODE=$?
         ;;
     mutation)
         COMMAND=(php -d opcache.enable_cli=1 .Build/bin/infection --configuration=infection.json5 --threads=4 "$@")
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name mutation-${SUFFIX} -e XDEBUG_MODE=coverage ${IMAGE_PHP} "${COMMAND[@]}"
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "mutation-${SUFFIX}" -e XDEBUG_MODE=coverage "${IMAGE_PHP}" "${COMMAND[@]}"
         SUITE_EXIT_CODE=$?
         ;;
     update)
         echo "> Updating ${TYPO3_IMAGE_PREFIX}core-testing-* images..."
-        ${CONTAINER_BIN} images "${TYPO3_IMAGE_PREFIX}core-testing-*" --format "{{.Repository}}:{{.Tag}}" | xargs -I {} ${CONTAINER_BIN} pull {}
+        "${CONTAINER_BIN}" images "${TYPO3_IMAGE_PREFIX}core-testing-*" --format "{{.Repository}}:{{.Tag}}" | xargs -I {} "${CONTAINER_BIN}" pull {}
         ;;
     *)
         loadHelp
@@ -608,4 +616,4 @@ fi
 echo "###########################################################################" >&2
 echo "" >&2
 
-exit $SUITE_EXIT_CODE
+exit "${SUITE_EXIT_CODE}"
