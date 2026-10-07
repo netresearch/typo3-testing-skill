@@ -256,12 +256,14 @@ echo "Throughput: " . \number_format($throughput, 0) . " ops/sec\n";
 Add a performance suite to `runTests.sh`:
 
 ```bash
-'performance')
-    COMMAND="php ${PHP_OPCACHE_OPTS} .Build/bin/phpunit -c Build/phpunit/PerformanceTests.xml"
-    ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name ${CONTAINER_NAME} ${IMAGE_PHP} ${COMMAND}
+performance)
+    COMMAND=(php "${PHP_OPCACHE_OPTS[@]}" .Build/bin/phpunit -c Build/phpunit/PerformanceTests.xml "$@")
+    "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "performance-${SUFFIX}" "${IMAGE_PHP}" "${COMMAND[@]}"
     SUITE_EXIT_CODE=$?
     ;;
 ```
+
+This matches the `unit` suite of `assets/Build/Scripts/runTests.sh`, where `PHP_OPCACHE_OPTS` is an array. In a copy of an older template that defines it as a string, write `${PHP_OPCACHE_OPTS}` unquoted instead.
 
 ### Via Makefile
 
