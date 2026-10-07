@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: CC-BY-SA-4.0
 # SPDX-FileCopyrightText: Netresearch DTT GmbH
 name: typo3-testing
-description: "Use when a reported defect has to be reproduced as a failing test before it is fixed, when a change to a template or to any rendered output has to be proved, or when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit 11/12/13, mutation testing, mocking final classes (v14), CI/CD matrix across TYPO3 12/13/14.3 LTS, dev-dependency consolidation via typo3-ci-workflows meta-package, debugging CI failures, or confirming a change on a running TYPO3 instance after the tests are green. Also triggers on: testing-framework setup, ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
+description: "Use when a reported defect must be reproduced as a failing test, when a change to a template or rendered output has to be proved, when a change must be confirmed on a running TYPO3 instance, or when setting up TYPO3 extension tests: unit/functional/E2E, PHPUnit 11-13, mutation testing, final-class mocks (v14), CI matrix across TYPO3 12/13/14.3 LTS, typo3-ci-workflows meta-package, CI failures. Also: testing-framework setup, test matrix, integration/e2e testing, coverage, test generation."
 ---
 
 # TYPO3 Testing Skill
