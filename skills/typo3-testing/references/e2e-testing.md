@@ -570,6 +570,11 @@ login. `locator.or()` cannot combine a top-document locator with one inside a
 frame ("Frame locators are not allowed inside composite locators"), so race the
 two waits:
 
+While the dialog is open, the module frame shows a sudo-mode placeholder page
+(template `SudoMode/Module` in EXT:backend, no `h1`). Pick a marker that only the real module
+renders; a marker the placeholder also shows wins the race and leaves the
+dialog open.
+
 ```typescript
 // moduleMarker: an element the test expects in the module, e.g.
 // page.frameLocator('#typo3-contentIframe').getByRole('heading', { name: 'Maintenance' })
