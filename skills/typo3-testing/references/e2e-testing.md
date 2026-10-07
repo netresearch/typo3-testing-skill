@@ -546,6 +546,34 @@ await expect(frame.locator('#my-panel')).toBeVisible();
 Before concluding "the module doesn't render," dump `page.frames()` — you'll see
 the shell plus the `?token=` module frame. Assert inside the latter.
 
+**Admin Tools ask for the password again, in the top document**
+
+In TYPO3 13.4 and 14.3 the Admin Tools modules (Maintenance, Settings, Upgrade,
+Environment) open a sudo-mode dialog before they render. The dialog is a modal
+in the **top** document, not inside `#typo3-contentIframe`, so a test that
+waits for the module frame times out behind it. Fill it from the same
+environment variable as the login (in TYPO3 v13.4.35 and v14.3.7,
+`Build/Sources/TypeScript/backend/security/element/sudo-mode.ts` renders the
+form `#verify-sudo-mode` with the field `#password` and a button named
+`verify`):
+
+```typescript
+const sudo = page.locator('.modal-sudo-mode-verification');
+if (await sudo.isVisible()) {
+  await sudo.locator('#password').fill(process.env.TYPO3_BE_PASSWORD ?? '');
+  await sudo.locator('button[name="verify"]').click();
+  await expect(sudo).toBeHidden();
+}
+```
+
+**A full-page screenshot stops at the module frame**
+
+`page.screenshot({ fullPage: true })` measures the outer shell, whose height is
+the viewport; module content below it is not captured. Raise the viewport height
+instead and check the image height afterwards. The screenshot rules and the
+recipe live in the `typo3-docs` skill (`references/screenshots.md`); checking a
+change by hand on a running instance is `live-instance-verification.md`.
+
 **Fields in a non-active settings tab are attached, not visible**
 
 In tabbed backend forms (e.g. the User Settings / Setup module), every tab pane
