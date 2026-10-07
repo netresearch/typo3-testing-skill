@@ -210,9 +210,12 @@ export default {
 - **Tests that read the source with `readFileSync`** see the instrumented code
   in Stryker's sandbox, so their string assertions fail. Exclude those source
   files from `mutate` and say why next to the exclude.
-- **Legacy code without tests** only adds `NoCoverage` mutants. Exclude it, or
-  keep `break: null` until the score is stable, then set `break` to a value the
-  suite already reaches.
+- **Code no test reaches** yields `NoCoverage` mutants, a per-mutant state
+  that depends on coverage, not on whether a file has its own test: a suite can
+  cover legacy code indirectly. Read the `NoCoverage` list in the report before
+  excluding a file, and exclude only files whose mutants are all `NoCoverage`.
+  Alternatively keep `break: null` until the score is stable, then set `break`
+  to a value the suite already reaches.
 
 ## Preflight: Tests Must Pass Before Mutating
 

@@ -492,13 +492,13 @@ A passing unit test is evidence that the function under test does what its tests
 
 ## TYPO3 Modal API: Per-Button `trigger` Callbacks
 
-The backend `Modal` renders into the light DOM: `ModalElement.createRenderRoot()` returns the element itself (`Build/Sources/TypeScript/backend/modal.ts`, v13.4.35 and v14.3.7). A click on a modal button first calls that button's `trigger` callback, then dispatches a bubbling `button.clicked` event from the button; core's own `Modal.confirm()` listens for it on the modal element. Both hooks therefore work, but the per-button `trigger` callback supplied at `Modal.show()` time keeps the action next to the button it belongs to:
+The backend `Modal` renders into the light DOM: `ModalElement.createRenderRoot()` returns the element itself (`Build/Sources/TypeScript/backend/modal.ts`, v13.4.35 and v14.3.7). A click on a modal button first calls that button's `trigger` callback, then dispatches a bubbling `button.clicked` event from the button; core's own `Modal.confirm()` listens for it on the modal element. Both hooks therefore work, but the per-button `trigger` callback keeps the action next to the button it belongs to. `Modal.show(title, content, severity, buttons)` takes positional arguments; a configuration object goes to `Modal.advanced()`:
 
 ```javascript
 import Modal from '@typo3/backend/modal.js';
 import Severity from '@typo3/backend/severity.js';
 
-Modal.show({
+Modal.advanced({
     title: 'Confirm',
     content: 'Delete this passkey?',
     severity: Severity.warning,
