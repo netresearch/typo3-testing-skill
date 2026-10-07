@@ -16,6 +16,17 @@ Extensions **MUST** have a Docker-based `Build/Scripts/runTests.sh` that:
 5. Handles **database container orchestration** for functional tests
 6. Uses **--user flag** on Linux to prevent root-owned files
 
+## runTests.sh and Composer Scripts Are Two Entry Points
+
+`runTests.sh` does not have to be the only way in. Composer scripts that call
+the tools directly (`"ci:test:php:unit": "phpunit -c Build/phpunit.xml"`) are
+standard too: the TYPO3 reference extension TYPO3BestPractices/tea names them
+`check:tests:unit` and calls `phpunit` from them, and its `runTests.sh` starts
+`.Build/bin/phpunit` inside a core-testing container. Neither calls the other.
+The composer scripts run the suite in the current PHP; `runTests.sh` runs it in
+the PHP and database version you pick. `runTests.sh` stays required (TT-50);
+TT-55 and TT-62 accept either kind of composer script.
+
 ## Template
 
 Use `assets/Build/Scripts/runTests.sh` as starting point. Customize:
