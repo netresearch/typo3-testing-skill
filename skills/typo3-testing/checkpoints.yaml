@@ -325,7 +325,8 @@ mechanical:
   #      core-testing containers for multi-version runs. The TYPO3 reference
   #      extension TYPO3BestPractices/tea does exactly this (check:tests:unit
   #      calls phpunit; runTests.sh starts .Build/bin/phpunit in a container),
-  #      and 17 of 25 netresearch/t3x-* extensions did on 2026-10-07.
+  #      and 17 of 25 netresearch/t3x-* extensions did on 2026-10-07. tea names
+  #      its scripts check:tests:*, so those names count as an entry point too.
   # runTests.sh itself stays mandatory (TT-50) either way.
   # Requiring shape 1 alone reported an error-free repo as non-conformant.
   # A composer.json with neither shape still fails: it defines no test entry
@@ -338,9 +339,9 @@ mechanical:
   - id: TT-55
     type: json_path
     target: composer.json
-    pattern: '(.scripts // {}) | (has("ci:test:php:unit") or has("ci:test:php:functional") or (tostring | contains("Build/Scripts/runTests.sh")))'
+    pattern: '(.scripts // {}) | (has("ci:test:php:unit") or has("ci:test:php:functional") or (keys | any(startswith("check:tests:"))) or (tostring | contains("Build/Scripts/runTests.sh")))'
     severity: warning
-    desc: "composer.json should define a test entry point — either a script invoking Build/Scripts/runTests.sh, or ci:test:php:unit / ci:test:php:functional scripts"
+    desc: "composer.json should define a test entry point — either a script invoking Build/Scripts/runTests.sh, or ci:test:php:unit / ci:test:php:functional scripts, or check:tests:* scripts (TYPO3BestPractices/tea)"
 
   - id: TT-56
     type: regex
@@ -354,7 +355,7 @@ mechanical:
   # runTests.sh, the CI templates and the PHPUnit configs in assets/ assume it.
   # Lowercase .build/vendor and an unset vendor-dir are legacy: a warning, not
   # an error, so existing extensions keep passing until their build setup is
-  # touched. typo3-conformance checks the same value as TC-188.
+  # touched. typo3-conformance checks the same value as TC-194.
   - id: TT-137
     type: json_path
     target: composer.json
@@ -457,9 +458,9 @@ mechanical:
   - id: TT-62
     type: json_path
     target: composer.json
-    pattern: '.scripts.test // .scripts["ci:test"] // .scripts["test:unit"] // .scripts["ci:test:php:unit"]'
+    pattern: '.scripts.test // .scripts["ci:test"] // .scripts["test:unit"] // .scripts["ci:test:php:unit"] // .scripts["check:tests:unit"]'
     severity: warning
-    desc: "composer.json should define test script (test, ci:test, test:unit, or ci:test:php:unit)"
+    desc: "composer.json should define test script (test, ci:test, test:unit, ci:test:php:unit, or check:tests:unit as in TYPO3BestPractices/tea)"
 
 # === ARCHITECTURE TESTING ===
   - id: TT-14
