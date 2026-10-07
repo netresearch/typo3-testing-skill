@@ -386,7 +386,7 @@ if [[ ${TEST_SUITE} =~ ^functional(Parallel|Coverage)$ ]] || [[ ${TEST_SUITE} ==
     # SC2016: the single-quoted $ are PHP variables. SC2086: CI_PARAMS holds
     # several options and is split on purpose, as in every other run below.
     # shellcheck disable=SC2016,SC2086
-    WEB_DIR=$(${CONTAINER_BIN} run --rm -i ${CI_PARAMS} "${IMAGE_PHP}" php -r '
+    WEB_DIR=$("${CONTAINER_BIN}" run --rm -i ${CI_PARAMS} "${IMAGE_PHP}" php -r '
         $c = json_decode(stream_get_contents(STDIN), true);
         if (!is_array($c)) { fwrite(STDERR, "composer.json is not valid JSON\n"); exit(3); }
         if (($c["name"] ?? "") === "typo3/cms") { echo "."; exit(0); }
@@ -481,7 +481,7 @@ case ${TEST_SUITE} in
         fi
 
         SHELL_COMMAND="npm ci && npx playwright test $*"
-        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name e2e-${SUFFIX} \
+        "${CONTAINER_BIN}" run ${CONTAINER_COMMON_PARAMS} --name "e2e-${SUFFIX}" \
             -e TYPO3_BASE_URL="${TYPO3_BASE_URL}" \
             -e CI="${CI:-}" \
             -e npm_config_cache="${ROOT_DIR}/.Build/.cache/npm" \
