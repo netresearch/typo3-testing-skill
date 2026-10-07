@@ -40,31 +40,35 @@ in `e2e-testing.md` as a Playwright spec.
 
 | Need | Tool |
 |---|---|
-| Click through the backend or frontend, acceptance screenshots, logged in | `typo3-browser` skill: login from its project config without the password in the context, module frame, sudo mode, a few lines of output per step |
+| Click through the backend or frontend, acceptance screenshots, logged in | A scripted browser that fills the password from the environment and prints a few lines per step; at Netresearch the `typo3-browser` skill from the internal marketplace, where installed |
 | Console errors, network requests, computed CSS, Lighthouse | Chrome DevTools MCP (`browser-testing-with-devtools` skill) |
 | Ad-hoc interaction without a TYPO3-aware tool | Playwright MCP; every step returns a page snapshot, and a typed password stays in the transcript |
 | A check that must keep passing | A Playwright spec (`e2e-testing.md`) |
 | Status code, headers, a redirect | `curl` |
 
-On WSL or another host without a display, both browser MCP servers need
-`--headless`, and the Chrome DevTools server also needs
-`--chromeArg --no-sandbox`; without them the browser often does not start.
+On WSL or another host without a display, start both browser MCP servers with
+`--headless`. Chrome flags reach the Chrome DevTools server only in the form
+`--chrome-arg=--no-sandbox`: a separate `--chromeArg --no-sandbox` is parsed as
+an empty flag list (chrome-devtools-mcp 1.10.1).
 
 ## Backend specifics
 
 - **Module frame.** A backend module renders inside `#typo3-contentIframe`.
   A locator, a text read or an axe scan on the top page does not see its DOM
   (`e2e-testing.md`, *Common Pitfalls*).
-- **Sudo mode.** Admin Tools ask for the password again (TYPO3 13.4 and 14.3).
-  The dialog is a modal in the **top** document, not inside the module frame:
-  `.modal-sudo-mode-verification` holds the form `#verify-sudo-mode` with the
-  field `#password`, and the button named `verify` submits it
-  (`Build/Sources/TypeScript/backend/security/element/sudo-mode.ts`,
-  v13.4.35 and v14.3.7). Fill it from the environment, like the login.
+- **Sudo mode.** The four maintenance modules (Maintenance, Settings, Upgrade,
+  Environment; *Admin Tools* in TYPO3 12 and 13, *System* in 14) ask for the
+  password again, and only a system maintainer reaches them. The dialog is a
+  modal in the **top** document, not inside the module frame; it appears
+  asynchronously. Selectors and a wait that handles both cases:
+  `e2e-testing.md`, *Common Pitfalls*. Fill it from the environment, like the
+  login.
 - **Screenshots below the fold.** A full-page screenshot stops at the outer
   frame, so module content below the first viewport is missing. Raise the
-  viewport height instead, then check the image height: a file exactly as tall
-  as the viewport means the capture was cut. The `typo3-docs` skill
+  viewport height to at least the module document's `scrollHeight` (read inside
+  `#typo3-contentIframe`) plus the backend header. Compare the image height with
+  the height you meant to capture, not with the viewport: a viewport screenshot
+  is always exactly as tall as the viewport. The `typo3-docs` skill
   (`references/screenshots.md`) owns the screenshot rules.
 
 ## Typical checks

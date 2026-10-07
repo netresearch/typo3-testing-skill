@@ -211,7 +211,10 @@ describe('Image Dialog', () => {
 
 ## JavaScript Test Frameworks
 
-### Jest (Recommended)
+### Jest
+
+For new TypeScript plugin tests use Vitest (below); Jest remains documented for existing suites such as the CKEditor plugin tests above.
+
 
 **Installation:**
 ```bash
@@ -343,15 +346,32 @@ sonar.javascript.lcov.reportPaths=Tests/JavaScript/coverage/lcov.info
 
 Sitepackages and frontend-heavy extensions ship small TypeScript or jQuery
 plugins (accordion, sticky header, search field). Test one plugin per test
-file, mirroring the source path, in a DOM environment:
+file, mirroring the source path, in a DOM environment. This layout keeps the
+config in `Build/` and the tests in `Tests/Unit/TypeScript/`; the
+cross-directory recipe above keeps both in `Tests/JavaScript/`. Pick the one the
+extension already uses, and for a new one the layout of its PHP tests
+(`Tests/Unit/...`).
 
 ```ts
-// Build/vitest.config.ts — runs from the extension root (`root: '..'`)
+// Build/vitest.config.ts
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+    // Resolve paths against the extension root, not against the directory
+    // vitest was started from: `root: '..'` is resolved against the working
+    // directory and finds no tests when run from the extension root.
+    root: fileURLToPath(new URL('..', import.meta.url)),
+    resolve: {
+        alias: {
+            // TYPO3 backend modules are not installed in node_modules; point
+            // each one a plugin imports at a stub so vi.mock can replace it.
+            '@typo3/core/ajax/ajax-request.js':
+                fileURLToPath(new URL('../Tests/Unit/TypeScript/Support/stubs/ajax-request.ts', import.meta.url)),
+        },
+    },
     test: {
-        root: '..',
+        globals: true,
         include: ['Tests/Unit/TypeScript/**/*.test.ts'],
         environment: 'happy-dom',
         setupFiles: ['Tests/Unit/TypeScript/Support/setup.ts'],
@@ -365,6 +385,11 @@ export default defineConfig({
 });
 ```
 
+Run it from the extension root: `npx vitest run --config Build/vitest.config.ts`.
+
+- `globals: true` makes `describe`, `it`, `expect`, `vi` and `afterEach`
+  available without imports, as in the snippets below. Without it, import them
+  from `vitest`.
 - `happy-dom` is faster than `jsdom`; switch to `jsdom` only for an API
   happy-dom lacks.
 - Keep DOM builders and the cleanup in the setup file, so every test starts
@@ -390,20 +415,28 @@ afterEach(() => {
 
 **Property-based tests with fast-check** belong where a plugin transforms
 input (sanitising, formatting, parsing). They run inside the normal Vitest
-suite:
+suite. A plain `fc.string()` almost never produces the dangerous input, so a
+property built on it passes even for a function that does nothing; mix the
+tokens the property is about into the generated strings:
 
 ```ts
 import * as fc from 'fast-check';
 import { sanitizeInput } from '../../../../Resources/Private/TypeScript/Plugins/search';
 
+const dangerous = fc.constantFrom('<script>', '<SCRIPT src=x>', 'javascript:', 'JaVaScRiPt:');
+const input = fc.tuple(fc.string(), dangerous, fc.string()).map(([a, d, b]) => a + d + b);
+
 it('never produces script-capable output', () => {
-    fc.assert(fc.property(fc.string(), (input) => {
-        const result = sanitizeInput(input);
+    fc.assert(fc.property(input, (value) => {
+        const result = sanitizeInput(value).toLowerCase();
         expect(result).not.toContain('<script');
         expect(result).not.toContain('javascript:');
     }));
 });
 ```
+
+Before trusting such a property, run it once against an identity function
+(`(s) => s`): it must fail.
 
 ### Legacy jQuery Plugins (IIFE)
 
@@ -442,7 +475,7 @@ setup, write the E2E spec instead.
 
 Vitest/Jest unit tests around DOM helpers, event handlers, or "controller" JS classes verify **logic in isolation**. They do **not** exercise:
 
-- TYPO3's real `Modal` component (lives in `@typo3/backend/modal.js`, ships its own shadow DOM in v13+)
+- TYPO3's real `Modal` component (lives in `@typo3/backend/modal.js`)
 - Real browser event dispatch / bubbling
 - Backend page chrome (iframes, top frame, module router in v14)
 - Network round-trips against actual TYPO3 endpoints
@@ -455,17 +488,9 @@ Vitest/Jest unit tests around DOM helpers, event handlers, or "controller" JS cl
 
 A passing unit test is evidence that the function under test does what its tests assert -- not that the feature works for a backend user. Skipping this distinction is the single most common cause of "you said it worked, but it doesn't" feedback on PRs.
 
-## TYPO3 Modal API: `button.clicked` Does Not Cross Shadow DOM
+## TYPO3 Modal API: Per-Button `trigger` Callbacks
 
-TYPO3 v13+ wraps the backend `Modal` in a shadow DOM. The internal `button.clicked` event is dispatched **inside** the shadow root and does not bubble out to the modal host element. Code that does this:
-
-```javascript
-// BROKEN: event never fires the listener -- the shadow root swallows it
-const modal = Modal.show({ /* ... */ });
-modal.addEventListener('button.clicked', (e) => { /* ... */ });
-```
-
-silently does nothing on v13+ even though it appeared to work on v12 with the legacy modal. The supported, cross-version API is the per-button `trigger` callback supplied at `Modal.show()` time:
+The backend `Modal` renders into the light DOM: `ModalElement.createRenderRoot()` returns the element itself (`Build/Sources/TypeScript/backend/modal.ts`, v13.4.35 and v14.3.7). A click on a modal button first calls that button's `trigger` callback, then dispatches a bubbling `button.clicked` event from the button; core's own `Modal.confirm()` listens for it on the modal element. Both hooks therefore work, but the per-button `trigger` callback supplied at `Modal.show()` time keeps the action next to the button it belongs to:
 
 ```javascript
 import Modal from '@typo3/backend/modal.js';
@@ -482,7 +507,7 @@ Modal.show({
 });
 ```
 
-`trigger` callbacks are invoked the same way on TYPO3 v12, v13 and v14, regardless of whether the modal is rendered into the light DOM or a shadow root. Use them as the only event hook for modal buttons. (Page Object Models in `references/e2e-testing.md` test the rendered modal from the outside via `.modal` selectors -- they do not rely on `button.clicked` either.)
+Page Object Models in `references/e2e-testing.md` test the rendered modal from the outside via `.modal` selectors; because the modal has no shadow root, Playwright locators reach its buttons directly.
 
 ## Testing Best Practices
 

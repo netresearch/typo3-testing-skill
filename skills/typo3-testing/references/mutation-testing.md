@@ -180,7 +180,10 @@ which options exist (`--only-covered` before 0.31, `--with-uncovered` from 0.31 
 ### Stryker (TypeScript and JavaScript)
 
 Mutation testing for frontend plugins tested with Vitest
-(`javascript-testing.md`):
+(`javascript-testing.md`). Paths are relative to the extension root; run
+`npx stryker run Build/stryker.config.mjs` from there. The Vitest config must
+resolve its `root` from its own location (see `javascript-testing.md`), or
+Stryker reports "No tests were executed".
 
 ```js
 // Build/stryker.config.mjs
