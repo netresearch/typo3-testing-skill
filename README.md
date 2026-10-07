@@ -757,6 +757,7 @@ This project uses split licensing:
 
 - **Code** (scripts, workflows, configs): [MIT](LICENSE-MIT)
 - **Content** (skill definitions, documentation, references): [CC-BY-SA-4.0](LICENSE-CC-BY-SA-4.0)
+- **Exception**: the runner template `skills/typo3-testing/assets/Build/Scripts/runTests.sh` is derived from TYPO3 Core's `Build/Scripts/runTests.sh` and stays under the core's licence, [GPL-2.0-or-later](LICENSE-GPL-2.0); the file says so in its header.
 
 See the individual license files for full terms.
 ## Maintained By

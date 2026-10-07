@@ -53,8 +53,12 @@ fi
 
 # 1. Install testing framework dependencies
 echo -e "${YELLOW}[1/6] Installing testing framework dependencies...${NC}"
+# typo3/testing-framework 8.2 covers TYPO3 12.4 and 13.4 with PHPUnit 10 or 11;
+# 9.x covers TYPO3 13.4 and 14.3 with PHPUnit 11.2.5+, 12.1.2+ (9.2) and
+# 13.0.2+ (9.4). PHPUnit 10.5 stays allowed for TYPO3 12.4 on PHP 8.1: every
+# later PHPUnit line needs PHP 8.2 or newer.
 if ! grep -q "typo3/testing-framework" "${PROJECT_DIR}/composer.json"; then
-    composer require --dev "typo3/testing-framework:^8.0 || ^9.0" --no-update
+    composer require --dev "typo3/testing-framework:^8.2 || ^9.0" --no-update
     echo -e "${GREEN}✓ Added typo3/testing-framework${NC}"
 else
     echo -e "${GREEN}✓ typo3/testing-framework already present${NC}"
@@ -62,7 +66,7 @@ fi
 
 # Install PHPUnit if not present
 if ! grep -q "phpunit/phpunit" "${PROJECT_DIR}/composer.json"; then
-    composer require --dev "phpunit/phpunit:^10.5 || ^11.0" --no-update
+    composer require --dev "phpunit/phpunit:^10.5 || ^11.2.5 || ^12.1.2 || ^13.0.2" --no-update
     echo -e "${GREEN}✓ Added phpunit/phpunit${NC}"
 fi
 
