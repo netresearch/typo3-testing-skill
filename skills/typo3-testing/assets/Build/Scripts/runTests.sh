@@ -48,7 +48,8 @@ waitFor() {
 
 # Not called by the suites below; kept for suites that start an HTTP service
 # (see references/test-runners.md, "waitForHttp").
-# shellcheck disable=SC2329
+# ShellCheck before 0.11 reports this as SC2317 (unreachable), 0.11 as SC2329.
+# shellcheck disable=SC2317,SC2329
 waitForHttp() {
     local URL=${1}
     local MAX_ATTEMPTS=${2:-30}
