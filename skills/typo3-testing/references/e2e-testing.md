@@ -554,7 +554,9 @@ In 12 and 13 they sit under *Admin Tools* (`tools_toolsmaintenance`,
 `tools_toolssettings`, `tools_toolsupgrade`, `tools_toolsenvironment`); in 14
 under *System* (`system_maintenance`, `system_settings`, `system_upgrade`,
 `system_environment`, with the old identifiers as aliases), per
-`typo3/sysext/install/Configuration/Backend/Modules.php`. Only a system maintainer reaches them at all. The dialog is a modal in
+`typo3/sysext/install/Configuration/Backend/Modules.php`. They require a system
+maintainer; in Development context, or when no system maintainers are
+configured, every admin counts as one. The dialog is a modal in
 the **top** document, not inside `#typo3-contentIframe`, so a test that waits
 for the module frame times out behind it. In
 `Build/Sources/TypeScript/backend/security/element/sudo-mode.ts` (same
@@ -562,17 +564,27 @@ selectors in v12.4.45, v13.4.35 and v14.3.7) the modal carries the class
 `modal-sudo-mode-verification`, the form `#verify-sudo-mode` with the field
 `#password`, and a button named `verify`; the modal has no shadow root.
 
-The dialog appears asynchronously, so wait for either the dialog or the module
-before deciding, and fill it from the same variable as the login:
+The dialog appears asynchronously, so wait for either the dialog or an element
+the module renders before deciding, and fill it from the same variable as the
+login. `locator.or()` cannot combine a top-document locator with one inside a
+frame ("Frame locators are not allowed inside composite locators"), so race the
+two waits:
 
 ```typescript
-const sudo = page.locator('.modal-sudo-mode-verification');
-const moduleHeading = page.frameLocator('#typo3-contentIframe').locator('h1').first();
-await expect(sudo.or(moduleHeading)).toBeVisible();
-if (await sudo.isVisible()) {
-  await sudo.locator('#password').fill(process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? '');
-  await sudo.locator('button[name="verify"]').click();
-  await expect(sudo).toBeHidden();
+// moduleMarker: an element the test expects in the module, e.g.
+// page.frameLocator('#typo3-contentIframe').getByRole('heading', { name: 'Maintenance' })
+async function passSudoMode(page: Page, moduleMarker: Locator): Promise<void> {
+  const sudo = page.locator('.modal-sudo-mode-verification');
+  const first = await Promise.race([
+    sudo.waitFor().then(() => 'sudo'),
+    moduleMarker.waitFor().then(() => 'module'),
+  ]);
+  if (first === 'sudo') {
+    await sudo.locator('#password').fill(process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? '');
+    await sudo.locator('button[name="verify"]').click();
+    await expect(sudo).toBeHidden();
+    await moduleMarker.waitFor();
+  }
 }
 ```
 
@@ -581,8 +593,8 @@ if (await sudo.isVisible()) {
 `page.screenshot({ fullPage: true })` measures the outer shell, whose height is
 the viewport; module content below it is not captured. Raise the viewport height
 instead, to at least the module document's height
-(`frame.evaluate(() => document.documentElement.scrollHeight)` on the content
-frame plus the header above it). The screenshot rules and the
+(`page.frameLocator('#typo3-contentIframe').locator('html').evaluate((el) => el.scrollHeight)`
+plus the header above the frame). The screenshot rules and the
 recipe live in the `typo3-docs` skill (`references/screenshots.md`); checking a
 change by hand on a running instance is `live-instance-verification.md`.
 

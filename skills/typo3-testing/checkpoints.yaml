@@ -326,7 +326,7 @@ mechanical:
   #      extension TYPO3BestPractices/tea does exactly this (check:tests:unit
   #      calls phpunit; runTests.sh starts .Build/bin/phpunit in a container),
   #      and 17 of 25 netresearch/t3x-* extensions did on 2026-10-07. tea names
-  #      its scripts check:tests:*, so those names count as an entry point too.
+  #      its scripts check:tests:unit / check:tests:functional, so those count too.
   # runTests.sh itself stays mandatory (TT-50) either way.
   # Requiring shape 1 alone reported an error-free repo as non-conformant.
   # A composer.json with neither shape still fails: it defines no test entry
@@ -339,9 +339,9 @@ mechanical:
   - id: TT-55
     type: json_path
     target: composer.json
-    pattern: '(.scripts // {}) | (has("ci:test:php:unit") or has("ci:test:php:functional") or (keys | any(startswith("check:tests:"))) or (tostring | contains("Build/Scripts/runTests.sh")))'
+    pattern: '(.scripts // {}) | (has("ci:test:php:unit") or has("ci:test:php:functional") or has("check:tests:unit") or has("check:tests:functional") or (tostring | contains("Build/Scripts/runTests.sh")))'
     severity: warning
-    desc: "composer.json should define a test entry point — either a script invoking Build/Scripts/runTests.sh, or ci:test:php:unit / ci:test:php:functional scripts, or check:tests:* scripts (TYPO3BestPractices/tea)"
+    desc: "composer.json should define a test entry point — either a script invoking Build/Scripts/runTests.sh, or ci:test:php:unit / ci:test:php:functional scripts, or check:tests:unit / check:tests:functional scripts (TYPO3BestPractices/tea)"
 
   - id: TT-56
     type: regex

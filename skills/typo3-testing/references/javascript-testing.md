@@ -385,7 +385,9 @@ export default defineConfig({
 });
 ```
 
-Run it from the extension root: `npx vitest run --config Build/vitest.config.ts`.
+Create the stub the alias points to; an empty file is enough, because the setup
+file below replaces it with `vi.mock`. Then run Vitest from the extension root:
+`npx vitest run --config Build/vitest.config.ts`.
 
 - `globals: true` makes `describe`, `it`, `expect`, `vi` and `afterEach`
   available without imports, as in the snippets below. Without it, import them

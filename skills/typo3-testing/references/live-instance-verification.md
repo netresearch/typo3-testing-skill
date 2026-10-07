@@ -47,9 +47,9 @@ in `e2e-testing.md` as a Playwright spec.
 | Status code, headers, a redirect | `curl` |
 
 On WSL or another host without a display, start both browser MCP servers with
-`--headless`. Chrome flags reach the Chrome DevTools server only in the form
-`--chrome-arg=--no-sandbox`: a separate `--chromeArg --no-sandbox` is parsed as
-an empty flag list (chrome-devtools-mcp 1.10.1).
+`--headless`. Pass Chrome flags to the Chrome DevTools server joined with `=`
+(`--chrome-arg=--no-sandbox`): a separate `--chromeArg --no-sandbox` is parsed
+as an empty flag list (chrome-devtools-mcp 1.10.1).
 
 ## Backend specifics
 
