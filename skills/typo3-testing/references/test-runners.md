@@ -24,8 +24,14 @@ standard too: the TYPO3 reference extension TYPO3BestPractices/tea names them
 `check:tests:unit` and calls `phpunit` from them, and its `runTests.sh` starts
 `.Build/bin/phpunit` inside a core-testing container. Neither calls the other.
 The composer scripts run the suite in the current PHP; `runTests.sh` runs it in
-the PHP and database version you pick. `runTests.sh` stays required (TT-50);
-TT-55 and TT-62 accept either kind of composer script.
+the PHP and database version you pick. `runTests.sh` stays required (TT-50).
+TT-55 accepts `ci:test:php:unit`, `ci:test:php:functional`,
+`check:tests:unit`, `check:tests:functional` or any script that calls
+`runTests.sh`; TT-62 additionally wants a unit (or generic `test`) script, so
+define the unit one even where a functional script already satisfies TT-55.
+The commands in this reference use `runTests.sh`, which works for every PHP
+and database version; a composer script is the shortcut for the PHP you are
+running.
 
 ## Template
 
