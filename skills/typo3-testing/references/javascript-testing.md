@@ -339,6 +339,105 @@ the resulting lcov:
 sonar.javascript.lcov.reportPaths=Tests/JavaScript/coverage/lcov.info
 ```
 
+### Vitest for Frontend Plugins: happy-dom, a Shared Setup, fast-check
+
+Sitepackages and frontend-heavy extensions ship small TypeScript or jQuery
+plugins (accordion, sticky header, search field). Test one plugin per test
+file, mirroring the source path, in a DOM environment:
+
+```ts
+// Build/vitest.config.ts — runs from the extension root (`root: '..'`)
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+    test: {
+        root: '..',
+        include: ['Tests/Unit/TypeScript/**/*.test.ts'],
+        environment: 'happy-dom',
+        setupFiles: ['Tests/Unit/TypeScript/Support/setup.ts'],
+        coverage: {
+            provider: 'v8',
+            include: ['Resources/Private/TypeScript/**/*.ts'],
+            exclude: ['**/*.entry.ts', '**/*.d.ts'],
+            reporter: ['text', 'cobertura'],
+        },
+    },
+});
+```
+
+- `happy-dom` is faster than `jsdom`; switch to `jsdom` only for an API
+  happy-dom lacks.
+- Keep DOM builders and the cleanup in the setup file, so every test starts
+  with an empty `document.body`:
+
+```ts
+// Tests/Unit/TypeScript/Support/setup.ts
+vi.mock('@typo3/core/ajax/ajax-request.js', () => ({ default: vi.fn() }));
+
+// Fixture markup is a constant in the test, never user input.
+export function createElementFromTemplate(className: string, markup: string): HTMLElement {
+    const el = document.createElement('div');
+    el.className = className;
+    el.append(document.createRange().createContextualFragment(markup));
+    document.body.append(el);
+    return el;
+}
+
+afterEach(() => {
+    document.body.replaceChildren();
+});
+```
+
+**Property-based tests with fast-check** belong where a plugin transforms
+input (sanitising, formatting, parsing). They run inside the normal Vitest
+suite:
+
+```ts
+import * as fc from 'fast-check';
+import { sanitizeInput } from '../../../../Resources/Private/TypeScript/Plugins/search';
+
+it('never produces script-capable output', () => {
+    fc.assert(fc.property(fc.string(), (input) => {
+        const result = sanitizeInput(input);
+        expect(result).not.toContain('<script');
+        expect(result).not.toContain('javascript:');
+    }));
+});
+```
+
+### Legacy jQuery Plugins (IIFE)
+
+An IIFE plugin captures `jQuery` when the file is evaluated. Build a fake `$`
+per test, set it on `globalThis`, then import the plugin fresh:
+
+```js
+async function importPluginWith($) {
+    globalThis.jQuery = $;
+    globalThis.$ = $;
+    vi.resetModules();
+    await import('../../../../Resources/Private/JavaScript/Plugins/my-plugin.js');
+}
+```
+
+The fake answers the calls the plugin makes (`$.fn`, `$.extend`, a
+`$(fn)` ready callback, chained `attr`/`find`/`on` returning mocks). Test the
+lifecycle (init, destroy), configuration handling and `dataLayer` pushes this
+way.
+
+### Unit Test or E2E Spec
+
+| What the code does | Unit test | E2E spec |
+|---|:---:|:---:|
+| Pure logic: validation, formatting, arithmetic | yes | |
+| Plugin lifecycle (init/destroy), configuration, `dataLayer` pushes | yes | |
+| DOM manipulation through jQuery chains | | yes |
+| Browser APIs: cookies, `scrollTo`, `IntersectionObserver` | | yes |
+| Third-party widgets: maps, date pickers, AJAX reloads | | yes |
+| CSS transitions and animations | | yes |
+
+Rule of thumb: when one DOM interaction needs more than about 20 lines of mock
+setup, write the E2E spec instead.
+
 ## Unit Tests Do Not Prove UI Works
 
 Vitest/Jest unit tests around DOM helpers, event handlers, or "controller" JS classes verify **logic in isolation**. They do **not** exercise:
@@ -351,7 +450,8 @@ Vitest/Jest unit tests around DOM helpers, event handlers, or "controller" JS cl
 **Rule:** never claim a UI/JS change "works" on the basis of green unit tests alone. For any change that touches the rendered backend UI, do one of:
 
 1. Write a Playwright E2E spec under `Tests/E2E/` and run it against DDEV.
-2. Push the branch and ask the human to verify in a real browser.
+2. Look at it yourself on a running instance and report what you saw, with a screenshot (`live-instance-verification.md`).
+3. Push the branch and ask the human to verify in a real browser.
 
 A passing unit test is evidence that the function under test does what its tests assert -- not that the feature works for a backend user. Skipping this distinction is the single most common cause of "you said it worked, but it doesn't" feedback on PRs.
 

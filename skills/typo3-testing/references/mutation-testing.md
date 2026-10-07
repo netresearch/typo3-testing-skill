@@ -177,6 +177,40 @@ which options exist (`--only-covered` before 0.31, `--with-uncovered` from 0.31 
 - Generates HTML and JSON reports
 - Supports incremental analysis
 
+### Stryker (TypeScript and JavaScript)
+
+Mutation testing for frontend plugins tested with Vitest
+(`javascript-testing.md`):
+
+```js
+// Build/stryker.config.mjs
+/** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
+export default {
+    testRunner: 'vitest',
+    // pnpm's isolated node_modules hides the runner from Stryker's plugin
+    // discovery ("Cannot find TestRunner plugin 'vitest'"); name it here.
+    plugins: ['@stryker-mutator/vitest-runner'],
+    vitest: { configFile: 'Build/vitest.config.ts' },
+    ignorePatterns: ['.Build', 'vendor', 'public', '.stryker-tmp'],
+    mutate: [
+        'Resources/Private/TypeScript/Plugins/**/*.ts',
+        '!Resources/Private/TypeScript/Plugins/**/*.d.ts',
+    ],
+    reporters: ['html', 'clear-text', 'progress'],
+    thresholds: { high: 80, low: 40, break: null },
+};
+```
+
+- **CI image needs `ps`.** Stryker manages its workers through `ps`;
+  `node:*-slim` images ship without `procps`, and the job aborts with
+  `spawn ps ENOENT`. Use the full `node` image.
+- **Tests that read the source with `readFileSync`** see the instrumented code
+  in Stryker's sandbox, so their string assertions fail. Exclude those source
+  files from `mutate` and say why next to the exclude.
+- **Legacy code without tests** only adds `NoCoverage` mutants. Exclude it, or
+  keep `break: null` until the score is stable, then set `break` to a value the
+  suite already reaches.
+
 ## Preflight: Tests Must Pass Before Mutating
 
 Infection runs the configured PHPUnit suite **once, unmutated**, before applying any mutations. If that initial run reports failures or errors -- even a single one -- Infection aborts and reports nothing. In practice, two recurring causes blow up the preflight:
