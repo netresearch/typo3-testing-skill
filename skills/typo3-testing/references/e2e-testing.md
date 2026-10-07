@@ -546,6 +546,63 @@ await expect(frame.locator('#my-panel')).toBeVisible();
 Before concluding "the module doesn't render," dump `page.frames()` — you'll see
 the shell plus the `?token=` module frame. Assert inside the latter.
 
+**The maintenance modules ask for the password again, in the top document**
+
+In TYPO3 12.4, 13.4 and 14.3 the four maintenance modules (Maintenance,
+Settings, Upgrade, Environment) open a sudo-mode dialog before they render.
+In 12 and 13 they sit under *Admin Tools* (`tools_toolsmaintenance`,
+`tools_toolssettings`, `tools_toolsupgrade`, `tools_toolsenvironment`); in 14
+under *System* (`system_maintenance`, `system_settings`, `system_upgrade`,
+`system_environment`, with the old identifiers as aliases), per
+`typo3/sysext/install/Configuration/Backend/Modules.php`. They require a system
+maintainer; in Development context, or when no system maintainers are
+configured, every admin counts as one. The dialog is a modal in
+the **top** document, not inside `#typo3-contentIframe`, so a test that waits
+for the module frame times out behind it. In
+`Build/Sources/TypeScript/backend/security/element/sudo-mode.ts` (same
+selectors in v12.4.45, v13.4.35 and v14.3.7) the modal carries the class
+`modal-sudo-mode-verification`, the form `#verify-sudo-mode` with the field
+`#password`, and a button named `verify`; the modal has no shadow root.
+
+The dialog appears asynchronously, so wait for either the dialog or an element
+the module renders before deciding, and fill it from the same variable as the
+login. `locator.or()` cannot combine a top-document locator with one inside a
+frame ("Frame locators are not allowed inside composite locators"), so race the
+two waits:
+
+While the dialog is open, the module frame shows a sudo-mode placeholder page
+(template `SudoMode/Module` in EXT:backend, no `h1`). Pick a marker that only the real module
+renders; a marker the placeholder also shows wins the race and leaves the
+dialog open.
+
+```typescript
+// moduleMarker: an element the test expects in the module, e.g.
+// page.frameLocator('#typo3-contentIframe').getByRole('heading', { name: 'Maintenance' })
+async function passSudoMode(page: Page, moduleMarker: Locator): Promise<void> {
+  const sudo = page.locator('.modal-sudo-mode-verification');
+  const first = await Promise.race([
+    sudo.waitFor().then(() => 'sudo'),
+    moduleMarker.waitFor().then(() => 'module'),
+  ]);
+  if (first === 'sudo') {
+    await sudo.locator('#password').fill(process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? '');
+    await sudo.locator('button[name="verify"]').click();
+    await expect(sudo).toBeHidden();
+    await moduleMarker.waitFor();
+  }
+}
+```
+
+**A full-page screenshot stops at the module frame**
+
+`page.screenshot({ fullPage: true })` measures the outer shell, whose height is
+the viewport; module content below it is not captured. Raise the viewport height
+instead, to at least the module document's height
+(`page.frameLocator('#typo3-contentIframe').locator('html').evaluate((el) => el.scrollHeight)`
+plus the header above the frame). The screenshot rules and the
+recipe live in the `typo3-docs` skill (`references/screenshots.md`); checking a
+change by hand on a running instance is `live-instance-verification.md`.
+
 **Fields in a non-active settings tab are attached, not visible**
 
 In tabbed backend forms (e.g. the User Settings / Setup module), every tab pane

@@ -320,9 +320,14 @@ mechanical:
 
   # Two valid entry-point layouts, and this check accepts both:
   #   1. composer scripts call Build/Scripts/runTests.sh directly;
-  #   2. the Netresearch convention — composer scripts (ci:test:php:unit,
-  #      ci:test:php:functional, ...) ARE the entry point, and runTests.sh is
-  #      reserved for Docker-based multi-version runs.
+  #   2. composer scripts (ci:test:php:unit, ci:test:php:functional, ...) call
+  #      phpunit directly, and runTests.sh runs the suites in TYPO3
+  #      core-testing containers for multi-version runs. The TYPO3 reference
+  #      extension TYPO3BestPractices/tea does exactly this (check:tests:unit
+  #      calls phpunit; runTests.sh starts .Build/bin/phpunit in a container),
+  #      and 17 of 25 netresearch/t3x-* extensions did on 2026-10-07. tea names
+  #      its scripts check:tests:unit / check:tests:functional, so those count too.
+  # runTests.sh itself stays mandatory (TT-50) either way.
   # Requiring shape 1 alone reported an error-free repo as non-conformant.
   # A composer.json with neither shape still fails: it defines no test entry
   # point at all.
@@ -334,9 +339,9 @@ mechanical:
   - id: TT-55
     type: json_path
     target: composer.json
-    pattern: '(.scripts // {}) | (has("ci:test:php:unit") or has("ci:test:php:functional") or (tostring | contains("Build/Scripts/runTests.sh")))'
+    pattern: '(.scripts // {}) | (has("ci:test:php:unit") or has("ci:test:php:functional") or has("check:tests:unit") or has("check:tests:functional") or (tostring | contains("Build/Scripts/runTests.sh")))'
     severity: warning
-    desc: "composer.json should define a test entry point — either a script invoking Build/Scripts/runTests.sh, or ci:test:php:unit / ci:test:php:functional scripts"
+    desc: "composer.json should define a test entry point — either a script invoking Build/Scripts/runTests.sh, or ci:test:php:unit / ci:test:php:functional scripts, or check:tests:unit / check:tests:functional scripts (TYPO3BestPractices/tea)"
 
   - id: TT-56
     type: regex
@@ -344,6 +349,19 @@ mechanical:
     pattern: 'typo3-ci-workflows/Makefile.include'
     severity: info
     desc: "Makefile should include shared targets from typo3-ci-workflows"
+
+  # The TYPO3 standard build layout is .Build/ (TYPO3BestPractices/tea:
+  # vendor-dir .Build/vendor, bin-dir .Build/bin, web-dir .Build/public), and
+  # runTests.sh, the CI templates and the PHPUnit configs in assets/ assume it.
+  # Lowercase .build/vendor and an unset vendor-dir are legacy: a warning, not
+  # an error, so existing extensions keep passing until their build setup is
+  # touched. typo3-conformance checks the same value as TC-194.
+  - id: TT-137
+    type: json_path
+    target: composer.json
+    pattern: '.config["vendor-dir"] == ".Build/vendor"'
+    severity: warning
+    desc: "composer.json config.vendor-dir should be .Build/vendor (TYPO3 standard, see TYPO3BestPractices/tea); .build/vendor or an unset vendor-dir is a legacy layout - migrate when touching the build setup"
 
   # === RUNTESTS.SH QUALITY ===
   - id: TT-57
@@ -440,9 +458,9 @@ mechanical:
   - id: TT-62
     type: json_path
     target: composer.json
-    pattern: '.scripts.test // .scripts["ci:test"] // .scripts["test:unit"] // .scripts["ci:test:php:unit"]'
+    pattern: '.scripts.test // .scripts["ci:test"] // .scripts["test:unit"] // .scripts["ci:test:php:unit"] // .scripts["check:tests:unit"]'
     severity: warning
-    desc: "composer.json should define test script (test, ci:test, test:unit, or ci:test:php:unit)"
+    desc: "composer.json should define test script (test, ci:test, test:unit, ci:test:php:unit, or check:tests:unit as in TYPO3BestPractices/tea)"
 
 # === ARCHITECTURE TESTING ===
   - id: TT-14

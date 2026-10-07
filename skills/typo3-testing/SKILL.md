@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: CC-BY-SA-4.0
 # SPDX-FileCopyrightText: Netresearch DTT GmbH
 name: typo3-testing
-description: "Use when a reported defect has to be reproduced as a failing test before it is fixed, when a change to a template or to any rendered output has to be proved, or when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit 11/12/13, mutation testing, mocking final classes (v14), CI/CD matrix across TYPO3 12/13/14.3 LTS, dev-dependency consolidation via typo3-ci-workflows meta-package, or debugging CI failures. Also triggers on: testing-framework setup, ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
+description: "Use when a reported defect has to be reproduced as a failing test before it is fixed, when a change to a template or to any rendered output has to be proved, or when setting up TYPO3 extension test infrastructure, writing unit/functional/E2E tests, configuring PHPUnit 11/12/13, mutation testing, mocking final classes (v14), CI/CD matrix across TYPO3 12/13/14.3 LTS, dev-dependency consolidation via typo3-ci-workflows meta-package, debugging CI failures, or confirming a change on a running TYPO3 instance after the tests are green. Also triggers on: testing-framework setup, ensure proper testing, test matrix, integration testing, e2e testing, coverage, test generation."
 ---
 
 # TYPO3 Testing Skill
@@ -89,7 +89,7 @@ Unit tests required (70%+ coverage). Functional tests required for DB operations
 
 ## References (in `references/`, `.md` implied)
 
-`unit-testing.md` | `functional-testing.md` | `functional-test-patterns.md` | `integration-testing.md` | `e2e-testing.md` | `accessibility-testing.md` | `ddev-testing.md` | `test-runners.md` | `architecture-testing.md` | `ci-debugging.md` | `ci-cd.md` | `quality-tools.md` | `mutation-testing.md` | `fuzz-testing.md` | `performance-testing.md` | `typo3-v14-final-classes.md` | `mock-validity.md` | `javascript-testing.md` | `captainhook-setup.md` | `enforcement-rules.md` | `event-dispatch-testing.md` | `crypto-testing.md` | `test-environment-guards.md` | `sonarcloud.md` | `typo3-ci-config-patterns.md` | `tdd-discipline.md` | `ci-workflows-meta-package.md` | `synthetic-secret-fixtures.md` | `release-workflow-validation.md` | `asset-templates-guide.md` | `backend-module-render-verification.md` | `backend-user-access-testing.md` | `framework-compat-gate.md` | `datahandler-silent-rewrites.md`
+`unit-testing.md` | `functional-testing.md` | `functional-test-patterns.md` | `integration-testing.md` | `e2e-testing.md` | `accessibility-testing.md` | `ddev-testing.md` | `test-runners.md` | `architecture-testing.md` | `ci-debugging.md` | `ci-cd.md` | `quality-tools.md` | `mutation-testing.md` | `fuzz-testing.md` | `performance-testing.md` | `typo3-v14-final-classes.md` | `mock-validity.md` | `javascript-testing.md` | `captainhook-setup.md` | `enforcement-rules.md` | `event-dispatch-testing.md` | `crypto-testing.md` | `test-environment-guards.md` | `sonarcloud.md` | `typo3-ci-config-patterns.md` | `tdd-discipline.md` | `ci-workflows-meta-package.md` | `synthetic-secret-fixtures.md` | `release-workflow-validation.md` | `asset-templates-guide.md` | `backend-module-render-verification.md` | `backend-user-access-testing.md` | `framework-compat-gate.md` | `datahandler-silent-rewrites.md` | `live-instance-verification.md`
 
 ### Content Triggers
 
@@ -105,6 +105,8 @@ Unit tests required (70%+ coverage). Functional tests required for DB operations
 - Non-admin BE-user access enforcement → `backend-user-access-testing.md`
 - Code writing through the DataHandler (agent tools, importers, API endpoints), values dropped or rewritten without an error → `datahandler-silent-rewrites.md`
 - Package will not install next to TYPO3 → `framework-compat-gate.md`
+- Confirm a change on a running instance (backend module, content element preview, frontend page, acceptance screenshot), sudo-mode dialog, module content cut off in a screenshot → `live-instance-verification.md`
+- Vitest with happy-dom, fast-check, legacy jQuery plugin tests, unit test or E2E spec → `javascript-testing.md`; Stryker → `mutation-testing.md`
 
 ## Links
 

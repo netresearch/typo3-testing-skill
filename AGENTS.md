@@ -12,7 +12,7 @@ Agent harness for the TYPO3 testing skill repository.
 │   ├── SKILL.md                      # Main skill instructions
 │   ├── assets/                       # Template configs (PHPUnit, PHPStan, Rector, etc.)
 │   ├── checkpoints.yaml              # Eval checkpoints
-│   ├── references/                   # Detailed testing docs (34 reference files)
+│   ├── references/                   # Detailed testing docs (35 reference files)
 │   └── scripts/                      # Skill helper scripts
 │       ├── setup-testing.sh          # Initialize test infrastructure
 │       ├── generate-test.sh          # Generate test file scaffolds
