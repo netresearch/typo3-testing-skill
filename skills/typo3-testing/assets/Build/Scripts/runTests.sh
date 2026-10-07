@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Derived from Build/Scripts/runTests.sh of TYPO3 CMS Core
+# (https://github.com/TYPO3/typo3), which is licensed GPL-2.0-or-later;
+# this adaptation is distributed under the same licence.
 
 #
 # TYPO3 Extension Test Runner
