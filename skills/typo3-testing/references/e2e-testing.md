@@ -1068,7 +1068,11 @@ test('handles AJAX timeout gracefully', async ({ page, backend }) => {
 Use this when Playwright is not installed and cannot be added right now
 (npm blocked by a proxy, one-off verification on a developer machine) and a
 real browser run is still needed, for example a form whose submission depends
-on client-side JavaScript or server-side state.
+on client-side JavaScript or server-side state. Which tool fits, what the
+report carries, and rule 4 (read only on shared or production instances;
+creating records needs the human's go first) are in
+`live-instance-verification.md`; the submit example below writes a record and
+sends a mail.
 
 **Why not curl:** a scripted POST to an EXT:form form has to reproduce
 `__state`, `__trustedProperties`, the session cookie (the honeypot field has a
@@ -1087,7 +1091,14 @@ exit if the load event never fires (a hung subresource or body).
 Protocol needs no dependency. A minimal runner navigates to a URL and evaluates
 one or more JavaScript expressions in order, waiting before each one. It picks
 a free debugging port, uses a throwaway profile, and exits non-zero when
-navigation or an expression fails:
+Chrome does not start, navigation fails (a network error, or an HTTP error
+status with an empty body), or an expression throws. An HTTP error status that
+comes with a page (TYPO3's 404 or 500 page) is a successful navigation: the
+runner prints what the expression returns and exits 0, so the read expression
+has to check the content. Expressions travel as command-line arguments, so a
+password filled in by an expression ends up in the shell history, the
+transcript and `ps`, which breaks rule 5 (no password in the context) of
+`live-instance-verification.md`:
 
 ```js
 // cdp-eval.mjs — CHROME=/path/to/chrome node cdp-eval.mjs <url> "<expression>" ["<expression>" ...]
@@ -1103,13 +1114,20 @@ const chrome = spawn(bin, [
   '--headless=new', '--disable-gpu', '--ignore-certificate-errors',
   '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank',
 ], { stdio: 'ignore' });
+let spawnError;
+// created here, not in finally: an 'exit' that already fired would never resolve it
+const exited = new Promise((resolve) => {
+  chrome.once('exit', resolve);
+  chrome.once('error', (error) => { spawnError = error; resolve(); });
+});
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 try {
   let port;
-  for (let attempt = 0; attempt < 30 && !port; attempt++) {
+  for (let attempt = 0; attempt < 30 && !port && !spawnError; attempt++) {
     try { port = fs.readFileSync(path.join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch { await sleep(300); }
   }
+  if (spawnError) throw new Error(`Cannot start Chrome (${bin}): ${spawnError.message}`);
   if (!port) throw new Error(`Chrome (${bin}) did not open a DevTools port`);
   const version = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
   const ws = new WebSocket(version.webSocketDebuggerUrl);
@@ -1139,6 +1157,7 @@ try {
   process.exitCode = 1;
 } finally {
   chrome.kill('SIGKILL');
+  await exited; // Chrome still writes to the profile until it has exited
   fs.rmSync(profile, { recursive: true, force: true });
 }
 ```
