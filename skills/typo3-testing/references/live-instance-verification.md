@@ -43,6 +43,7 @@ in `e2e-testing.md` as a Playwright spec.
 | Click through the backend or frontend, acceptance screenshots, logged in | A scripted browser that fills the password from the environment and prints a few lines per step; at Netresearch the `typo3-browser` skill from the internal marketplace, where installed |
 | Console errors, network requests, computed CSS, Lighthouse | Chrome DevTools MCP (`browser-testing-with-devtools` skill) |
 | Ad-hoc interaction without a TYPO3-aware tool | Playwright MCP; every step returns a page snapshot, and a typed password stays in the transcript |
+| No Playwright and no browser MCP (npm blocked) | A Node.js runner on the Chrome DevTools Protocol (`e2e-testing.md`, *Ad-hoc Browser Check Without Playwright (CDP Fallback)*) |
 | A check that must keep passing | A Playwright spec (`e2e-testing.md`) |
 | Status code, headers, a redirect | `curl` |
 
