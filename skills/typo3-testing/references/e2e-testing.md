@@ -1091,17 +1091,21 @@ exit if the load event never fires (a hung subresource or body).
 Protocol needs no dependency. A minimal runner navigates to a URL and evaluates
 one or more JavaScript expressions in order, waiting before each one. It picks
 a free debugging port, uses a throwaway profile, and exits non-zero when
-Chrome does not start, navigation fails (a network error, or an HTTP error
-status with an empty body), or an expression throws. An HTTP error status that
-comes with a page (TYPO3's 404 or 500 page) is a successful navigation: the
-runner prints what the expression returns and exits 0, so the read expression
-has to check the content. Expressions travel as command-line arguments, so a
+Chrome does not start, the DevTools connection fails or drops, navigation fails
+(a network error, or an HTTP error status with an empty body), or an expression
+throws. DDEV certificates come from mkcert and are trusted once
+`mkcert -install` has run, so `CDP_INSECURE=1` (which adds
+`--ignore-certificate-errors`) is only for a disposable local instance with an
+untrusted certificate. An HTTP error status that comes with a page (TYPO3's
+404 or 500 page) is a successful navigation: the runner prints what the
+expression returns and exits 0, so the read expression has to check the
+content. Expressions travel as command-line arguments, so a
 password filled in by an expression ends up in the shell history, the
 transcript and `ps`, which breaks rule 5 (no password in the context) of
 `live-instance-verification.md`:
 
 ```js
-// cdp-eval.mjs — CHROME=/path/to/chrome node cdp-eval.mjs <url> "<expression>" ["<expression>" ...]
+// cdp-eval.mjs — [CDP_INSECURE=1] CHROME=/path/to/chrome node cdp-eval.mjs <url> "<expression>" ["<expression>" ...]
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -1109,9 +1113,10 @@ import path from 'node:path';
 
 const [url, ...expressions] = process.argv.slice(2);
 const bin = process.env.CHROME ?? 'google-chrome';
+const insecure = process.env.CDP_INSECURE === '1' ? ['--ignore-certificate-errors'] : [];
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-'));
 const chrome = spawn(bin, [
-  '--headless=new', '--disable-gpu', '--ignore-certificate-errors',
+  '--headless=new', '--disable-gpu', ...insecure,
   '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank',
 ], { stdio: 'ignore' });
 let spawnError;
@@ -1131,11 +1136,21 @@ try {
   if (!port) throw new Error(`Chrome (${bin}) did not open a DevTools port`);
   const version = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
   const ws = new WebSocket(version.webSocketDebuggerUrl);
-  await new Promise((resolve) => { ws.onopen = resolve; });
   let id = 0;
-  const pending = {};
-  ws.onmessage = (event) => { const m = JSON.parse(event.data); if (m.id && pending[m.id]) pending[m.id](m); };
+  const pending = {}; // command id -> reply handler
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('DevTools socket did not open within 10 s')), 10_000);
+    ws.onopen = () => { clearTimeout(timer); resolve(); };
+    ws.onerror = () => { clearTimeout(timer); reject(new Error('DevTools socket failed')); };
+    ws.onclose = () => { // also after open: fail every command still waiting for a reply
+      clearTimeout(timer);
+      reject(new Error('DevTools socket closed'));
+      for (const i in pending) pending[i]({ error: { message: 'DevTools socket closed' } });
+    };
+  });
+  ws.onmessage = (event) => { const m = JSON.parse(event.data); if (m.id && pending[m.id]) { pending[m.id](m); delete pending[m.id]; } };
   const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+    if (ws.readyState !== WebSocket.OPEN) throw new Error(`${method}: DevTools socket closed`);
     const i = ++id;
     pending[i] = (m) => (m.error ? reject(new Error(`${method}: ${m.error.message}`)) : resolve(m.result));
     ws.send(JSON.stringify({ id: i, method, params, sessionId }));
