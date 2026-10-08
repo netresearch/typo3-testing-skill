@@ -107,6 +107,7 @@ Unit tests required (70%+ coverage). Functional tests required for DB operations
 - Package will not install next to TYPO3 → `framework-compat-gate.md`
 - Confirm a change on a running instance (backend module, content element preview, frontend page, acceptance screenshot), sudo-mode dialog, module content cut off in a screenshot → `live-instance-verification.md`
 - Vitest with happy-dom, fast-check, legacy jQuery plugin tests, unit test or E2E spec → `javascript-testing.md`; Stryker → `mutation-testing.md`
+- No Playwright / ad-hoc browser check of an EXT:form or JS-driven page → `e2e-testing.md` (CDP fallback)
 
 ## Links
 
