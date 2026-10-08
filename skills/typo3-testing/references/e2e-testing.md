@@ -1112,6 +1112,10 @@ import os from 'node:os';
 import path from 'node:path';
 
 const [url, ...expressions] = process.argv.slice(2);
+if (!url || expressions.length === 0) {
+  console.error('usage: node cdp-eval.mjs <url> "<expression>" ["<expression>" ...]');
+  process.exit(2);
+}
 const bin = process.env.CHROME ?? 'google-chrome';
 const insecure = process.env.CDP_INSECURE === '1' ? ['--ignore-certificate-errors'] : [];
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-'));
