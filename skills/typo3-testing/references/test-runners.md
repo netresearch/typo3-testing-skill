@@ -33,6 +33,28 @@ The commands in this reference use `runTests.sh`, which works for every PHP
 and database version; a composer script is the shortcut for the PHP you are
 running.
 
+## Running from a non-interactive shell (agent, cron, CI step without a TTY)
+
+A third-party extension's `runTests.sh` may invoke the container with `-it`
+unconditionally. From a shell with no controlling terminal it then aborts
+before any test runs:
+
+```
+cannot attach stdin to a TTY-enabled container because stdin is not a terminal
+```
+
+Wrap the call in a pseudo-TTY with `script`, which satisfies `-it` without an
+interactive terminal:
+
+```bash
+script -qec "./Build/Scripts/runTests.sh -s composerInstall" /dev/null
+script -qec "./Build/Scripts/runTests.sh -s unit Tests/Unit/Foo/BarTest.php" /dev/null
+```
+
+The Netresearch template runner detects a missing TTY and needs no wrapper; the
+wrapper is for third-party runners that do not (verified 2026-10-08 against
+`georgringer/news_importicsxml`).
+
 ## Template
 
 Use `assets/Build/Scripts/runTests.sh` as starting point. Customize:
