@@ -43,11 +43,14 @@ test.describe('My Extension Backend Module', () => {
     await contentFrame.getByLabel('Title').fill('Test Title');
     await contentFrame.getByLabel('Description').fill('Test Description');
 
+    // Wait for the save response, registered before the click so a fast
+    // answer is not missed. networkidle is no substitute: it resolves at once
+    // on an idle page, often before the POST is sent.
+    const saved = backend.waitForModuleResponse(/module\/web\/myextension/);
+
     // Save the form
     await contentFrame.getByRole('button', { name: 'Save' }).click();
-
-    // Wait for save response
-    await backend.waitForModuleResponse(/module\/web\/myextension/);
+    await saved;
 
     // Verify success message
     await expect(contentFrame.locator('.alert-success')).toBeVisible();
