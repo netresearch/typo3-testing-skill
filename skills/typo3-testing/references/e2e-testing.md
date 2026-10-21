@@ -276,9 +276,11 @@ test.describe('My Extension Backend Module', () => {
     const contentFrame = backend.contentFrame;
     await contentFrame.getByLabel('Title').fill('Test Title');
     await contentFrame.getByLabel('Description').fill('Test Description');
-    await contentFrame.getByRole('button', { name: 'Save' }).click();
 
-    await backend.waitForModuleResponse(/module\/web\/myextension/);
+    // Register the wait before the click, so a fast response is not missed
+    const saved = backend.waitForModuleResponse(/module\/web\/myextension/);
+    await contentFrame.getByRole('button', { name: 'Save' }).click();
+    await saved;
     await expect(contentFrame.locator('.alert-success')).toBeVisible();
   });
 });
@@ -545,6 +547,37 @@ await expect(frame.locator('#my-panel')).toBeVisible();
 
 Before concluding "the module doesn't render," dump `page.frames()` — you'll see
 the shell plus the `?token=` module frame. Assert inside the latter.
+
+**A save is finished when its response is in, not when the page is idle**
+
+`page.waitForLoadState('networkidle')` resolves at once on a page that has
+already been idle, so after a click on Save it often returns before the form
+POST is even sent. A `page.goto()` or `page.reload()` right after it aborts the
+POST (`net::ERR_ABORTED`), and the record is stored only if the server received
+the request first; a read right after it sees the form as it was before the
+save. A fixed `waitForTimeout()` only makes that rarer. In
+netresearch/t3x-rte_ckeditor_image#929 the reload then showed the old image
+width about once in 45 suite runs. FormEngine posts to `/typo3/record/edit`
+(the route in 12.4, 13.4 and 14.3) and answers with a redirect, so wait for
+that response, and start waiting before the click so a fast answer cannot be
+missed:
+
+```typescript
+// Wrong - may return before the POST is sent; the goto can abort it
+await frame.locator('button[name="_savedok"]').click();
+await page.waitForLoadState('networkidle');
+await page.goto(editUrl);
+
+// Right - register the wait first, then click, then await it
+const saved = page.waitForResponse(
+  (r) => r.request().method() === 'POST' && r.url().includes('/typo3/record/edit'),
+);
+await frame.locator('button[name="_savedok"]').click();
+expect((await saved).status()).toBeLessThan(400);
+```
+
+The same order applies to every `waitForResponse()`: a wait started after the
+action can miss a response that already arrived and then times out.
 
 **The maintenance modules ask for the password again, in the top document**
 
@@ -856,13 +889,15 @@ test.describe('AJAX Endpoint Testing', () => {
   test('handles validation errors from AJAX', async ({ page, backend }) => {
     await backend.gotoModule('web_myextension_wizard');
 
+    // Wait for the error response, registered before the submit
+    const responsePromise = page.waitForResponse(
+      (r) => r.url().includes('/ajax/myext/wizard/validate')
+    );
+
     // Submit without required fields
     await backend.contentFrame.getByRole('button', { name: 'Next' }).click();
 
-    // Wait for error response
-    const response = await page.waitForResponse(
-      (r) => r.url().includes('/ajax/myext/wizard/validate')
-    );
+    const response = await responsePromise;
     const json = await response.json();
 
     expect(json.success).toBe(false);
@@ -950,14 +985,15 @@ test('completes multi-step wizard', async ({ page, backend }) => {
   // Step 1: Provider
   await backend.contentFrame.getByLabel('Provider Name').fill('OpenAI Prod');
   await backend.contentFrame.getByLabel('API Key').fill('sk-test-key');
+
+  // Wait for test to complete (registered before the click)
+  const tested = page.waitForResponse((r) =>
+    r.url().includes('/ajax/myext/wizard/test-connection')
+  );
   await backend.contentFrame
     .getByRole('button', { name: 'Test Connection' })
     .click();
-
-  // Wait for test to complete
-  await page.waitForResponse((r) =>
-    r.url().includes('/ajax/myext/wizard/test-connection')
-  );
+  await tested;
   await backend.contentFrame.getByRole('button', { name: 'Next' }).click();
 
   // Step 2: Model (verify we advanced)
@@ -968,13 +1004,14 @@ test('completes multi-step wizard', async ({ page, backend }) => {
   // Step 3: Configuration
   await expect(backend.contentFrame.locator('h2')).toContainText('Step 3');
   await backend.contentFrame.getByLabel('Temperature').fill('0.7');
-  await backend.contentFrame.getByRole('button', { name: 'Finish' }).click();
 
-  // Verify completion
-  const saveResponse = await page.waitForResponse(
+  // Verify completion (wait registered before the click)
+  const saveResponsePromise = page.waitForResponse(
     (r) =>
       r.url().includes('/ajax/myext/wizard/save') && r.status() === 200
   );
+  await backend.contentFrame.getByRole('button', { name: 'Finish' }).click();
+  const saveResponse = await saveResponsePromise;
   const result = await saveResponse.json();
   expect(result.success).toBe(true);
 
@@ -997,13 +1034,14 @@ test('toggles record active state via AJAX', async ({ page, backend }) => {
     .locator('tr')
     .first()
     .getByRole('button', { name: 'Toggle' });
-  await toggleButton.click();
 
-  // Verify AJAX call succeeded
-  const response = await page.waitForResponse(
+  // Verify AJAX call succeeded (wait registered before the click)
+  const responsePromise = page.waitForResponse(
     (r) =>
       r.url().includes('/ajax/myext/toggle') && r.status() === 200
   );
+  await toggleButton.click();
+  const response = await responsePromise;
   const json = await response.json();
   expect(json.success).toBe(true);
 
