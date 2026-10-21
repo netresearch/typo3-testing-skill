@@ -120,17 +120,21 @@ run with the wrong runtime measures the runtime.
 A static PHP CLI of the job's minor version needs no installation:
 
 ```bash
-d=<scratch dir>; cd "$d"
-curl -fsLO https://dl.static-php.dev/static-php-cli/common/php-8.1.34-cli-linux-x86_64.tar.gz
-tar xzf php-8.1.34-cli-linux-x86_64.tar.gz && ./php -v && ./php -m
+d=/absolute/scratch/dir            # outside the extension checkout
+curl -fsL -o "$d/php81.tar.gz" \
+  https://dl.static-php.dev/static-php-cli/common/php-8.1.34-cli-linux-x86_64.tar.gz
+tar xzf "$d/php81.tar.gz" -C "$d" && "$d/php" -v && "$d/php" -m
 ```
 
-Resolve the packages for that version too. Write a copy of `composer.json` that
-pins the platform, keep it out of git (`.git/info/exclude`), and point Composer
-at it:
+Resolve the packages for that version too. In the extension directory, write a
+copy of `composer.json` that pins the platform and point Composer at it.
+Composer then writes `composer.local.lock`; keep both files out of git
+(`.git/info/exclude`) and delete the lock before each comparison, or the
+install reuses it and prints no `Locking` lines:
 
 ```bash
 jq '.config.platform.php="8.1.30"' composer.json > composer.local.json
+rm -f composer.local.lock
 COMPOSER=composer.local.json composer install --ignore-platform-req='ext-*'
 ```
 
