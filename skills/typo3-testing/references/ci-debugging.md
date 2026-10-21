@@ -108,6 +108,42 @@ Also mirror the flags: the phpstan job runs `php -d memory_limit=2G`, and withou
 it PHPStan dies with *reached configured PHP memory limit: 128M* and reports
 "Found 2 errors" that have nothing to do with the code.
 
+### Without Docker: match the job's PHP, not just its packages
+
+When Docker is not available, the host PHP is usually newer than the job's, and
+an old toolchain does not survive that. With a PHP 8.1 job (PHPStan 1.10,
+Rector 0.17) run under PHP 8.5, Rector died with
+`Type of PHPStan\BetterReflection\…\ReflectionClass::IS_READONLY must be
+compatible`, and PHPStan reported 2 errors where the job reported 12. A local
+run with the wrong runtime measures the runtime.
+
+A static PHP CLI of the job's minor version needs no installation:
+
+```bash
+d=/absolute/scratch/dir            # outside the extension checkout
+curl -fsL -o "$d/php81.tar.gz" \
+  https://dl.static-php.dev/static-php-cli/common/php-8.1.34-cli-linux-x86_64.tar.gz
+tar xzf "$d/php81.tar.gz" -C "$d" && "$d/php" -v && "$d/php" -m
+```
+
+Resolve the packages for that version too. In the extension directory, write a
+copy of `composer.json` that pins the platform and point Composer at it.
+Composer then writes `composer.local.lock`; keep both files out of git
+(`.git/info/exclude`) and delete the lock before each comparison, or the
+install reuses it and prints no `Locking` lines:
+
+```bash
+jq '.config.platform.php="8.1.30"' composer.json > composer.local.json
+rm -f composer.local.lock
+COMPOSER=composer.local.json composer install --ignore-platform-req='ext-*'
+```
+
+Then compare the `Locking …` lines of that install with the job log's: an equal
+set means the local run checks the same code with the same tools. Run each
+tool through the static binary (`"$d/php" vendor/bin/phpstan …`). A
+`composer install` may also install GrumPHP git hooks, which call `php` from
+`PATH`; prepend `"$d"` to `PATH` for commits, or the hook runs the new PHP.
+
 ## Testing-Framework Version Mapping
 
 | testing-framework | PHPUnit | TYPO3 Versions |

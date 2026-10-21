@@ -643,6 +643,36 @@
           "Your config is fine. minMsi gates all code and minCoveredMsi gates covered code, so keep both."
         ]
       }
+    },
+    {
+      "id": 33,
+      "name": "reproduce-old-php-job-without-docker",
+      "area": "ci-debugging",
+      "prompt": "The phpstan and rector jobs of our TYPO3 11 extension run in a PHP 8.1 image (PHPStan 1.10, Rector 0.17). Docker is not running on my machine and the host PHP is 8.5. Locally PHPStan reports 2 errors while CI reports 12, and Rector crashes with a fatal error about ReflectionClass::IS_READONLY. How do I reproduce the CI result locally?",
+      "assertions": [
+        {
+          "type": "content_regex",
+          "value": "static-php|static PHP|PHP 8\\.1 (binary|CLI)",
+          "description": "Runs the tools with a PHP 8.1 binary instead of the host PHP"
+        },
+        {
+          "type": "content_regex",
+          "value": "config\\.platform|platform\\.php",
+          "description": "Pins config.platform.php so Composer resolves the job's package versions"
+        },
+        {
+          "type": "content_regex",
+          "value": "Locking|same (package )?versions|compare.{0,80}(lock|versions)",
+          "description": "Compares the resolved package set with the CI job's"
+        }
+      ],
+      "samples": {
+        "passing": "The host PHP 8.5 is the cause: run the tools with a static PHP 8.1 CLI from dl.static-php.dev, install with COMPOSER=composer.local.json where config.platform.php is pinned to 8.1.30, and compare the Locking lines with the CI job log before trusting the result.",
+        "failing": [
+          "Add the 10 missing errors to the PHPStan baseline locally and ignore the Rector crash.",
+          "Run composer update with --ignore-platform-reqs on PHP 8.5; the findings will match once the packages are current."
+        ]
+      }
     }
   ]
 }
