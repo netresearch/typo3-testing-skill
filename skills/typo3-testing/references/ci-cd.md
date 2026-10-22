@@ -297,15 +297,15 @@ an argument; with them it is a measurement, and no dependency cap is needed.
 | Aspect | Xdebug | PCOV |
 |--------|--------|------|
 | **Local/CI parity** | ✅ Local coverage runs typically set `XDEBUG_MODE=coverage`; keeping CI on xdebug means local and CI behave identically | ❌ Mismatches local; leaks `beStrictAboutCoverageMetadata`-style drift |
-| **Branch coverage** | ✅ Branch + path coverage | ❌ Line-only |
+| **Branch coverage** | ⚠️ Branch + path coverage only with PHPUnit `--path-coverage`; line-only without it | ❌ Line-only |
 | **Purpose** | Debugger + Profiler + Coverage | Coverage only |
 | **Speed** | Slower (debugger overhead) | 2-5× faster |
 | **Memory** | Higher (full debugger loaded) | Lower footprint |
 
 **Why Xdebug is the better default:**
 - **Strict coverage metadata**: PHPUnit's `beStrictAboutCoverageMetadata="true"` marks tests as "risky" when they execute code outside their declared `#[CoversClass]` / `#[UsesClass]` attributes. The check only runs under active coverage. Mixing local Xdebug with CI PCOV produced "green locally, red in CI" surprises — switching both to Xdebug eliminates that drift.
-- **Branch + path coverage**: Xdebug sees `if/else` branches and early returns. PCOV reports only which lines executed, losing the "did we actually test the else-branch?" signal. Matters for Codecov trend reports and mutation testing preparation.
-- **Cost**: ~2-3 min extra CI runtime across a typical 8-job matrix. Acceptable for the diagnostic gain.
+- **Branch + path coverage is opt-in**: Xdebug can see `if/else` branches and early returns, but only when PHPUnit runs with `--path-coverage`. Without the flag the clover totals show `conditionals="0"`, identical to PCOV. With the flag, the branch signal helps when preparing mutation testing; see "Branch and path coverage" below before enabling it.
+- **Cost**: ~2-3 min extra CI runtime across a typical 8-job matrix. For a sharded functional suite, measured on GitHub runners, one cell took 992–1392 s with Xdebug line coverage, 364–818 s with PCOV and 197–381 s without coverage.
 
 **When PCOV is still the right call:**
 - CI matrix has so many jobs (e.g. 20+ combinations) that the 2-5× coverage speed-up genuinely matters.
@@ -371,6 +371,24 @@ php -d pcov.enabled=1 -d xdebug.mode=off vendor/bin/phpunit \
     --coverage-clover coverage.xml
 ```
 
+#### Branch and path coverage
+
+- `netresearch/typo3-ci-workflows` has the input `path-coverage` (added in [netresearch/typo3-ci-workflows#312](https://github.com/netresearch/typo3-ci-workflows/pull/312)), default `false`. It adds `--path-coverage` to the built-in unit, functional and acceptance runs when `upload-coverage` is on and `coverage-tool` is `xdebug`. A custom `*-test-command` receives `PHPUNIT_PATH_COVERAGE=true` in its environment and must pass the flag itself. The same PR added `unit-timeout-minutes` (15), `functional-timeout-minutes` (30) and `acceptance-timeout-minutes` (15).
+- Why the default is off: with `--path-coverage`, Xdebug 3.5.0, 3.5.1, 3.5.3 and the development branch (64007df, 3.6.0alpha2-dev) crash with a segmentation fault in `xdebug_branch_info_mark_reached` (`src/coverage/branch_info.c:384`) on netresearch/t3x-nr-llm's suites. One functional test method crashed 6 of 6 runs on each of those versions and 0 of 6 on 3.4.7 (PHP 8.4.25, `ghcr.io/typo3/core-testing-php84`). Xdebug 3.4 does not support PHP 8.5. Related upstream report with the same crash site, open since 3.3.1: <https://bugs.xdebug.org/view.php?id=2252>. How to bisect such a crash: [ci-debugging.md](ci-debugging.md), "A PHP extension segfaults in functional tests".
+- Codecov's per-line view stays line-based even with path coverage: php-code-coverage's Clover and Cobertura writers (checked in 11.0.12 and 14.4.1) write branch counts only in the metric totals, not per line.
+
+```yaml
+jobs:
+  ci:
+    uses: netresearch/typo3-ci-workflows/.github/workflows/ci.yml@main
+    with:
+      upload-coverage: true
+      coverage-tool: xdebug
+      path-coverage: true  # opt-in; see the Xdebug 3.5 crash above
+      # path coverage makes runs slower: raise unit-, functional- or
+      # acceptance-timeout-minutes where the defaults are too short
+```
+
 #### Strict coverage metadata
 
 If `Build/UnitTests.xml` / `Build/FunctionalTests.xml` sets `beStrictAboutCoverageMetadata="true"` together with `failOnRisky="true"`, every test must declare every class it executes via `#[CoversClass]` or `#[UsesClass]` — otherwise the coverage-driven check flags the test as risky and fails the run.
@@ -392,6 +410,15 @@ If maintaining those lists across DI refactorings costs too much, relax to `beSt
 > **Note:** PHPUnit auto-detects available coverage drivers. If both are
 > present (some Docker images install both), PHPUnit prefers PCOV — set
 > `XDEBUG_MODE=coverage` or pass `-d pcov.enabled=0` to force Xdebug.
+
+### Sharded functional tests with coverage
+
+- **Pattern**: one PHPUnit process per test class. That is safe because typo3/testing-framework keys the instance directory and the database on `substr(sha1(static::class), 0, 7)`. Each shard writes `--coverage-php=<dir>/<class>.cov`, and `phpunit/phpcov merge --clover coverage-functional.xml <dir>` merges them into the single file the shared workflow uploads. Run the merge with `php -d memory_limit=-1`.
+- **`phpunit/phpcov` major follows PHPUnit**: the require-dev constraint `"phpunit/phpcov": "^10.0 || ^11.0 || ^12.0 || ^13.0"` resolves 10.0.1 with PHPUnit 11 (PHP 8.2 / TYPO3 13.4) and 13.2.0 with PHPUnit 13 (PHP 8.4 / TYPO3 14.3).
+- **Count before merging**: refuse to merge when the number of `.cov` files differs from the number of test classes. A shard that wrote nothing silently shrinks the report.
+- **PCOV, if used**: set `-d pcov.directory=<root>/Classes`, because PCOV falls back to the working directory (vendor included) when there is no `src/`, `lib/` or `app/`. In shards that collect no coverage, pass `-d pcov.enabled=0`: with PCOV loaded and enabled, non-coverage cells took 362–569 s instead of 197–381 s. `XDEBUG_MODE=off` has no PCOV counterpart.
+- **Run the coverage path in the required cells** of pull requests and the merge queue, not only on schedule: some failures appear only with coverage enabled. Example: a `#[CoversClass]` naming a class excluded from `<source>` raises "is not a valid target for code coverage" once per test (see [ci-debugging.md](ci-debugging.md), "`CoversClass` on a coverage-excluded class"). With `failOnWarning` it failed every functional cell of a manual `main` run while all PR checks had been green, because the PR path ran without coverage. The split described under "A coverage drop can be an expired flag" below (PR runs without coverage) misses exactly these failures.
+- **Reference implementation**: netresearch/t3x-nr-llm [`Build/Scripts/ciFunctionalParallel.sh`](https://github.com/netresearch/t3x-nr-llm/blob/main/Build/Scripts/ciFunctionalParallel.sh) and `.github/workflows/ci.yml`.
 
 ## E2E Testing in CI
 
@@ -1062,6 +1089,10 @@ Netresearch split (PR runs = parallel, no coverage; `schedule`/
 ```bash
 gh workflow run ci.yml --ref main   # ~15 min; matrix cells upload the flag
 ```
+
+A PR path without coverage cannot see failures that exist only under
+coverage; see "Sharded functional tests with coverage" above for running the
+coverage path in the required cells.
 
 Real case: a "coverage >= 80%" goal opened against a repo reading 68.6% —
 the functional flag had expired; the true full-suite number was 86%. The
