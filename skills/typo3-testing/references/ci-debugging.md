@@ -261,9 +261,9 @@ preg_replace_callback('/<[^>]+>/', static function (array $match): string {
 
 ## A PHP extension segfaults in functional tests
 
-- **Recognise it**: exit code 139 and "Segmentation fault (core dumped)". That is not an out-of-memory kill (exit 137, "Killed") and not PHP memory exhaustion ("Allowed memory size exhausted"). Rule out the opcache JIT first, which crashes the same way: see "Functional suites: run WITHOUT JIT" in [test-runners.md](test-runners.md).
+- **Recognise it**: exit code 139 and "Segmentation fault (core dumped)". That is not PHP memory exhaustion ("Allowed memory size exhausted"), and not exit 137 ("Killed"), which is a SIGKILL: often the out-of-memory killer, but confirm it in the container or kernel log (`dmesg`, `docker inspect --format '{{.State.OOMKilled}}'`) before calling it one. Rule out the opcache JIT first, which crashes the same way: see "Functional suites: run WITHOUT JIT" in [test-runners.md](test-runners.md).
 - **Find the core dump**: the testing framework changes into the TYPO3 test instance directory, so core dumps of functional tests land in `.Build/Web/typo3temp/var/tests/functional-<hash>/`, not in the working directory. Enable them with `docker run --ulimit core=-1 …` (core_pattern `core`).
-- **Read the core dump instead of running under gdb**: the crash may disappear under gdb (it did here). `gdb -batch -ex 'bt 12' -ex 'info locals' $(command -v php) <core>`
+- **Read the core dump instead of running under gdb**: the crash may disappear under gdb (it did here). `CORE=.Build/Web/typo3temp/var/tests/functional-<hash>/core.<pid>; gdb -batch -ex 'bt 12' -ex 'info locals' "$(command -v php)" "$CORE"`
 - **Get function names**: build the extension from the release tarball with debug info. For Xdebug:
 
   ```bash

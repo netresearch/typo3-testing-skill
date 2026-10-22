@@ -297,14 +297,14 @@ an argument; with them it is a measurement, and no dependency cap is needed.
 | Aspect | Xdebug | PCOV |
 |--------|--------|------|
 | **Local/CI parity** | ✅ Local coverage runs typically set `XDEBUG_MODE=coverage`; keeping CI on xdebug means local and CI behave identically | ❌ Mismatches local; leaks `beStrictAboutCoverageMetadata`-style drift |
-| **Branch coverage** | ⚠️ Branch + path coverage only with PHPUnit `--path-coverage`; line-only without it | ❌ Line-only |
+| **Branch coverage** | ⚠️ Only when requested: `--path-coverage` (branches and paths), or `--branch-coverage` (branches only, PHPUnit 13.2+); line-only without either | ❌ Line-only |
 | **Purpose** | Debugger + Profiler + Coverage | Coverage only |
 | **Speed** | Slower (debugger overhead) | 2-5× faster |
 | **Memory** | Higher (full debugger loaded) | Lower footprint |
 
 **Why Xdebug is the better default:**
 - **Strict coverage metadata**: PHPUnit's `beStrictAboutCoverageMetadata="true"` marks tests as "risky" when they execute code outside their declared `#[CoversClass]` / `#[UsesClass]` attributes. The check only runs under active coverage. Mixing local Xdebug with CI PCOV produced "green locally, red in CI" surprises — switching both to Xdebug eliminates that drift.
-- **Branch + path coverage is opt-in**: Xdebug can see `if/else` branches and early returns, but only when PHPUnit runs with `--path-coverage`. Without the flag the clover totals show `conditionals="0"`, identical to PCOV. With the flag, the branch signal helps when preparing mutation testing; see "Branch and path coverage" below before enabling it.
+- **Branch + path coverage is opt-in**: Xdebug can see `if/else` branches and early returns, but only when PHPUnit runs with `--path-coverage`, or, for branches without paths, `--branch-coverage` / `branchCoverage="true"` (PHPUnit 13.2 and later; 11.5, 12.5 and 13.1 do not have it). Without either flag the clover totals show `conditionals="0"`, identical to PCOV. Whether `--branch-coverage` avoids the Xdebug 3.5 crash below is not tested. With the flag, the branch signal helps when preparing mutation testing; see "Branch and path coverage" below before enabling it.
 - **Cost**: ~2-3 min extra CI runtime across a typical 8-job matrix. For a sharded functional suite, measured on GitHub runners, one cell took 992–1392 s with Xdebug line coverage, 364–818 s with PCOV and 197–381 s without coverage.
 
 **When PCOV is still the right call:**
