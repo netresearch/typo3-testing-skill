@@ -258,3 +258,23 @@ preg_replace_callback('/<[^>]+>/', static function (array $match): string {
 ## `CoversClass` on a coverage-excluded class: red in CI, green locally
 
 `#[CoversClass(X::class)]` where `X` is excluded from the coverage source set in `Build/phpunit.xml` emits *"Class X is not a valid target for code coverage"* — one PHPUnit warning per test, and with `failOnWarning="true"` that is a red build. The trap: the warning only exists when coverage is **enabled**. `runTests.sh -s unit` runs without coverage and reports zero warnings; CI runs with Xdebug and sees them all. Reproduce locally with `runTests.sh -s unitCoverage` before pushing, whenever you add `CoversClass` attributes or touch the coverage include/exclude lists.
+
+## A PHP extension segfaults in functional tests
+
+- **Recognise it**: exit code 139 and "Segmentation fault (core dumped)". That is not PHP memory exhaustion ("Allowed memory size exhausted"), and not exit 137 ("Killed"), which is a SIGKILL: often the out-of-memory killer, but confirm it in the container or kernel log (`dmesg`, `docker inspect --format '{{.State.OOMKilled}}'`) before calling it one. Rule out the opcache JIT first, which crashes the same way: see "Functional suites: run WITHOUT JIT" in [test-runners.md](test-runners.md).
+- **Find the core dump**: the testing framework changes into the TYPO3 test instance directory, so core dumps of functional tests land in `.Build/Web/typo3temp/var/tests/functional-<hash>/`, not in the working directory. Enable them with `docker run --ulimit core=-1 …` (core_pattern `core`).
+- **Read the core dump instead of running under gdb**: the crash may disappear under gdb (it did here). `CORE=.Build/Web/typo3temp/var/tests/functional-<hash>/core.<pid>; gdb -batch -ex 'bt 12' -ex 'info locals' "$(command -v php)" "$CORE"`
+- **Get function names**: build the extension from the release tarball with debug info. For Xdebug:
+
+  ```bash
+  curl -sSLO https://xdebug.org/files/xdebug-<v>.tgz
+  tar xzf xdebug-<v>.tgz && cd xdebug-<v>
+  phpize && CFLAGS="-g -O2" ./configure --enable-xdebug && make
+  cp modules/xdebug.so "$(php-config --extension-dir)/"
+  ```
+
+  In the TYPO3 core-testing image install the build dependencies first: `apk add $PHPIZE_DEPS linux-headers`.
+- **Bisect versions**: build one image per version (`pecl install -f xdebug-<v>` as root, then `docker commit`), run the failing test N times per image as the normal user, and compare the exit codes.
+- **Narrow to one method**: `--list-tests`, then `--filter '/::<method>( |$)/'`.
+
+Example: Xdebug 3.5.x with `--path-coverage`, see "Branch and path coverage" in [ci-cd.md](ci-cd.md).

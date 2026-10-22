@@ -673,6 +673,38 @@
           "Run composer update with --ignore-platform-reqs on PHP 8.5; the findings will match once the packages are current."
         ]
       }
+    },
+    {
+      "id": 34,
+      "name": "branch-path-coverage-shared-workflow",
+      "area": "coverage",
+      "prompt": "Our TYPO3 extension calls netresearch/typo3-ci-workflows ci.yml with upload-coverage: true and the default Xdebug coverage. We want branch coverage in CI so Codecov shows which branches the tests miss. Is that on already, and if not, what do we change?",
+      "assertions": [
+        {
+          "type": "content_regex",
+          "value": "path-coverage: *true",
+          "description": "Names the opt-in input path-coverage: true (off by default)"
+        },
+        {
+          "type": "content_regex",
+          "value": "(3\\.5|segfault|segmentation fault)",
+          "description": "Warns that Xdebug 3.5.x crashes with --path-coverage"
+        },
+        {
+          "type": "content_regex",
+          "value": "(no per[- ]line|not per[- ]line|only in the (metric )?totals)",
+          "description": "Says Codecov shows no per-line branches from the clover report"
+        }
+      ],
+      "samples": {
+        "passing": "No, it is off: the shared workflow passes no coverage flag for branches, so set path-coverage: true (PHPUnit 13.2+ also has --branch-coverage). Expect Xdebug 3.5.x to segfault with --path-coverage on some suites, and Codecov's view stays line-based because the Clover writer puts branch counts only in the totals, not per line.",
+        "failing": [
+          "Xdebug already records branch coverage by default, so Codecov shows the missed branches without any change.",
+          "Set path-coverage: true and Codecov will mark every missed branch on each line.",
+          "Set path-coverage: true; Xdebug 3.5 segfaults with it on some suites; Codecov then shows the missed branches per line.",
+          "Set path-coverage: true; Xdebug 3.5 segfaults with it on some suites; Codecov's line-based view then marks the missed branches on each line."
+        ]
+      }
     }
   ]
 }

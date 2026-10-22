@@ -229,6 +229,14 @@ Infection runs the configured PHPUnit suite **once, unmutated**, before applying
 
 **If your PHPUnit config points at a remote schema, Infection needs the network.** It validates the configuration it generates and keeps the `xsi:noNamespaceSchemaLocation` of the config it started from. With `https://schema.phpunit.de/<version>/phpunit.xsd` there, an offline machine dies in `XmlConfigurationManipulator` with `failed to load external entity` before the first mutant, and a green CI job says nothing about the local failure. The `UnitTests.xml` in `assets/` points at the vendored `../../vendor/phpunit/phpunit/phpunit.xsd` and is unaffected -- pointing the schema at the vendored copy is the fix, not a workaround.
 
+## Mutation job passes in a minute
+
+**An invalid PHPUnit configuration stops Infection before the first mutant.** Infection validates the PHPUnit configuration (`phpunit --validate-configuration`) before it starts. PHPUnit 13.4.0 (2026-10-02, [sebastianbergmann/phpunit#6585](https://github.com/sebastianbergmann/phpunit/issues/6585)) removed `depends` from the `executionOrder` values in its schema, so `executionOrder="depends,defects"` makes Infection exit at once. **Fix:** `executionOrder="defects"`. Dependency resolution is the separate `resolveDependencies` attribute (default `true`), and `defects` is valid in PHPUnit 11.5 too. With `cacheResult="false"` (as in the `assets/` configs) remove `executionOrder` altogether: PHPUnit 13 turns `defects` without the result cache into a test runner warning, see "Moving a suite to PHPUnit 13" in [unit-testing.md](unit-testing.md).
+
+**`continue-on-error` hides it.** With `continue-on-error: true` on the Infection step, as in `netresearch/typo3-ci-workflows` `fuzz.yml`, that failure reports a green job after about one minute. Check the job duration and the Infection summary, not the tick.
+
+**`continue-on-error` does not cover the job timeout.** A mutation job that reaches `timeout-minutes` is cancelled and fails the caller's aggregate check. `fuzz.yml` has the input `mutation-timeout-minutes` (default 30, [netresearch/typo3-ci-workflows#311](https://github.com/netresearch/typo3-ci-workflows/pull/311)). Measured: 25,514 mutants took 1 h 10 min on 4 threads (netresearch/t3x-nr-llm, 2026-10-21).
+
 ## Suite Layout: Split Unit/Fuzz From Functional
 
 Keep two PHPUnit configs:
