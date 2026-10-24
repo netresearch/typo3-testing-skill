@@ -71,6 +71,13 @@ as an empty flag list (chrome-devtools-mcp 1.10.1).
   the height you meant to capture, not with the viewport: a viewport screenshot
   is always exactly as tall as the viewport. The `typo3-docs` skill
   (`references/screenshots.md`) owns the screenshot rules.
+- **Stored values without the edit form.** An edit link carries a token that
+  expires, and the form is a write path. To read what a record holds, call
+  `top.TYPO3.InfoWindow.showItem('<table>', <uid>)` from the top document (for
+  example with Playwright's `page.evaluate`). It opens *Element information*
+  for any table, read only and without a token, and lists the record's fields.
+  Long text fields can be cut there; compare a checksum or a distinctive
+  substring rather than the whole value.
 
 ## Typical checks
 
@@ -82,6 +89,11 @@ as an empty flag list (chrome-devtools-mcp 1.10.1).
   opened once (`backend-module-render-verification.md`).
 - **Frontend page.** No console error, no failed asset request, the change
   visible with realistic content, in each language the change touches.
+- **Element in a scrolling flex column.** A flex item with `overflow: hidden`
+  shrinks to its border once the column's content overflows, unless it has
+  `flex-shrink: 0`. jsdom computes no layout, so a unit test cannot see it.
+  Fill the column until it scrolls, then measure the element's
+  `getBoundingClientRect().height` and check that its buttons are visible.
 
 ## The report
 
