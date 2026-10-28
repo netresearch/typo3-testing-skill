@@ -18,7 +18,8 @@ from pathlib import Path
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "audited_writer.py"
 SPEC = importlib.util.spec_from_file_location("audited_writer", FIXTURE)
-assert SPEC is not None and SPEC.loader is not None
+assert SPEC is not None
+assert SPEC.loader is not None
 writer = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(writer)
 
