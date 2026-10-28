@@ -775,7 +775,7 @@
         },
         {
           "type": "content_regex",
-          "value": "lock.{0,80}(outer|final|actual) commit",
+          "value": "lock.{0,80}(through|until).{0,20}(outer|final|actual) commit",
           "description": "Keeps locks through the real commit"
         }
       ],
@@ -783,7 +783,8 @@
         "passing": "Check that the main, MM and audit writes use the same connection under the documented transaction owner. Releasing a savepoint is not an outer commit. Hold the lock through the actual commit, then inspect durable rows through a fresh reader. Exercise outer rollback, split-mapping rejection where required and a supported successful write.",
         "failing": [
           "Each table has a connection and the helper called commit, so its savepoint makes the write durable. Release the lock when the helper returns.",
-          "Use the same connection and assert that the lock was acquired. A savepoint release commits the outer transaction, so the helper may release the lock immediately."
+          "Use the same connection and assert that the lock was acquired. A savepoint release commits the outer transaction, so the helper may release the lock immediately.",
+          "Use the same physical connection. A savepoint release is not an outer commit. Release the lock before the actual commit."
         ]
       },
       "expected_output": "Functional tests identify the shared connection and outer transaction owner, distinguish savepoints from outer commit, and retain locks until the actual commit."
