@@ -711,6 +711,7 @@ Changes are proposed as pull requests against `main`. New or changed behaviour o
 
 ```bash
 python3 tests/test_scripts.py
+python3 tests/test_crash_evidence.py
 ```
 
 What the tests cover:
@@ -720,10 +721,11 @@ What the tests cover:
 - `skills/typo3-testing/scripts/validate-setup.sh`: errors, warnings and the exit code for an empty, an incomplete and a complete setup, with and without Docker (a stub).
 - Checkpoints TT-105 and TT-106 in `skills/typo3-testing/checkpoints.yaml`, run as the assessment runner runs them (including a `minMsi` with whitespace before the colon, a config that declares only `minCoveredMsi`, the higher of the two thresholds being judged, and commented-out thresholds being ignored), and a guard that no checkpoint uses the `expected:` field, which the runner does not read.
 - `Build/Scripts/validate-skill.sh` through the `Build/hooks/pre-commit` hook, `Build/Scripts/check-plugin-version.sh` through the `Build/hooks/pre-push` hook, and `scripts/verify-harness.sh`.
+- `tests/test_crash_evidence.py`: real SQLite controls distinguish handled-exception compensation from abrupt worker loss, expose an unaudited historical version behind a newer audited value, and check a transaction at the same termination boundary. These fixture controls establish neither TYPO3/PHP conformance nor agent behavior. POSIX verifies `SIGKILL`; other platforms only verify a live worker before termination and an unsuccessful exit afterwards.
 
 The templates under `skills/typo3-testing/assets/` have no tests here; they run in the extensions they are copied into.
 
-A passing run prints a dot per test and ends with `OK` and exit code 0. A failure prints `FAIL:` or `ERROR:` with the test class and name and the assertion that failed (most assertions add the script's output), and the exit code is 1. CI runs the same file in the Skill Tests workflow (`.github/workflows/tests.yml`) on every pull request and every push to `main`.
+A passing run prints a dot per test and ends with `OK` and exit code 0. A failure prints `FAIL:` or `ERROR:` with the test class and name and the assertion that failed (most assertions add the script's output), and the exit code is 1. CI includes both files through `tests/*.py` in the Skill Tests workflow (`.github/workflows/tests.yml`) on every pull request and every push to `main`.
 
 ### Dependencies
 

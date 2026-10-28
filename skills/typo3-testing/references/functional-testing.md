@@ -14,6 +14,11 @@ Functional tests verify components that interact with external systems like data
 - File and folder operations
 - Extension configuration behavior
 
+For transaction rollback, worker termination and overlapping requests, use
+[crash-and-concurrency-testing.md](crash-and-concurrency-testing.md). A mock
+expectation on `beginTransaction()` or `rollBack()` does not establish what the
+database actually persisted.
+
 ## Base Class
 
 All functional tests extend `TYPO3\TestingFramework\Core\Functional\FunctionalTestCase`:

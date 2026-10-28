@@ -48,6 +48,21 @@
       "query": "The manual on docs.typo3.org is empty for this extension.",
       "should_trigger": false,
       "note": "typo3-docs owns rendered documentation"
+    },
+    {
+      "query": "The editor saved the new credential, but a stopped PHP worker left its permissions and audit out of sync. Can we reproduce that safely?",
+      "should_trigger": true,
+      "note": "persistence and worker-loss regression, even without the word test"
+    },
+    {
+      "query": "Two browser sessions save the same setting together. The single-request suite passes; how can we exercise their overlap predictably?",
+      "should_trigger": true,
+      "note": "deterministic competing-request tests"
+    },
+    {
+      "query": "Prove this abstract consensus protocol terminates for any number of nodes; there is no TYPO3 implementation yet.",
+      "should_trigger": false,
+      "note": "unbounded formal proof is outside this extension-testing skill"
     }
   ]
 }

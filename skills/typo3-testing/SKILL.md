@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: CC-BY-SA-4.0
 # SPDX-FileCopyrightText: Netresearch DTT GmbH
 name: typo3-testing
-description: "Use when a reported defect must be reproduced as a failing test, when a change to a template or rendered output has to be proved, when a change must be confirmed on a running TYPO3 instance, or when setting up TYPO3 extension tests: unit/functional/E2E, PHPUnit 11-13, mutation testing, final-class mocks (v14), CI matrix across TYPO3 12/13/14.3 LTS, typo3-ci-workflows meta-package, CI failures. Also: testing-framework setup, test matrix, integration/e2e testing, coverage, test generation."
+description: "Use when reproducing defects as failing tests, testing template or rendered output changes, confirming changes on a running TYPO3 instance, or setting up TYPO3 extension tests: unit/functional/E2E, PHPUnit 11-13, mutation testing, final-class mocks (v14), CI matrix across TYPO3 12/13/14.3 LTS, typo3-ci-workflows meta-package, CI failures. Also: transaction rollback, worker crashes, competing requests, testing-framework setup, test matrix, integration/e2e testing, coverage, test generation."
 ---
 
 # TYPO3 Testing Skill
@@ -11,8 +11,9 @@ description: "Use when a reported defect must be reproduced as a failing test, w
 
 A bug report is a test that does not exist yet. Write it from the report's own
 input and expected output, run it, and see it fail for the reason the report
-gives. A test written after the fix proves only that the code does what it
-does.
+gives. A test added after the fix needs a failing baseline or a targeted mutation
+probe before it can be claimed to guard that regression. Passing tests provide
+evidence for the exercised cases, not a proof for every input or execution.
 
 **Output produced through a template is not covered by a unit suite.** The unit
 suite loads PHP classes and never renders a Fluid template, so an edit to a
@@ -95,6 +96,7 @@ Unit tests required (70%+ coverage). Functional tests required for DB operations
 
 - CI failures across TYPO3 versions → `ci-debugging.md`
 - Functional tests with TSFE context → `functional-testing.md`
+- Transaction rollback, process loss, competing requests or atomic audit writes → [crash-and-concurrency-testing.md](references/crash-and-concurrency-testing.md)
 - Mock failures across dependency versions → `mock-validity.md`
 - Image/extension tests, `Environment::initialize`, `NormalizedParams` TypeError, `backupGlobals` → `test-environment-guards.md`
 - Event dispatcher testing with try/catch → `event-dispatch-testing.md`
