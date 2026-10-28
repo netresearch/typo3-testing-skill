@@ -705,6 +705,129 @@
           "Set path-coverage: true; Xdebug 3.5 segfaults with it on some suites; Codecov's line-based view then marks the missed branches on each line."
         ]
       }
+    },
+    {
+      "id": 35,
+      "name": "transaction-crash-evidence",
+      "area": "functional-testing",
+      "prompt": "A TYPO3 service updates a credential and its permissions, then appends an audit row. Our test throws an exception before the audit and sees the old values restored. Does that cover a worker being stopped there? Describe the regression test we still need.",
+      "expectations": [
+        "Retains the handled-exception test as useful evidence while distinguishing it from abrupt termination without catch/finally cleanup.",
+        "Uses the real writer and shared database in a separate process, a verified persistence checkpoint, a bounded wait and verified termination, then inspects durable state from a fresh connection.",
+        "Limits the conclusion to the exercised backend and boundary; calls on mocked transaction methods do not establish rollback."
+      ],
+      "assertions": [
+        {
+          "type": "content_regex",
+          "value": "separate (worker|process)|subprocess",
+          "description": "Requires a separate worker for process loss"
+        },
+        {
+          "type": "content_regex",
+          "value": "SIGKILL|TerminateProcess",
+          "description": "Uses abrupt process termination rather than an exception"
+        },
+        {
+          "type": "content_regex",
+          "value": "barrier|checkpoint",
+          "description": "Synchronizes at the real persistence boundary"
+        },
+        {
+          "type": "content_regex",
+          "value": "exit (status|code)|termination status",
+          "description": "Verifies termination instead of accepting any error"
+        },
+        {
+          "type": "content_regex",
+          "value": "real database|fresh (reader|connection)",
+          "description": "Inspects persisted state rather than transaction mocks"
+        }
+      ],
+      "samples": {
+        "passing": "Keep the exception case for handled rollback. Add a separate worker on the real database and wait with a timeout for a verified checkpoint after the credential write. Inject SIGKILL on POSIX and verify its exit status; finally must not run. Use a fresh connection to check the credential, permissions and audit. This checks that backend and boundary, not every possible crash.",
+        "failing": [
+          "Throw another RuntimeException and assert that rollBack was called on the mocked connection. This already proves the worker-loss guarantee.",
+          "Use a subprocess, sleep briefly, then inject SIGKILL. Any nonzero result is enough; there is no need to check a checkpoint or the exit status."
+        ]
+      },
+      "expected_output": "A real-database subprocess regression with a verified persistence barrier, abrupt termination status and fresh-reader assertions, while retaining the distinct handled-exception test."
+    },
+    {
+      "id": 36,
+      "name": "outer-commit-and-connection-ownership",
+      "area": "functional-testing",
+      "prompt": "Our TYPO3 request already owns a DBAL transaction. A nested helper updates an MM table, appends its audit row and returns after releasing its savepoint; the helper also releases its lock. What must a functional test check before we call these writes atomic?",
+      "expectations": [
+        "Resolves the actual connection used for every participating table and the owner of the outer commit, including unsupported split mappings where applicable.",
+        "Distinguishes savepoint release from durable outer commit and checks lock ownership through the actual commit boundary.",
+        "Asserts durable main, MM and audit state with the real database, including a supported successful operation."
+      ],
+      "assertions": [
+        {
+          "type": "content_regex",
+          "value": "same (physical )?connection",
+          "description": "Checks the actual shared connection"
+        },
+        {
+          "type": "content_regex",
+          "value": "savepoint.{0,60}(not|does not).{0,30}(outer commit|commit the outer)",
+          "description": "Rejects savepoint release as outer commit"
+        },
+        {
+          "type": "content_regex",
+          "value": "lock.{0,80}(outer|final) commit",
+          "description": "Keeps locks through the real commit"
+        }
+      ],
+      "samples": {
+        "passing": "Check that the main, MM and audit writes use the same connection under the documented transaction owner. Releasing a savepoint is not an outer commit. Hold the lock through the final commit, then inspect durable rows through a fresh reader. Exercise outer rollback, split-mapping rejection where required and a supported successful write.",
+        "failing": [
+          "Each table has a connection and the helper called commit, so its savepoint makes the write durable. Release the lock when the helper returns.",
+          "Use the same connection and assert that the lock was acquired. A savepoint release commits the outer transaction, so the helper may release the lock immediately."
+        ]
+      },
+      "expected_output": "Functional tests identify the shared connection and outer transaction owner, distinguish savepoints from outer commit, and retain locks until the actual commit."
+    },
+    {
+      "id": 37,
+      "name": "historical-audit-and-overlapping-requests",
+      "area": "functional-testing",
+      "prompt": "An interrupted update is followed by a successful edit in our TYPO3 module. The newest record has an audit entry, and a small state model is green. We also want to cover two editors saving at once. What evidence is still missing?",
+      "expectations": [
+        "Checks the audit association for every historical committed mutation, so a later correctly audited write cannot hide an earlier unaudited version.",
+        "Coordinates separate requests with observable barriers and bounded waits or database lock timeouts; fixed sleeps and final-state-only assertions are insufficient.",
+        "Separates bounded model results from real implementation tests and does not require a model for unrelated ordinary bug fixes."
+      ],
+      "assertions": [
+        {
+          "type": "content_regex",
+          "value": "every committed (version|mutation)|all committed (versions|mutations)",
+          "description": "Checks retained history rather than only the newest record"
+        },
+        {
+          "type": "content_regex",
+          "value": "barrier",
+          "description": "Coordinates competing requests at observable boundaries"
+        },
+        {
+          "type": "content_regex",
+          "value": "timeout|bounded wait",
+          "description": "Bounds concurrency waits"
+        },
+        {
+          "type": "content_regex",
+          "value": "(model|checker).{0,80}(separate|bounded|not a proof)|(bounded|separate).{0,80}model",
+          "description": "Keeps the model result bounded and distinct"
+        }
+      ],
+      "samples": {
+        "passing": "Check every committed version against its own audit entry, including the interrupted version before the newest one. Run two separate requests with barriers around the contested boundary, bounded waits and lock timeouts; inspect both durable outcomes and stale compensation. Report the bounded model result separately from the real database tests. Neither establishes a formal proof of the PHP implementation.",
+        "failing": [
+          "The newest row has an audit entry and the checker is green, so the whole PHP implementation is proven. No further test is needed.",
+          "Run both editors with a small sleep between their requests and inspect only the newest record. Report the bounded model separately."
+        ]
+      },
+      "expected_output": "Historical audit association and deterministic overlapping-request tests with bounded waits, plus a report separating bounded model findings from runtime evidence."
     }
   ]
 }

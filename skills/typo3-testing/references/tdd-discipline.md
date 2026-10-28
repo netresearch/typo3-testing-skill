@@ -18,6 +18,15 @@ For every bug fix, follow this sequence. Do not deviate. Do not ask the user for
 6. **If anything fails, iterate.** Do not report the fix as done. Try up to 5 distinct approaches before escalating.
 7. **Only then open the PR.** The PR description must include the name of the reproduction test and the one-line verification command.
 
+## What the Evidence Establishes
+
+Passing tests are evidence for their exercised cases. If a proposed bug
+reproduction passes immediately, check whether it reaches the reported failure;
+the baseline can still describe already-correct behavior. For persistence and
+concurrency claims, choose the real boundary using
+[crash-and-concurrency-testing.md](crash-and-concurrency-testing.md). A passing
+exception test does not establish behavior when the process is killed.
+
 ## Forbidden Phrases Without Evidence
 
 These words are banned from assistant output unless the same turn contains the command output backing the claim:
