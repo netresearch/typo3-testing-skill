@@ -433,7 +433,7 @@ final class MyDataHandlerHookTest extends FunctionalTestCase
 
 A test or throwaway probe that drives `DataHandler` in an incomplete backend environment does not fail. It succeeds with wrong numbers, and those numbers look like a core defect worth designing around. Observed case: an inline `sys_file_reference` written on `tt_content.assets` came back with the parent counter one short (`'NEW_1'` → 0, `'<uid>,NEW_2'` → 1) and the new reference sorted first. The probe had no `$GLOBALS['LANG']`. In a complete environment one datamap carrying the parent list and the `NEW_` placeholder gets counter and sorting right, so a "second pass" built on the probe's numbers was dead code — found only because disabling it changed no test.
 
-Before trusting a probe's surprise, set up what the production entry point guarantees, at minimum:
+Before trusting a probe's surprise, set up what the production entry point guarantees, at minimum (in a functional test; a standalone probe without `$this` uses `GeneralUtility::makeInstance(LanguageServiceFactory::class)`, as core does):
 
 ```php
 $GLOBALS['LANG'] = $this->get(LanguageServiceFactory::class)->create('default');
@@ -445,7 +445,7 @@ and give the records and the user what the access checks read:
 
 - `sys_language_uid` (the table's language field) on every payload row of a language-aware table — for a non-admin, `BackendUserAuthentication::checkRecordEditAccess()` refuses with *The "languageField" field named "…" was not found in testing record!* when it is missing (cms-core 14.3.10).
 - `explicit_allowdeny` on the group for an `authMode` select such as `tt_content.CType` (see `datahandler-silent-rewrites.md`).
-- For a non-admin: the full `perms_user` / `perms_group` / `perms_everybody` triple on the page plus `db_mountpoints` covering it (see `backend-user-access-testing.md`).
+- For a non-admin: `perms_userid`, `perms_groupid` and the full `perms_user` / `perms_group` / `perms_everybody` triple on the page, a user that is a member of at least one group, and `db_mountpoints` covering the page (see `backend-user-access-testing.md`). `BackendUserAuthentication::calcPerms()` grants nothing when any of the five fields is missing or the user has no group (cms-core 14.3.10).
 
 If the code under test refuses to run without a backend environment, the probe must satisfy that same guard, not bypass it — a result measured outside the guard describes a path production never takes.
 

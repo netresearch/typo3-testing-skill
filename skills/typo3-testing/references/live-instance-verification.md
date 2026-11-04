@@ -124,8 +124,8 @@ available*) whenever `checkIfEssentialConfigurationExists()` does not find
 Guard the result with `$container instanceof FailsafeContainer` and print
 `Environment::getConfigPath()` on failure; a wrong path otherwise costs a whole
 round-trip to diagnose. Only **public** services can be fetched with
-`$container->get()`: check the extension's `Services.yaml` for `public: true`
-before planning a probe around a service. Run the probe as the web server user
+`$container->get()`: check the extension's `Services.yaml` and `Services.php`
+for the public flag before planning a probe around a service. Run the probe as the web server user
 inside the container (`docker cp probe.php <c>:/tmp/` then
 `docker exec -u www-data <c> php /tmp/probe.php`); copy the file rather than
 piping it to `php -`. The probe reads; rule 4 above still applies to anything
