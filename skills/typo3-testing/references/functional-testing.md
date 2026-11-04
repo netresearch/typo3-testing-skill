@@ -429,6 +429,26 @@ final class MyDataHandlerHookTest extends FunctionalTestCase
 4. **Verify Hook Registration**: Test that hooks are properly registered in `$GLOBALS['TYPO3_CONF_VARS']`
 5. **Test Multiple Scenarios**: new vs update, single vs multiple fields, RTE vs non-RTE
 
+### A DataHandler probe needs the environment production guarantees
+
+A test or throwaway probe that drives `DataHandler` in an incomplete backend environment does not fail. It succeeds with wrong numbers, and those numbers look like a core defect worth designing around. Observed case: an inline `sys_file_reference` written on `tt_content.assets` came back with the parent counter one short (`'NEW_1'` → 0, `'<uid>,NEW_2'` → 1) and the new reference sorted first. The probe had no `$GLOBALS['LANG']`. In a complete environment one datamap carrying the parent list and the `NEW_` placeholder gets counter and sorting right, so a "second pass" built on the probe's numbers was dead code — found only because disabling it changed no test.
+
+Before trusting a probe's surprise, set up what the production entry point guarantees, at minimum:
+
+```php
+$GLOBALS['LANG'] = $this->get(LanguageServiceFactory::class)->create('default');
+$GLOBALS['TYPO3_REQUEST'] = (new ServerRequest('https://example.test/typo3/'))
+    ->withAttribute('applicationType', SystemEnvironmentBuilder::REQUESTTYPE_BE);
+```
+
+and give the records and the user what the access checks read:
+
+- `sys_language_uid` (the table's language field) on every payload row of a language-aware table — for a non-admin, `BackendUserAuthentication::checkRecordEditAccess()` refuses with *The "languageField" field named "…" was not found in testing record!* when it is missing (cms-core 14.3.10).
+- `explicit_allowdeny` on the group for an `authMode` select such as `tt_content.CType` (see `datahandler-silent-rewrites.md`).
+- For a non-admin: the full `perms_user` / `perms_group` / `perms_everybody` triple on the page plus `db_mountpoints` covering it (see `backend-user-access-testing.md`).
+
+If the code under test refuses to run without a backend environment, the probe must satisfy that same guard, not bypass it — a result measured outside the guard describes a path production never takes.
+
 ## Testing File Abstraction Layer (FAL)
 
 Test ResourceFactory and FAL storage integration:
