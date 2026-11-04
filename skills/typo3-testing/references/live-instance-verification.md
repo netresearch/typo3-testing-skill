@@ -46,6 +46,7 @@ in `e2e-testing.md` as a Playwright spec.
 | No Playwright and no browser MCP (npm blocked) | A Node.js runner on the Chrome DevTools Protocol (`e2e-testing.md`, *Ad-hoc Browser Check Without Playwright (CDP Fallback)*) |
 | A check that must keep passing | A Playwright spec (`e2e-testing.md`) |
 | Status code, headers, a redirect | `curl` |
+| What a service returns or a configuration resolves to inside the instance | A standalone PHP probe with the real DI container (*A PHP probe against the instance* below) |
 
 On WSL or another host without a display, start both browser MCP servers with
 `--headless`. Pass Chrome flags to the Chrome DevTools server joined with `=`
@@ -78,6 +79,57 @@ as an empty flag list (chrome-devtools-mcp 1.10.1).
   for any table, read only and without a token, and lists the record's fields.
   Long text fields can be cut there; compare a checksum or a distinctive
   substring rather than the whole value.
+
+## A PHP probe against the instance
+
+To call a service of the running composer-mode instance from a throwaway
+script, the script needs the instance's real DI container.
+`Bootstrap::init($classLoader, false)` silently hands back a
+`FailsafeContainer` (core services only; `$container->get()` on an extension
+service throws `NotFoundException`, or *Container entry "…\BootService" is not
+available*) whenever `checkIfEssentialConfigurationExists()` does not find
+`config/system/settings.php`. Where it looks differs between versions
+(cms-core `ConfigurationManager::getSystemConfigurationFileLocation()`):
+
+- **v14.3:** always `Environment::getConfigPath() . '/system/settings.php'`.
+  `SystemEnvironmentBuilder` takes the project and public paths from
+  `TYPO3_PATH_APP` and `TYPO3_PATH_ROOT` before deriving them from the entry
+  script's location, so a probe in `/tmp` without them looks under `/tmp`.
+  Set both variables, then boot:
+
+  ```php
+  foreach (['TYPO3_PATH_APP' => '/var/www', 'TYPO3_PATH_ROOT' => '/var/www/public'] as $var => $path) {
+      putenv("$var=$path");
+      $_ENV[$var] = $_SERVER[$var] = $path;
+  }
+  $classLoader = require '/var/www/vendor/autoload.php';
+  SystemEnvironmentBuilder::run(1, SystemEnvironmentBuilder::REQUESTTYPE_CLI);
+  $container = Bootstrap::init($classLoader, false); // loads ext_localconf and TCA
+  ```
+
+- **v13.4:** the config path is used only when
+  `Environment::getProjectPath() !== Environment::getPublicPath()`; otherwise
+  the legacy `typo3conf/` path is read and nothing is found. When the derived
+  paths come out equal, re-initialise `Environment` with an explicit public
+  path after `SystemEnvironmentBuilder::run()` and before `Bootstrap::init()`:
+
+  ```php
+  Environment::initialize(
+      Environment::getContext(), true, Environment::isComposerMode(),
+      '/var/www', '/var/www/public', '/var/www/var', '/var/www/config',
+      '/var/www/public/index.php', Environment::isWindows() ? 'WINDOWS' : 'UNIX',
+  );
+  ```
+
+Guard the result with `$container instanceof FailsafeContainer` and print
+`Environment::getConfigPath()` on failure; a wrong path otherwise costs a whole
+round-trip to diagnose. Only **public** services can be fetched with
+`$container->get()`: check the extension's `Services.yaml` and `Services.php`
+for the public flag before planning a probe around a service. Run the probe as the web server user
+inside the container (`docker cp probe.php <c>:/tmp/` then
+`docker exec -u www-data <c> php /tmp/probe.php`); copy the file rather than
+piping it to `php -`. The probe reads; rule 4 above still applies to anything
+it writes.
 
 ## Typical checks
 
