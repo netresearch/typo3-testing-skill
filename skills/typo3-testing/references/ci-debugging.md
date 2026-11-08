@@ -192,9 +192,9 @@ When PHPStan reports `Call to an undefined static method <TestClass>::assertSame
 | Cause | Fix |
 |-------|-----|
 | PHPStan 1.x analyses tests against PHPUnit 13 (`typo3/testing-framework` allows `^13` from 9.4.0) | `composer require --dev "phpstan/phpstan:^2"` |
-| PHPUnit is not installed in the vendor directory PHPStan autoloads | Run PHPStan after a dev install (`composer install` without `--no-dev`) |
+| PHPUnit is not installed in the Composer project PHPStan runs from | Require it as a dev dependency of that project (`typo3/testing-framework` or `phpunit/phpunit`) |
 
-Measured with PHPStan 1.12.34 (the last 1.x line): against PHPUnit 13.4.6 it reports both errors, with and without `phpVersion: 80100`; against PHPUnit 11.5.57 and 12.5.43 it reports neither. PHPStan 2.3.5 reports neither against PHPUnit 11.5.57 or 13.4.6, also with `typo3/testing-framework` 9.7.0.
+Measured with PHPStan 1.12.34 (the last 1.x line): against PHPUnit 13.4.6 it reports both errors, with and without `phpVersion: 80100`; against PHPUnit 11.5.57 and 12.5.43 it reports neither. PHPStan 2.3.5 reports neither against PHPUnit 11.5.57 or 13.4.6, also with `typo3/testing-framework` 9.7.0, and reports both when PHPUnit is absent from its project.
 
 Do not suppress the message with an `ignoreErrors` pattern on `Call to an undefined static method`. The pattern does not match the `extends unknown class` error, so the run stays red, and it hides that PHPStan analysed the test classes without PHPUnit.
 
