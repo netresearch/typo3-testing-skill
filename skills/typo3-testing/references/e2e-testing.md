@@ -548,6 +548,24 @@ await expect(frame.locator('#my-panel')).toBeVisible();
 Before concluding "the module doesn't render," dump `page.frames()` — you'll see
 the shell plus the `?token=` module frame. Assert inside the latter.
 
+**A translated page's `slug` has no language prefix**
+
+The `slug` stored on a translated page record does not contain the site
+language's `base` path: a translation served at `/de/kontakt` stores
+`/kontakt`. `SlugHelper` builds slugs without the language base. `SiteMatcher`
+matches the language base and hands only the rest of the path to
+`PageRouter`, which looks it up among the pages of that one language; when
+generating, `PageRouter` puts `SiteLanguage::getBase()` back in front
+(cms-core 13.4.37 and 14.3.10). A `page.goto()` on the stored slug alone
+therefore does not reach the translation. Build the URL from the language base
+the site configuration (`config/sites/*/config.yaml`) gives that language,
+next to `TYPO3_BASE_URL`; the base may also be a full URL on another host. In
+a functional test or a PHP probe, let TYPO3 generate it:
+
+```php
+$uri = $site->getRouter()->generateUri($pageUid, ['_language' => $languageId]);
+```
+
 **A save is finished when its response is in, not when the page is idle**
 
 `page.waitForLoadState('networkidle')` resolves at once on a page that has

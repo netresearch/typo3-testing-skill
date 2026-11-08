@@ -140,7 +140,9 @@ it writes.
 - **Backend module.** HTTP 200, no console error, every view of the module
   opened once (`backend-module-render-verification.md`).
 - **Frontend page.** No console error, no failed asset request, the change
-  visible with realistic content, in each language the change touches.
+  visible with realistic content, in each language the change touches. A
+  translation's URL carries the language base, its stored `slug` does not
+  (`e2e-testing.md`, *Common Pitfalls*).
 - **Element in a scrolling flex column.** A flex item with `overflow: hidden`
   shrinks to its border once the column's content overflows, unless it has
   `flex-shrink: 0`. jsdom computes no layout, so a unit test cannot see it.
