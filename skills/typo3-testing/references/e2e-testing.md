@@ -557,12 +557,15 @@ matches the language base and hands only the rest of the path to
 `PageRouter`, which looks it up among the pages of that one language; when
 generating, `PageRouter` puts `SiteLanguage::getBase()` back in front
 (cms-core 13.4.37 and 14.3.10). A `page.goto()` on the stored slug alone
-therefore does not reach the translation. Build the URL from the language base
-the site configuration (`config/sites/*/config.yaml`) gives that language,
-next to `TYPO3_BASE_URL`; the base may also be a full URL on another host. In
-a functional test or a PHP probe, let TYPO3 generate it:
+therefore does not reach the translation. Build the URL from that language's
+resolved base (`SiteLanguage::getBase()`): in `config/sites/*/config.yaml` a
+language `base` without a host is appended to the site `base`, a matching
+`baseVariants` entry replaces either, and a language base may also be a full
+URL on another host. In a functional test or a PHP probe, let TYPO3 generate
+it:
 
 ```php
+// $pageUid: the default-language page, i.e. the translation's l10n_parent
 $uri = $site->getRouter()->generateUri($pageUid, ['_language' => $languageId]);
 ```
 
