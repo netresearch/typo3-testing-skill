@@ -183,22 +183,20 @@ abstract class ExtensionTestCase extends FunctionalTestCase
 }
 ```
 
-### CGL vs PHPStan Conflict for Static Assertions
+## PHPStan: "Call to an undefined static method …::assert…()"
 
-PHPUnit 11 marks assertion methods (`assertEquals`, `assertSame`, etc.) as non-static, but TYPO3 CGL (php-cs-fixer) enforces `self::assertEquals()` style.
+`self::assertSame()` is correct, and TYPO3 CGL (php-cs-fixer) enforces it: PHPUnit declares its assertions `final public static` in `PHPUnit\Framework\Assert` (checked at PHPUnit 10.5.0, 11.5.0, 12.0.0 and 13.4.6).
 
-**Resolution:** CGL is authoritative for code style. Suppress PHPStan false positives:
+When PHPStan reports `Call to an undefined static method <TestClass>::assertSame()` (`staticMethod.notFound`), look first for `Class <TestClass> extends unknown class PHPUnit\Framework\TestCase` (`class.notFound`) in the same run. Without that line, the assertion does not exist in the installed PHPUnit (PHPUnit 13 removed `assertContainsOnly()`, for example): change the assertion. With it, PHPStan could not load PHPUnit's `TestCase`. Two setups produce that:
 
-```yaml
-# Build/phpstan/phpstan.neon
-parameters:
-    ignoreErrors:
-        -
-            message: '#Call to an undefined static method .+::(assert|fail|mark)#'
-            reportUnmatched: false
-```
+| Cause | Fix |
+|-------|-----|
+| PHPStan 1.x analyses tests against PHPUnit 13 (`typo3/testing-framework` allows `^13` from 9.4.0) | `composer require --dev "phpstan/phpstan:^2"` |
+| PHPUnit is not installed in the Composer project PHPStan runs from | Require it as a dev dependency of that project (`typo3/testing-framework` or `phpunit/phpunit`) |
 
-`reportUnmatched: false` is essential — on TYPO3 12.4 with testing-framework v8 (PHPUnit 10), the pattern has no matches.
+Measured with PHPStan 1.12.34 (the last 1.x line): against PHPUnit 13.4.6 it reports both errors, with and without `phpVersion: 80100`; against PHPUnit 11.5.57 and 12.5.43 it reports neither. PHPStan 2.3.5 reports neither against PHPUnit 11.5.57 or 13.4.6, also with `typo3/testing-framework` 9.7.0, and reports both when PHPUnit is absent from its project.
+
+Do not suppress the message with an `ignoreErrors` pattern on `Call to an undefined static method`. The pattern does not match the `extends unknown class` error, so the run stays red, and it hides that PHPStan analysed the test classes without PHPUnit.
 
 ## Archived TYPO3-CI GitHub Actions
 
