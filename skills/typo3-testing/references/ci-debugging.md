@@ -187,7 +187,7 @@ abstract class ExtensionTestCase extends FunctionalTestCase
 
 `self::assertSame()` is correct, and TYPO3 CGL (php-cs-fixer) enforces it: PHPUnit declares its assertions `final public static` in `PHPUnit\Framework\Assert` (checked at PHPUnit 10.5.0, 11.5.0, 12.0.0 and 13.4.6).
 
-When PHPStan reports `Call to an undefined static method <TestClass>::assertSame()` (`staticMethod.notFound`), it could not load PHPUnit's `TestCase`. The same run then also reports `Class <TestClass> extends unknown class PHPUnit\Framework\TestCase` (`class.notFound`) — look for that line first. Two setups produce it:
+When PHPStan reports `Call to an undefined static method <TestClass>::assertSame()` (`staticMethod.notFound`), look first for `Class <TestClass> extends unknown class PHPUnit\Framework\TestCase` (`class.notFound`) in the same run. Without that line, the assertion does not exist in the installed PHPUnit (PHPUnit 13 removed `assertContainsOnly()`, for example): change the assertion. With it, PHPStan could not load PHPUnit's `TestCase`. Two setups produce that:
 
 | Cause | Fix |
 |-------|-----|
