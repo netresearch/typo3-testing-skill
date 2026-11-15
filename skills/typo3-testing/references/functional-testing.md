@@ -1132,3 +1132,38 @@ The testing-framework's `private_container` fixture extension registers every pr
 ## Coverage of mock-exercised classes: measure per test file, not combined
 
 A combined PHPUnit run can report 0% / heavily under-counted coverage for classes exercised through partial mocks (`createPartialMock`, `onlyMethods()`) — a cross-file attribution artifact, not missing coverage. Before any test-architecture decision based on a 0%, measure the file in isolation (`php -d xdebug.mode=coverage … --coverage-clover /tmp/cov.xml tests/…/OneTest.php`) and read that clover. One measured case: combined run 0/12 and 0/9, isolated runs 11/12 and 8/9.
+
+## Measuring a change to typo3/testing-framework inside TYPO3 Core
+
+A change to the testing-framework needs a run against Core, and the default Core install cannot give one. `composer install` in a Core checkout downloads testing-framework as the GitHub zip archive, without a `.git` directory. The framework's `.gitattributes` marks `/Tests/` as `export-ignore`, so the archive also has no `Tests/` directory.
+
+The framework's `CONTRIBUTING.rst` replaces the installed copy with a git clone and then runs Core's own test suites. The steps below add a check of the clone and a run without the fix:
+
+1. Copy the installed `vendor/typo3/testing-framework` aside. You need it to restore the checkout and as a reference.
+2. Remove the directory and `git clone` the framework into its place. Check out the base commit of the pull request.
+3. Run `diff -rq <copy>/Classes vendor/typo3/testing-framework/Classes`. No file may differ. A difference means that the base of the pull request is not the version in Core's lock file. Then check out the pull request head.
+4. Run Core's suites for the area that the change touches, for example `-s unit`, and `-s functional` once for each database:
+
+   ```bash
+   CI=true ./Build/Scripts/runTests.sh -b docker -s functional -d postgres -i 15
+   ```
+
+   On the branches `main` and `9`, the framework has unit tests only. Run them in a separate checkout of the framework with its own runner, `Build/Scripts/runTests.sh -s unit`. When the pull request adds functional tests under `Tests/Functional/`, run them through Core's runner as well:
+
+   ```bash
+   CI=true ./Build/Scripts/runTests.sh -b docker -s functional -d postgres -i 15 -- vendor/typo3/testing-framework/Tests/Functional/
+   ```
+
+5. For the run without the fix, put every production file that the pull request changes back to its base version, and keep the tests:
+   - For a file that exists in the base, run `git -C vendor/typo3/testing-framework show <base>:<path> > vendor/typo3/testing-framework/<path>`. The redirect resolves against the current directory, not against the clone.
+   - Remove a file that the pull request adds.
+
+   Afterward, restore the files with `git -C vendor/typo3/testing-framework checkout -- <paths>`, and check that `git status --short` in the clone is empty.
+
+When you measure in a standalone checkout of the framework instead, do not link a second worktree to the `.Build/` directory of the first one. Composer's autoloader computes `$baseDir` from its own location, and PHP resolves a symlink to its target. The second worktree then loads the classes of the first one. While reviewing [TYPO3/testing-framework#756](https://github.com/TYPO3/testing-framework/pull/756) locally, a worktree with a linked `.Build` was green with and without the fix. A real copy of `.Build` made the run without the fix fail as expected. If both arms of an A/B run come out the same, first check which file PHP loads for the changed class. The autoloader files do not show it, because they compute the path at run time. Ask PHP instead, from the checkout root:
+
+```bash
+php -r 'require ".Build/vendor/autoload.php"; echo (new ReflectionClass(<Class>::class))->getFileName(), PHP_EOL;'
+```
+
+In a Core checkout, require `vendor/autoload.php` instead.
