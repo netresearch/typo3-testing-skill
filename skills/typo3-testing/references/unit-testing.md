@@ -799,6 +799,35 @@ final class DiagnosticServiceTest extends TestCase
 
 Without this, coverage tools (e.g., codecov) may report 0% for the DTOs even though they are fully exercised by the service test.
 
+## Objects Built in a Data Provider Earn No Coverage
+
+PHPUnit calls data providers while it builds the test suite, before coverage
+collection starts for any test. A provider that yields `[AuthScheme::bearer()]`
+runs that named constructor outside every test: the tests pass, and the
+coverage report and a Codecov patch check count the constructor's lines as
+missed. Yield a closure and call it inside the test:
+
+```php
+public static function schemes(): iterable
+{
+    yield 'bearer' => [static fn (): AuthScheme => AuthScheme::bearer()];
+    yield 'header' => [static fn (): AuthScheme => AuthScheme::header('X-Key')];
+}
+
+#[Test]
+#[DataProvider('schemes')]
+public function schemeBuildsTheExpectedRequest(\Closure $build): void
+{
+    $scheme = $build();
+    // ...
+}
+```
+
+The same shape lets an invalid-input case assert its exception: construction
+then happens after `expectException()`, inside the test. Observed with
+PHPUnit 13.4: a Codecov patch check reported 76.7 % while the providers built
+the objects, and 100 % once they yielded closures.
+
 ## Configuration
 
 ### PHPUnit XML (Build/phpunit/UnitTests.xml)
