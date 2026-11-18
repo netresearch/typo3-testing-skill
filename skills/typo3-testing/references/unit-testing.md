@@ -824,8 +824,8 @@ public function schemeBuildsTheExpectedRequest(\Closure $build): void
 ```
 
 The same shape lets an invalid-input case assert its exception: construction
-then happens after `expectException()`, inside the test. Observed with
-PHPUnit 13.4: a Codecov patch check reported 76.7 % while the providers built
+then happens after `expectException()`, inside the test. Observed in a TYPO3
+extension's CI: a Codecov patch check reported 76.7 % while the providers built
 the objects, and 100 % once they yielded closures.
 
 ## Configuration
