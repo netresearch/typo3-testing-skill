@@ -828,6 +828,11 @@ then happens after `expectException()`, inside the test. Observed in a TYPO3
 extension's CI: a Codecov patch check reported 76.7 % while the providers built
 the objects, and 100 % once they yielded closures.
 
+A test under `#[RunInSeparateProcess]` cannot take a closure: PHPUnit
+serializes the provided data for the child process
+(`SeparateProcessTestRunner`), and PHP refuses to serialize a `Closure`.
+There, yield the scalar arguments and call the named constructor in the test.
+
 ## Configuration
 
 ### PHPUnit XML (Build/phpunit/UnitTests.xml)
