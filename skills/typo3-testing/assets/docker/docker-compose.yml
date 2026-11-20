@@ -1,6 +1,6 @@
 services:
   web:
-    image: php:8.5-apache
+    image: php:8.6-apache
     container_name: typo3-test-web
     volumes:
       - ../../../:/var/www/html
