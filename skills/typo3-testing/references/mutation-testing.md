@@ -44,7 +44,10 @@ a pass/fail signal is only worth as much as the environment it came from:
 # 1. Baseline: the guard passes
 Build/Scripts/runTests.sh -s unit -- --filter=theGuardingTest
 
-# 2. Reintroduce the bug (exact string replace, not a regex sed)
+# 2. Keep a byte copy outside the checkout, then reintroduce the bug
+#    (exact string replace, not a regex sed)
+backup="$(mktemp -d)/Thing.php.orig"
+cp Classes/Service/Thing.php "$backup"
 python3 - <<'PY'
 p = 'Classes/Service/Thing.php'
 s = open(p).read()
@@ -57,9 +60,9 @@ grep -n 'save(\$path' Classes/Service/Thing.php   # confirm the edit applied
 # 3. The guard MUST fail now
 Build/Scripts/runTests.sh -s unit -- --filter=theGuardingTest
 
-# 4. Restore and confirm green again
-git checkout -- Classes/Service/Thing.php
-git diff --quiet -- Classes/ && Build/Scripts/runTests.sh -s unit -- --filter=theGuardingTest
+# 4. Restore from the copy and confirm green again
+cp "$backup" Classes/Service/Thing.php
+cmp "$backup" Classes/Service/Thing.php && Build/Scripts/runTests.sh -s unit -- --filter=theGuardingTest
 ```
 
 Where the project has no `runTests.sh` — or you are already inside the container — the direct
@@ -67,12 +70,21 @@ equivalent is `vendor/bin/phpunit -c Build/phpunit/UnitTests.xml --filter=theGua
 the single-class case that [`test-runners.md`](test-runners.md) reserves plain `phpunit --filter`
 for; do not generalise it to running whole suites outside the entry point.
 
-Four traps make this check lie:
+Restore from the copy, not with `git checkout --`: that puts back the last *committed*
+state, so when the fix is still uncommitted it discards the fix, and the next run tests the
+buggy code again.
 
+Five traps make this check lie:
+
+- **Revert only the code under test.** `git stash` without a pathspec also stashes the new
+  test, so the old tests run against the old code and pass: the red step reports green and
+  proves nothing about the new cases. Mutate or restore the single production file, and check
+  that the number of failing tests matches the number of new cases you expect to fail; a
+  different count means the run measured a different pair of files.
 - **Verify the mutation applied.** A `sed` pattern that silently matches nothing leaves the
   file untouched, and the suite then "fails" for some unrelated reason — or passes, and you
   conclude the guard is worthless. Assert the occurrence count when replacing, and `grep`
-  the file afterwards. Restore from a byte copy and confirm with `git diff --quiet`.
+  the file afterwards. Restore from a byte copy and confirm with `cmp` against that copy.
 - **Read the failure, not just the exit code.** In an environment with pre-existing failures
   (a missing `gd`/`imagick` extension makes unrelated tests error), a non-zero exit proves
   nothing on its own. Scope the run with `--filter`, or compare the failing-test set against
@@ -428,6 +440,41 @@ mutation)
 # Filter to specific directory
 .Build/bin/infection --threads=4 --filter=Classes/Service
 ```
+
+### A scoped run for killing escaped mutants one by one
+
+To work through the escaped mutants of one directory, make the run fast and make it report
+instead of gate: mutate only that directory, set both thresholds to 0 and write the JSON log
+somewhere of its own. `--filter` matches path substrings, so keep the trailing slash, or
+`Classes/SecurityLegacy` is mutated too. `--logger-json` exists from Infection 0.35.11; on
+older versions set `logs.json` in the configuration instead.
+
+```bash
+.Build/bin/infection --threads=4 --filter=Classes/Security/ \
+  --min-msi=0 --min-covered-msi=0 \
+  --logger-json=.Build/infection-scoped/infection.json
+```
+
+`--filter` limits which files are mutated; the initial test run still collects coverage for
+every directory in `source.directories`. When that initial run is the slow part, use a copy of
+the configuration with `source.directories` reduced to the one directory, pass it with
+`--configuration=<copy>` (Infection otherwise reads the default file), keep it in the
+project root so its relative paths still resolve, keep it out of git
+(`"$(git rev-parse --git-common-dir)/info/exclude"`) and delete it when you are done: it is a
+local instrument, not a second gate.
+
+Then write a test, re-run, and read which mutants are left. Each entry of `escaped` in the
+JSON log carries `mutator.mutatorName`, `mutator.originalFilePath`,
+`mutator.originalStartLine` and a `diff` (Infection 0.35.12):
+
+```bash
+jq -r '.escaped[] | "\(.mutator.originalFilePath):\(.mutator.originalStartLine) \(.mutator.mutatorName)\n\(.diff)"' \
+  .Build/infection-scoped/infection.json
+```
+
+The MSI of such a run is not the project's score: it covers one directory and no gate. Quote
+the score CI reports; use the scoped run to learn which mutant escaped and whether a new test
+killed it.
 
 ## Interpreting Results
 

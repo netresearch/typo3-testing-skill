@@ -65,6 +65,15 @@ When using `typo3-ci-workflows`, fractor, or infection, add their installers to 
 }
 ```
 
+Verify a change to `allow-plugins`, or to dependencies that bring a plugin, with an install that loads plugins. `composer install --no-plugins`, which the CaptainHook worktree workaround in [quality-tools.md](quality-tools.md) uses, skips the allow-plugins check entirely: measured with Composer 2.11.2 and `phpstan/extension-installer` missing from `allow-plugins`, `--no-plugins` installs succeeded with and without an existing `vendor` directory, while the plain install failed with `phpstan/extension-installer contains a Composer plugin which is blocked by your allow-plugins config`. Run the check in a checkout where a plain install works (a regular clone, not a worktree that needs `--no-plugins`), from no vendor directory and no lock file; where no such checkout exists, the install in CI is the check:
+
+```bash
+rm -rf "$(composer config vendor-dir)" composer.lock
+composer install --no-interaction
+```
+
+To drop a platform override, use `composer config --unset platform`. `composer config --unset platform.php` removes only the PHP entry and leaves an empty `"platform": {}` block in `composer.json`.
+
 ## 5. TYPO3 v14.3 LTS CI matrix
 
 TYPO3 v14.3 LTS (released 2026-04-21) is the current gold standard. Use
