@@ -77,6 +77,12 @@ are deliberate rather than leftovers:
    back by it; see the PHPUnit 13 section in
    [unit-testing.md](unit-testing.md).
 
+   These entries look like duplicates of what the meta package provides, and
+   removing them fails exactly the legs without it, with `.Build/bin/phpstan: not
+   found` or `phpunit: not found` (exit 127). A local `composer update` before
+   and after such a cleanup does not catch it: it resolves one cell, the one with
+   the meta package. Only the CI matrix covers the legs that remove it.
+
 Widening `saschaegerer/phpstan-typo3` to `^1.10 || ^2.0 || ^3.0` does not fix
 this. It resolves only if `phpstan/phpstan`, `phpstan-strict-rules`,
 `phpstan-deprecation-rules`, `phpstan-phpunit` and `ergebnis/phpstan-rules` are

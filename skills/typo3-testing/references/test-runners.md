@@ -214,6 +214,22 @@ reporting success — and it bites hardest in the red-green loop, where a
 mistyped filter makes the red step look green and the fix gets written against
 a test that never ran.
 
+## Gotcha: An Unknown `--testsuite` Exits 0 Too
+
+A suite name that the configuration does not define behaves the same way:
+PHPUnit prints `No tests executed!` and exits **0** (measured with PHPUnit
+10.5.67 and 11.5.58). Nothing validates the name, so a Makefile target, a
+Composer script or a CI step that passes `--testsuite architecture` against a
+`phpunit.xml` defining only `unit` and `functional` stays green while running
+nothing, for as long as nobody reads its output.
+
+Make the exit code say it. Set `failOnEmptyTestSuite="true"` on the `<phpunit>`
+element (or pass `--fail-on-empty-test-suite`); with it, both the unknown suite
+and the non-matching `--filter` above exit **1**, while a normal run still exits
+0 (same versions). Then check every suite name used in scripts, Makefiles and
+workflow files against the `<testsuite name="…">` entries of the configuration
+they run with.
+
 ## Database Support
 
 ### SQLite (Default)

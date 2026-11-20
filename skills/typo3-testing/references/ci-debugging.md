@@ -144,6 +144,16 @@ tool through the static binary (`"$d/php" vendor/bin/phpstan …`). A
 `composer install` may also install GrumPHP git hooks, which call `php` from
 `PATH`; prepend `"$d"` to `PATH` for commits, or the hook runs the new PHP.
 
+Composer writes that package list to **stderr**, not stdout, so a capture with
+`2>/dev/null` comes back empty and reads as "nothing resolved". Capture with
+`2>&1`. Count `- Locking` lines only: every package appears once as `- Locking`
+and once as `- Installing`, so counting all package lines (every line starting
+with two spaces and a dash) gives exactly twice the number. Measured with
+Composer 2.11.2, `composer update --dry-run` on a project with 27 packages: 0
+lines with `2>/dev/null`; with `2>&1`, 54 package lines and 27 `- Locking`
+lines. Twelve repositories that all report an empty list are one broken
+pipeline, not twelve broken repositories.
+
 ## Testing-Framework Version Mapping
 
 | testing-framework | PHPUnit | TYPO3 Versions |
@@ -183,6 +193,16 @@ abstract class ExtensionTestCase extends FunctionalTestCase
 }
 ```
 
+### Share these defaults through a base class, not a trait
+
+A trait that declares `$coreExtensionsToLoad` or `$testExtensionsToLoad` with a value different from `FunctionalTestCase`'s default is a fatal error at class load on PHP 8.2, 8.3 and 8.4, and runs on PHP 8.5. Measured with the same property type and visibility in parent and trait and only the default differing (PHP 8.2.36, 8.3.37, 8.4.28: exit 255; PHP 8.5.13: exit 0):
+
+```text
+Fatal error: P and T define the same property ($x) in the composition of C. However, the definition differs and is considered incompatible. Class was composed in /w/t.php on line 4
+```
+
+So the trait passes on a local PHP 8.5 and fails every older cell of the matrix before a test runs. Overriding an inherited property in an abstract base class, as above, is legal on every version; a trait that carries only methods is fine. When you move per-class copies into one shared helper, choose the mechanism against the oldest PHP the extension supports and run the check on that version.
+
 ## PHPStan: "Call to an undefined static method …::assert…()"
 
 `self::assertSame()` is correct, and TYPO3 CGL (php-cs-fixer) enforces it: PHPUnit declares its assertions `final public static` in `PHPUnit\Framework\Assert` (checked at PHPUnit 10.5.0, 11.5.0, 12.0.0 and 13.4.6).
@@ -197,6 +217,32 @@ When PHPStan reports `Call to an undefined static method <TestClass>::assertSame
 Measured with PHPStan 1.12.34 (the last 1.x line): against PHPUnit 13.4.6 it reports both errors, with and without `phpVersion: 80100`; against PHPUnit 11.5.57 and 12.5.43 it reports neither. PHPStan 2.3.5 reports neither against PHPUnit 11.5.57 or 13.4.6, also with `typo3/testing-framework` 9.7.0, and reports both when PHPUnit is absent from its project.
 
 Do not suppress the message with an `ignoreErrors` pattern on `Call to an undefined static method`. The pattern does not match the `extends unknown class` error, so the run stays red, and it hides that PHPStan analysed the test classes without PHPUnit.
+
+## PHPStan exits 255: `Cannot set the alias loader, as it is already registered!`
+
+`vendor/phpstan/phpstan/bin/phpstan` first loads the phar's own autoloader, then the Composer autoloader of its **working directory** (it reads that directory's `composer.json` and its `config.vendor-dir`), and only then the autoloader of the vendor tree the phar sits in (read in `bin/phpstan` inside `phpstan.phar` of PHPStan 2.3.7). When the working directory and the PHPStan binary belong to two different vendor trees, both project autoloaders are loaded.
+
+That happens with a local runner that keeps a separate vendor tree per PHP/TYPO3 combination next to the extension's own `.Build/vendor` and starts PHPStan from the extension root. In one extension that layout made `typo3/class-alias-loader` register twice, and the process died before reading any configuration:
+
+```text
+Uncaught RuntimeException: Cannot set the alias loader, as it is already registered!
+```
+
+The exit code is 255. Two checks separate this from a broken `phpstan.neon`: `phpstan --version` fails the same way, and the error disappears when the root `.Build/vendor` is moved away. The runner breaks only for developers who also ran `composer install` in the root, and CI never sees it because CI does not use the local runner.
+
+**Fix:** start PHPStan with the directory of the vendor tree it belongs to as the working directory, and give it a configuration with absolute paths so the changed working directory does not move the analysed scope. A configuration included from `netresearch/typo3-ci-workflows` resolves its `bootstrapFiles` through `%currentWorkingDirectory%/.Build/vendor`, so rewrite the paths in a copy of that included file too, not only in the outer neon. Verify both states: with and without a root `.Build/vendor`.
+
+## A resolve outside the test runner is no PHPStan baseline
+
+A `composer update` run in a plain `composer` container instead of through `runTests.sh` leaves three artefacts that look like code findings:
+
+- `.Build` is owned by root, and the runner, which runs as your user, then fails with `Directory ".Build/public/typo3conf/ext" could not be created`. See "Linux --user Flag" in [test-runners.md](test-runners.md).
+- In a git worktree, CaptainHook's installer exits 1 with `invalid .git path`. The packages are installed; the exit code is the hook installer's. See "captainhook + git worktree" in [quality-tools.md](quality-tools.md).
+- `phpstan/extension-installer` may not register every extension. One run left `ergebnis/phpstan-rules` unregistered, and PHPStan stopped with `Unexpected item 'parameters › ergebnis'`; a second `composer install` did not change it.
+
+The obvious cross-check, PHPStan on `main`, is worth as little when `main`'s `.Build` is stale. In one extension it still held a dependency one minor below the constraint in `composer.json`, so the errors it reported belonged to a version the package no longer supports.
+
+When neither number comes from a resolve you trust, report no PHPStan number at all. Run the behavioural suites (unit, functional) locally, say that the static analysis was left to CI, and let CI resolve from the declared constraints on a fresh checkout.
 
 ## Archived TYPO3-CI GitHub Actions
 
@@ -256,6 +302,16 @@ preg_replace_callback('/<[^>]+>/', static function (array $match): string {
 ## `CoversClass` on a coverage-excluded class: red in CI, green locally
 
 `#[CoversClass(X::class)]` where `X` is excluded from the coverage source set in `Build/phpunit.xml` emits *"Class X is not a valid target for code coverage"* — one PHPUnit warning per test, and with `failOnWarning="true"` that is a red build. The trap: the warning only exists when coverage is **enabled**. `runTests.sh -s unit` runs without coverage and reports zero warnings; CI runs with Xdebug and sees them all. Reproduce locally with `runTests.sh -s unitCoverage` before pushing, whenever you add `CoversClass` attributes or touch the coverage include/exclude lists.
+
+## codecov/patch fails on lines with `assert()`
+
+`shivammathur/setup-php` applies the production `php.ini` by default, and that sets `zend.assertions = -1` (`php.ini-production`; the development file sets `1`). With `-1`, every `assert()` is compiled away, which has two effects: the assertions check nothing in CI, and the coverage report can still list those lines as executable statements that never get a hit. Then every pull request whose diff touches an `assert()` line fails the codecov/patch target, whatever its tests do.
+
+The signature, as observed in one extension: the `assert()` line appears in the Clover report as `<line num="…" type="stmt" count="0"/>` although the method around it is demonstrably tested.
+
+**Fix:** set `ini-values: zend.assertions=1` on the `setup-php` step of every PHPUnit job. The reusable `netresearch/typo3-ci-workflows` `ci.yml` does this for its test jobs. Reproduce locally with the same setting, e.g. `php -d zend.assertions=1 .Build/bin/phpunit …`, or with that `-d` flag added to the PHP options of your `runTests.sh`.
+
+Before reading any diff-coverage result, check that at least one file in the Clover report has hits. A report in which every file has zero hits means the run broke (for example, every functional test errored on a missing `mysqli`) and the report was written anyway; it does not mean nothing is covered.
 
 ## A PHP extension segfaults in functional tests
 
