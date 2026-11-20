@@ -146,9 +146,12 @@ tool through the static binary (`"$d/php" vendor/bin/phpstan …`). A
 
 Composer writes that package list to **stderr**, not stdout, so a capture with
 `2>/dev/null` comes back empty and reads as "nothing resolved". Capture with
-`2>&1`. Count `- Locking` lines only: every package appears once as `- Locking`
-and once as `- Installing`, so counting all package lines (every line starting
-with two spaces and a dash) gives exactly twice the number. Measured with
+`2>&1`. Count `- Locking` lines only: on a resolve without a lock file and
+without installed packages, every package appears once as `- Locking` and once
+as `- Installing`, so counting all package lines (every line starting with two
+spaces and a dash) gives exactly twice the number. With an existing lock file
+or vendor directory the two lists differ; for a complete count read the
+resolved `composer.lock` instead. Measured with
 Composer 2.11.2, `composer update --dry-run` on a project with 27 packages: 0
 lines with `2>/dev/null`; with `2>&1`, 54 package lines and 27 `- Locking`
 lines. Twelve repositories that all report an empty list are one broken
@@ -230,7 +233,7 @@ Uncaught RuntimeException: Cannot set the alias loader, as it is already registe
 
 The exit code is 255. Two checks separate this from a broken `phpstan.neon`: `phpstan --version` fails the same way, and the error disappears when the root `.Build/vendor` is moved away. The runner breaks only for developers who also ran `composer install` in the root, and CI never sees it because CI does not use the local runner.
 
-**Fix:** start PHPStan with the directory of the vendor tree it belongs to as the working directory, and give it a configuration with absolute paths so the changed working directory does not move the analysed scope. A configuration included from `netresearch/typo3-ci-workflows` resolves its `bootstrapFiles` through `%currentWorkingDirectory%/.Build/vendor`, so rewrite the paths in a copy of that included file too, not only in the outer neon. Verify both states: with and without a root `.Build/vendor`.
+**Fix:** start PHPStan with the directory of the vendor tree it belongs to as the working directory, and give it a configuration with absolute paths so the changed working directory does not move the analysed scope. A configuration included from `netresearch/typo3-ci-workflows` resolves its `bootstrapFiles` through `%currentWorkingDirectory%/.Build/vendor` and its `ignoreErrors` paths through `%currentWorkingDirectory%/Tests/…` and `%currentWorkingDirectory%/Classes/…`, so rewrite every `%currentWorkingDirectory%` path in a copy of that included file too, not only in the outer neon; otherwise the relocated run reports errors the root run suppresses. Verify both states: with and without a root `.Build/vendor`.
 
 ## A resolve outside the test runner is no PHPStan baseline
 

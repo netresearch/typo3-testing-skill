@@ -445,19 +445,23 @@ mutation)
 
 To work through the escaped mutants of one directory, make the run fast and make it report
 instead of gate: mutate only that directory, set both thresholds to 0 and write the JSON log
-somewhere of its own.
+somewhere of its own. `--filter` matches path substrings, so keep the trailing slash, or
+`Classes/SecurityLegacy` is mutated too. `--logger-json` exists from Infection 0.35.11; on
+older versions set `logs.json` in the configuration instead.
 
 ```bash
-.Build/bin/infection --threads=4 --filter=Classes/Security \
+.Build/bin/infection --threads=4 --filter=Classes/Security/ \
   --min-msi=0 --min-covered-msi=0 \
   --logger-json=.Build/infection-scoped/infection.json
 ```
 
 `--filter` limits which files are mutated; the initial test run still collects coverage for
 every directory in `source.directories`. When that initial run is the slow part, use a copy of
-the configuration with `source.directories` reduced to the one directory, keep the copy out of
-git (`"$(git rev-parse --git-common-dir)/info/exclude"`) and delete it when you are done: it is a local instrument, not a
-second gate.
+the configuration with `source.directories` reduced to the one directory, pass it with
+`--configuration=<copy>` (Infection otherwise reads the default file), keep it in the
+project root so its relative paths still resolve, keep it out of git
+(`"$(git rev-parse --git-common-dir)/info/exclude"`) and delete it when you are done: it is a
+local instrument, not a second gate.
 
 Then write a test, re-run, and read which mutants are left. Each entry of `escaped` in the
 JSON log carries `mutator.mutatorName`, `mutator.originalFilePath`,
