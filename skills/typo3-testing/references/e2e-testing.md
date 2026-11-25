@@ -874,6 +874,42 @@ it can be driven deterministically — a unit test over the limiter service — 
 keep the e2e assertion to what only this level sees, that the endpoint holds its
 contract under a burst instead of answering 500.
 
+## Session Backends: Run Login Specs on Redis Too
+
+Core's session backends do not answer a write to a missing record alike.
+`RedisSessionBackend::update()` throws `SessionNotUpdatedException` when the
+record does not exist; the database backend accepts the call. Code that writes
+session data before Core has created the session (an authentication service, a
+PSR-14 listener or a middleware during login) therefore passes every spec on the
+database and answers HTTP 500 on an instance with Redis sessions.
+netresearch/t3x-nr-passkeys-be shipped that in v1.0.3.
+
+An extension that touches the session during login, logout or MFA runs its E2E
+suite against both backends:
+
+- Use a PHP image with the `redis` extension. Without it the backend throws a
+  `RuntimeException` on every request and every spec fails for another reason.
+- Start Redis or Valkey in the run's own network and check that it answers
+  before the suite starts; stop the run if it does not.
+- Point the instance at it in `config/system/additional.php` (`BE` for backend
+  login; set `FE` the same way for frontend login):
+
+  ```php
+  $GLOBALS['TYPO3_CONF_VARS']['SYS']['session']['BE'] = [
+      'backend' => \TYPO3\CMS\Core\Session\Backend\RedisSessionBackend::class,
+      'options' => ['hostname' => 'valkey-e2e', 'port' => 6379, 'database' => 0],
+  ];
+  ```
+
+- With the shared `e2e.yml` of netresearch/typo3-ci-workflows in `setup-script`
+  mode, set `setup-variants: '["", "redis"]'` and read `E2E_VARIANT` in
+  `Build/Scripts/runTests.conf`. Without `setup-script` nothing reads that file,
+  and the `redis` job runs on the database and is green. Refuse an unknown
+  variant in the setup script (`Build/Scripts/ci-e2e.sh` in the example below).
+- Prove the variant: put the early write back and see the login spec fail on
+  Redis with `SessionNotUpdatedException` and pass on the database (netresearch/t3x-nr-passkeys-be#210: 2 of 2 on
+  each side).
+
 ## E2E Testing for AJAX Endpoints
 
 Backend modules often use AJAX routes for dynamic functionality. Test these endpoints thoroughly:
