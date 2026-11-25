@@ -33,7 +33,7 @@ Netresearch TYPO3 extensions use a centralized dev-dependency package that provi
 
 **Shared configurations:**
 - `config/phpstan/phpstan.neon` — shared parameters (level 10, excludePaths, bootstrapFiles, common ignoreErrors)
-- `config/phpstan/includes-no-extension-installer.neon` — explicit PHPStan plugin includes for `--no-plugins` environments (captainhook + git worktree)
+- `config/phpstan/includes-no-extension-installer.neon` — explicit PHPStan plugin includes for `--no-plugins` environments
 - `.php-cs-fixer.php` — shared code style rules
 - `captainhook.json` — pre-commit hook configuration
 
@@ -82,7 +82,7 @@ services:
 
 ### captainhook + git worktree + explicit PHPStan includes
 
-When using git worktrees with bare repositories, `composer install --no-plugins` is needed for the captainhook workaround. This means `phpstan/extension-installer` cannot auto-register plugins. Use the explicit includes file instead:
+With `captainhook/hook-installer` 1.0.5 or later, a plain `composer install` works in a worktree of a bare repository, and `phpstan/extension-installer` registers its plugins. After `composer install --no-plugins` or `--no-scripts` the plugins are not registered; then use the explicit includes file:
 
 ```neon
 includes:
@@ -96,7 +96,7 @@ This file explicitly lists all PHPStan plugin neon files that `extension-install
 
 #### Symptom when the includes are missing (`InvocationStubber::with()`)
 
-If PHPStan runs in such a worktree **without** the explicit-includes config — e.g. after a `composer install --no-scripts` fallback, or in an extension that ships no `phpstan.no-plugins.neon` to point at — `phpstan-phpunit` is not active and every ordinary mock chain trips a false error:
+If PHPStan runs after such an install **without** the explicit-includes config — e.g. after a `composer install --no-scripts` fallback, or in an extension that ships no `phpstan.no-plugins.neon` to point at — `phpstan-phpunit` is not active and every ordinary mock chain trips a false error:
 
 ```text
 Call to an undefined method PHPUnit\Framework\MockObject\InvocationStubber::with().
@@ -105,7 +105,7 @@ Cannot call method willReturn() on mixed.
 
 on lines like `$this->createMock(X::class)->method('m')->with(...)->willReturn(...)`. These are **not real** and are **not caused by your change** — the tell is that only a handful of files show them while hundreds of other mock-using tests pass.
 
-Prefer the `--no-plugins` + explicit-includes approach above. When the repo has no no-plugins config to point PHPStan at, **verify with a controlled stash**:
+Prefer a plain `composer install`; after `--no-plugins`, use the explicit includes above. When the repo has no no-plugins config to point PHPStan at, **verify with a controlled stash**:
 
 ```bash
 git stash push -u          # revert your change -> clean tree
@@ -114,7 +114,7 @@ git stash pop
 # re-run PHPStan -> confirm your change keeps the count unchanged (adds zero)
 ```
 
-CI installs in a real (non-worktree) checkout where the hooks install cleanly and `extension-installer` registers the plugins, so these errors never appear there — **CI is authoritative** for the full-tree PHPStan result.
+CI runs a plain install, where the hook plugin skips itself (`CI=true`) and `extension-installer` registers the plugins, so these errors never appear there — **CI is authoritative** for the full-tree PHPStan result.
 
 ### If NOT using typo3-ci-workflows
 

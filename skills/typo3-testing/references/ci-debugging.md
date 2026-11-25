@@ -240,7 +240,7 @@ The exit code is 255. Two checks separate this from a broken `phpstan.neon`: `ph
 A `composer update` run in a plain `composer` container instead of through `runTests.sh` leaves three artefacts that look like code findings:
 
 - `.Build` is owned by root, and the runner, which runs as your user, then fails with `Directory ".Build/public/typo3conf/ext" could not be created`. See "Linux --user Flag" in [test-runners.md](test-runners.md).
-- In a git worktree, CaptainHook's installer exits 1 with `invalid .git path`. The packages are installed; the exit code is the hook installer's. See "captainhook + git worktree" in [quality-tools.md](quality-tools.md).
+- In a git worktree, CaptainHook's installer exits 1 with `invalid .git path`, because the container does not mount the git directory that `.git` points to. The packages are installed; the exit code is the hook installer's. Set `CAPTAINHOOK_DISABLE=true`, or mount the shared git directory at its identical path. On the host, `captainhook/hook-installer` 1.0.5 or later skips the installation instead.
 - `phpstan/extension-installer` may not register every extension. One run left `ergebnis/phpstan-rules` unregistered, and PHPStan stopped with `Unexpected item 'parameters › ergebnis'`; a second `composer install` did not change it.
 
 The obvious cross-check, PHPStan on `main`, is worth as little when `main`'s `.Build` is stale. In one extension it still held a dependency one minor below the constraint in `composer.json`, so the errors it reported belonged to a version the package no longer supports.
