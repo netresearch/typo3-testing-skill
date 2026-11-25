@@ -829,6 +829,42 @@
         ]
       },
       "expected_output": "Historical audit association and deterministic overlapping-request tests with bounded waits, plus a report separating bounded model findings from runtime evidence."
+    },
+    {
+      "id": 38,
+      "name": "session-backend-redis-login",
+      "area": "e2e-testing",
+      "prompt": "Our TYPO3 login extension writes session data from an authentication service. All E2E specs pass, but a customer with Redis sessions gets HTTP 500 at login. What was missing in our tests?",
+      "assertions": [
+        {
+          "type": "content_regex",
+          "value": "SessionNotUpdatedException|update\\(\\)[^.]{0,60}throws",
+          "description": "Names the failing Redis update"
+        },
+        {
+          "type": "content_regex",
+          "value": "(both|redis|valkey)[^.]{0,80}(backend|variant)",
+          "description": "Runs the suite on a Redis backend"
+        },
+        {
+          "type": "content_regex",
+          "value": "(put|bring|restore|reintroduce)[^.]{0,80}(write|defect|bug).{0,120}(fails? (on|with) (the )?(redis|valkey)|(redis|valkey)[^.]{0,30} (fails?|throws))",
+          "description": "Proves the variant with the defect put back"
+        },
+        {
+          "type": "content_regex",
+          "value": "(pass(es)? (on|with) (the |a )?database|database[^.]{0,40} pass(es)?)",
+          "description": "Runs the database as the second arm"
+        }
+      ],
+      "samples": {
+        "passing": "RedisSessionBackend::update() throws SessionNotUpdatedException for a record Core has not created yet; the database backend accepts it. Run the login specs against both session backends. Put the early write back once: the spec fails on Redis and passes on the database.",
+        "failing": [
+          "Mock the Redis connection in a unit test.",
+          "RedisSessionBackend::update() throws SessionNotUpdatedException, so catch it in the service.",
+          "SessionNotUpdatedException. Run the redis backend. The current login fails on redis."
+        ]
+      }
     }
   ]
 }
