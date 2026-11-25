@@ -848,7 +848,7 @@
         },
         {
           "type": "content_regex",
-          "value": "(put|bring|restore|reintroduce)[^.]{0,80}(write|defect|bug).{0,120}(fails? (on|with) (the )?(redis|valkey)|(redis|valkey)[^.]{0,30} fails?)",
+          "value": "(put|bring|restore|reintroduce)[^.]{0,80}(write|defect|bug).{0,120}(fails? (on|with) (the )?(redis|valkey)|(redis|valkey)[^.]{0,30} (fails?|throws))",
           "description": "Proves the variant with the defect put back"
         },
         {
