@@ -848,12 +848,12 @@
         },
         {
           "type": "content_regex",
-          "value": "(put|bring|restore|reintroduce)[^.]{0,80}(write|defect|bug)[^.]{0,80}fails? on (redis|valkey)",
+          "value": "(put|bring|restore|reintroduce)[^.]{0,80}(write|defect|bug).{0,120}(fails? (on|with) (the )?(redis|valkey)|(redis|valkey)[^.]{0,30} fails?)",
           "description": "Proves the variant with the defect put back"
         },
         {
           "type": "content_regex",
-          "value": "pass(es)? on the database",
+          "value": "(pass(es)? (on|with) (the |a )?database|database[^.]{0,40} pass(es)?)",
           "description": "Runs the database as the second arm"
         }
       ],
