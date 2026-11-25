@@ -905,7 +905,10 @@ suite against both backends:
   mode, set `setup-variants: '["", "redis"]'` and read `E2E_VARIANT` in
   `Build/Scripts/runTests.conf`. Without `setup-script` nothing reads that file,
   and the `redis` job runs on the database and is green. Refuse an unknown
-  variant in the setup script (`Build/Scripts/ci-e2e.sh` in the example below).
+  variant in the setup script. Complete example in netresearch/t3x-nr-passkeys-be:
+  [`.github/workflows/e2e.yml`](https://github.com/netresearch/t3x-nr-passkeys-be/blob/main/.github/workflows/e2e.yml),
+  [`Build/Scripts/ci-e2e.sh`](https://github.com/netresearch/t3x-nr-passkeys-be/blob/main/Build/Scripts/ci-e2e.sh) and
+  `e2e_start_session_store()` in [`Build/Scripts/runTests.conf`](https://github.com/netresearch/t3x-nr-passkeys-be/blob/main/Build/Scripts/runTests.conf).
 - Prove the variant: put the early write back and see the login spec fail on
   Redis with `SessionNotUpdatedException` and pass on the database (netresearch/t3x-nr-passkeys-be#210: 2 of 2 on
   each side).

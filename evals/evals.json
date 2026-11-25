@@ -848,15 +848,21 @@
         },
         {
           "type": "content_regex",
-          "value": "fails? on (redis|valkey)",
+          "value": "(put|bring|restore|reintroduce)[^.]{0,80}(write|defect|bug)[^.]{0,80}fails? on (redis|valkey)",
           "description": "Proves the variant with the defect put back"
+        },
+        {
+          "type": "content_regex",
+          "value": "pass(es)? on the database",
+          "description": "Runs the database as the second arm"
         }
       ],
       "samples": {
         "passing": "RedisSessionBackend::update() throws SessionNotUpdatedException for a record Core has not created yet; the database backend accepts it. Run the login specs against both session backends. Put the early write back once: the spec fails on Redis and passes on the database.",
         "failing": [
           "Mock the Redis connection in a unit test.",
-          "RedisSessionBackend::update() throws SessionNotUpdatedException, so catch it in the service."
+          "RedisSessionBackend::update() throws SessionNotUpdatedException, so catch it in the service.",
+          "SessionNotUpdatedException. Run the redis backend. The current login fails on redis."
         ]
       }
     }
