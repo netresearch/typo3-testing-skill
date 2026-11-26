@@ -33,7 +33,7 @@ Netresearch TYPO3 extensions use a centralized dev-dependency package that provi
 
 **Shared configurations:**
 - `config/phpstan/phpstan.neon` — shared parameters (level 10, excludePaths, bootstrapFiles, common ignoreErrors)
-- `config/phpstan/includes-no-extension-installer.neon` — explicit PHPStan plugin includes for `--no-plugins` environments (captainhook + git worktree)
+- `config/phpstan/includes-no-extension-installer.neon` — explicit PHPStan plugin includes for `--no-plugins` environments
 - `.php-cs-fixer.php` — shared code style rules
 - `captainhook.json` — pre-commit hook configuration
 
@@ -82,13 +82,16 @@ services:
 
 ### captainhook + git worktree + explicit PHPStan includes
 
-When using git worktrees with bare repositories, `composer install --no-plugins` is needed for the captainhook workaround. This means `phpstan/extension-installer` cannot auto-register plugins. Use the explicit includes file instead:
+With `captainhook/hook-installer` 1.0.5 or later, a plain `composer install` works in a worktree of a bare repository, and `phpstan/extension-installer` registers its plugins. `composer install --no-plugins` into a fresh vendor directory registers none; then add the explicit includes file to the shared config:
 
 ```neon
 includes:
+    - %currentWorkingDirectory%/.Build/vendor/netresearch/typo3-ci-workflows/config/phpstan/phpstan.neon
     - %currentWorkingDirectory%/.Build/vendor/netresearch/typo3-ci-workflows/config/phpstan/includes-no-extension-installer.neon
     - phpstan-baseline.neon
 ```
+
+Measured with Composer 2.11.1 and `phpstan/extension-installer` 1.4.3: `--no-scripts` still registers the plugins, and `--no-plugins` over a vendor directory from an earlier plain install keeps the registration it finds there (`vendor/phpstan/extension-installer/src/GeneratedConfig.php`). Use the explicit includes file only when that registration is absent.
 
 This file explicitly lists all PHPStan plugin neon files that `extension-installer` would auto-load.
 
@@ -96,7 +99,7 @@ This file explicitly lists all PHPStan plugin neon files that `extension-install
 
 #### Symptom when the includes are missing (`InvocationStubber::with()`)
 
-If PHPStan runs in such a worktree **without** the explicit-includes config — e.g. after a `composer install --no-scripts` fallback, or in an extension that ships no `phpstan.no-plugins.neon` to point at — `phpstan-phpunit` is not active and every ordinary mock chain trips a false error:
+If PHPStan runs after such an install **without** the explicit-includes config — e.g. after a `composer install --no-plugins` into a fresh vendor directory, or in an extension that ships no `phpstan.no-plugins.neon` to point at — `phpstan-phpunit` is not active and every ordinary mock chain trips a false error:
 
 ```text
 Call to an undefined method PHPUnit\Framework\MockObject\InvocationStubber::with().
@@ -105,7 +108,7 @@ Cannot call method willReturn() on mixed.
 
 on lines like `$this->createMock(X::class)->method('m')->with(...)->willReturn(...)`. These are **not real** and are **not caused by your change** — the tell is that only a handful of files show them while hundreds of other mock-using tests pass.
 
-Prefer the `--no-plugins` + explicit-includes approach above. When the repo has no no-plugins config to point PHPStan at, **verify with a controlled stash**:
+Prefer a plain `composer install`; after `--no-plugins`, use the explicit includes above. When the repo has no no-plugins config to point PHPStan at, **verify with a controlled stash**:
 
 ```bash
 git stash push -u          # revert your change -> clean tree
@@ -114,7 +117,7 @@ git stash pop
 # re-run PHPStan -> confirm your change keeps the count unchanged (adds zero)
 ```
 
-CI installs in a real (non-worktree) checkout where the hooks install cleanly and `extension-installer` registers the plugins, so these errors never appear there — **CI is authoritative** for the full-tree PHPStan result.
+CI runs a plain install, where the hook plugin skips itself (`CI=true`) and `extension-installer` registers the plugins, so these errors never appear there — **CI is authoritative** for the full-tree PHPStan result.
 
 ### If NOT using typo3-ci-workflows
 
@@ -784,4 +787,4 @@ infection --configuration=infection.json5 --show-mutations
 
 ## Fresh-worktree PHPStan without plugins: spurious InvocationStubber errors
 
-When the no-plugins route runs without the repo's explicit-includes config (fallback: `runTests.sh -s composer install --no-scripts` — note: no `--` separator, or composer treats the flag as a package name; bins land in `.Build/bin/`), phpstan-phpunit mis-resolves and reports spurious `Call to an undefined method …InvocationStubber::with()` / `Cannot call method willReturn() on mixed` on ordinary mock chains. These are NOT real and NOT caused by your change. Verify authoritatively with a controlled stash: `git stash push -u` → phpstan on the clean tree → note the identical baseline set → `git stash pop` → confirm your change adds zero. CI with a proper install stays clean.
+When the no-plugins route runs without the repo's explicit-includes config (for example `runTests.sh -s composer install --no-plugins` into a fresh vendor directory — note: no `--` separator, or composer treats the flag as a package name; bins land in `.Build/bin/`), phpstan-phpunit mis-resolves and reports spurious `Call to an undefined method …InvocationStubber::with()` / `Cannot call method willReturn() on mixed` on ordinary mock chains. These are NOT real and NOT caused by your change. Verify authoritatively with a controlled stash: `git stash push -u` → phpstan on the clean tree → note the identical baseline set → `git stash pop` → confirm your change adds zero. CI with a proper install stays clean.

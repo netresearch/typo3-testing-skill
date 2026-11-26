@@ -1048,7 +1048,7 @@ includes:
     - %currentWorkingDirectory%/.Build/vendor/saschaegerer/phpstan-typo3/extension.neon
 ```
 
-**Exception:** When using git worktrees with `composer install --no-plugins`, use the explicit includes file `includes-no-extension-installer.neon` instead (see quality-tools.md for details).
+**Exception:** After `composer install --no-plugins` into a fresh vendor directory, use the explicit includes file `includes-no-extension-installer.neon` instead. A vendor directory from an earlier plain install keeps the registration, so keep the normal config there (see quality-tools.md for details).
 
 ### What the Reusable Workflow Runs
 

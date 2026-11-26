@@ -111,28 +111,17 @@ Replace individual dev dependencies:
 }
 ```
 
-## composer install --no-plugins Workaround
+## composer install in a Git Worktree
 
-`captainhook/hook-installer` (bundled transitively) registers git hooks on every
-`composer install`. In git worktree environments the `.git` directory is a file
-(pointer), not a directory, which confuses the installer and emits warnings or
-errors.
+On the host, use a plain `composer install`. `captainhook/hook-installer` 1.0.5 or later, which the
+meta-package requires, skips the hook installation in a worktree and exits 0. In a container,
+mount the shared git directory at its identical path or set
+`CAPTAINHOOK_DISABLE=true`.
 
-**Workaround for local development in a worktree:**
-
-```bash
-composer install --no-plugins
-```
-
-This skips all Composer plugins, including the hook installer. Git hooks are
-managed by the bare repository's worktree setup instead.
-
-Create a shell alias or Makefile target:
-
-```makefile
-composer-install-local:
-	composer install --no-plugins
-```
+Before 1.0.5 the plugin aborted with `invalid .git path` in a worktree of a bare
+repository. Upgrade it. Where that is not possible, `CAPTAINHOOK_DISABLE=true composer
+install` switches off only this plugin. `composer install --no-plugins` is the last
+resort: it also skips `phpstan/extension-installer` and the TYPO3 installers.
 
 ## Build/phpstan.no-plugins.neon Pattern
 
