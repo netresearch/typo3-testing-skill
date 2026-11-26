@@ -82,13 +82,16 @@ services:
 
 ### captainhook + git worktree + explicit PHPStan includes
 
-With `captainhook/hook-installer` 1.0.5 or later, a plain `composer install` works in a worktree of a bare repository, and `phpstan/extension-installer` registers its plugins. After `composer install --no-plugins` or `--no-scripts` the plugins are not registered; then use the explicit includes file:
+With `captainhook/hook-installer` 1.0.5 or later, a plain `composer install` works in a worktree of a bare repository, and `phpstan/extension-installer` registers its plugins. `composer install --no-plugins` into a fresh vendor directory registers none; then add the explicit includes file to the shared config:
 
 ```neon
 includes:
+    - %currentWorkingDirectory%/.Build/vendor/netresearch/typo3-ci-workflows/config/phpstan/phpstan.neon
     - %currentWorkingDirectory%/.Build/vendor/netresearch/typo3-ci-workflows/config/phpstan/includes-no-extension-installer.neon
     - phpstan-baseline.neon
 ```
+
+Measured with Composer 2.11.1 and `phpstan/extension-installer` 1.4.3: `--no-scripts` still registers the plugins, and `--no-plugins` over a vendor directory from an earlier plain install keeps the registration it finds there (`vendor/phpstan/extension-installer/src/GeneratedConfig.php`). Use the explicit includes file only when that registration is absent.
 
 This file explicitly lists all PHPStan plugin neon files that `extension-installer` would auto-load.
 
@@ -96,7 +99,7 @@ This file explicitly lists all PHPStan plugin neon files that `extension-install
 
 #### Symptom when the includes are missing (`InvocationStubber::with()`)
 
-If PHPStan runs after such an install **without** the explicit-includes config — e.g. after a `composer install --no-scripts` fallback, or in an extension that ships no `phpstan.no-plugins.neon` to point at — `phpstan-phpunit` is not active and every ordinary mock chain trips a false error:
+If PHPStan runs after such an install **without** the explicit-includes config — e.g. after a `composer install --no-plugins` into a fresh vendor directory, or in an extension that ships no `phpstan.no-plugins.neon` to point at — `phpstan-phpunit` is not active and every ordinary mock chain trips a false error:
 
 ```text
 Call to an undefined method PHPUnit\Framework\MockObject\InvocationStubber::with().

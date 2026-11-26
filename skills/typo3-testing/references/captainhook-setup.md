@@ -37,7 +37,9 @@ end-user files (README, LICENSE, composer.json, ext_emconf.php).
 3. `captainhook/hook-installer` auto-installs hooks on every `composer install`,
    reading the Build/ path automatically. `netresearch/typo3-ci-workflows` requires
    it (`^1.0.5`). `captainhook/captainhook` does not (checked for 5.29.3): without the
-   meta-package, add `captainhook/hook-installer` to `require-dev`. Do not use
+   meta-package, add both `captainhook/captainhook` and `captainhook/hook-installer` to
+   `require-dev`. Without the first, the plugin finds no executable, prints
+   `CaptainHook executable not found` and installs no hook. Do not use
    `captainhook/plugin-composer` 5.3.3: it installs all eight hook types and can abort
    `composer install` in a worktree of a bare repository.
    `only-enabled` installs only the hook types that the config enables. Without it,
