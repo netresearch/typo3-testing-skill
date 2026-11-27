@@ -60,7 +60,7 @@ Generates a gap report from 73+ checkpoints (PHPUnit, PHPStan, runTests.sh, arch
 | **Architecture** | Layer constraints, dependency rules (phpat) | Fast |
 | **E2E (Playwright)** | User workflows, browser, accessibility | Slow |
 | **Integration** | HTTP client, API mocking, OAuth flows | Medium |
-| **Mutation** | Test quality, 70%+ coverage | CI/Release |
+| **Mutation** | Test quality, 70%+ coverage | Slow: diff in PRs, full run scheduled |
 
 ## runTests.sh - Mandatory
 

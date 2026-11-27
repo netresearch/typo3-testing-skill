@@ -727,50 +727,111 @@ self::assertSame('nrllm_providers', $failingCheck->fixRoute);
 
 ## CI Integration
 
+### The Rule: The Diff in a Pull Request, the Full Run on a Schedule
+
+A full Infection run over a mature extension takes an hour or more, so it does not belong in
+every pull request. Split mutation testing by event:
+
+1. **Pull request / merge request: mutate the diff only.** Run Infection with
+   `--git-diff-lines` (changed lines) or `--git-diff-filter=AM` (added and modified files) and
+   `--git-diff-base` set to the target branch; Infection resolves the merge base itself (see
+   [Incremental Mutation Testing](#incremental-mutation-testing)). The PR pipeline stays short,
+   and what it reports are the mutants of the change.
+2. **Default branch: the full run on a schedule and on manual dispatch.** Run every mutant
+   nightly or weekly, and when started by hand (`workflow_dispatch` on GitHub, a pipeline started
+   from the web or the API on GitLab), in a job with a timeout of its own sized to the measured
+   run time. The project's MSI thresholds (`minCoveredMsi`, see
+   [Which Threshold Gates](#which-threshold-gates-mincoveredmsi-not-minmsi)) gate this run. The
+   MSI of a diff run covers a few mutants of one change and is not the project's score.
+3. **Codecov receives coverage, not mutation results.** In the projects below, Codecov gets the
+   PHPUnit coverage reports and no step uploads Infection output; the mutation results are the
+   job log and the Infection report artefact. Do not write that the mutation score is tracked in
+   Codecov unless the project shows an upload of it there.
+
+Two projects follow this split:
+
+- **netresearch/t3x-nr-llm**
+  ([`.github/workflows/ci.yml` lines 208-231](https://github.com/netresearch/t3x-nr-llm/blob/7ac10ccfec2af15791da1643001dc525486aaaf8/.github/workflows/ci.yml#L208-L231))
+  calls the `fuzz.yml` reusable of `netresearch/typo3-ci-workflows` with `run-mutation-tests`
+  true only for `schedule` (weekly) and `workflow_dispatch`, and with
+  `mutation-timeout-minutes: 90`. Its pull requests run no mutation job, not even a diff run.
+  Coverage goes to Codecov through the `ci.yml` reusable (`upload-coverage: true`). Its MSI
+  thresholds do not block yet: the reusable's Infection step is `continue-on-error: true`, and
+  the caller calls the job report-only.
+- **software-factory/factory** (an internal TYPO3 project) mutates only the lines a merge
+  request changes, against the merge request's diff base (`$CI_MERGE_REQUEST_DIFF_BASE_SHA`),
+  and runs every mutant on `main` from a nightly pipeline schedule and in pipelines started by
+  hand or through the API. It selects the changed lines with a script of its own rather than
+  with `--git-diff-lines`; the split is the same.
+
 ### GitHub Actions
 
 ```yaml
-# .github/workflows/tests.yml
-mutation:
-  name: Mutation Testing
-  runs-on: ubuntu-latest
-  needs: [unit]  # Run after unit tests pass
-  steps:
-    - uses: actions/checkout@v4
-    - uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.2'
-        coverage: xdebug
+# .github/workflows/mutation.yml
+on:
+  pull_request:
+  schedule:
+    - cron: '0 3 * * 1'  # weekly full run
+  workflow_dispatch:
 
-    - run: composer install
+jobs:
+  mutation:
+    name: Mutation Testing
+    runs-on: ubuntu-latest
+    # The diff run is short; the full run gets the limit its measured run time needs
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 20 || 90 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Infection computes the merge base; in a shallow clone it falls back to the branch tip
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: xdebug
 
-    - name: Run unit tests with coverage
-      run: |
-        .Build/bin/phpunit -c Build/phpunit/UnitTests.xml \
-          --coverage-xml=.Build/logs/coverage-xml \
-          --log-junit=.Build/logs/phpunit.xml
+      - run: composer install
 
-    - name: Run mutation testing
-      run: |
-        .Build/bin/infection \
-          --threads=4 \
-          --coverage=.Build/logs/coverage-xml \
-          --min-covered-msi=80 \
-          --skip-initial-tests
+      - name: Mutate the changed lines (pull request)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          .Build/bin/infection \
+            --threads=4 \
+            --git-diff-lines \
+            --git-diff-base="origin/$BASE_REF" \
+            --min-covered-msi=0
 
-    - name: Upload mutation report
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: mutation-report
-        path: .Build/logs/infection.html
+      - name: Full run with the MSI gate (schedule, manual)
+        if: github.event_name != 'pull_request'
+        run: |
+          .Build/bin/infection \
+            --threads=4 \
+            --min-covered-msi=80
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: .Build/logs/infection.html
 ```
+
+`--min-covered-msi=0` on the diff step overrides a `minCoveredMsi` from `infection.json5`, which
+would otherwise gate the diff run too: over a handful of mutants one escape moves the score by
+tens of points. Read the escaped mutants of the diff run in the log instead. Making the PR fail
+on any escaped mutant in a changed line is a valid stricter choice; make it deliberately, not by
+inheriting the project threshold.
 
 ### Quality Gate
 
+The MSI gate belongs to the full run on the default branch (schedule and manual dispatch):
+
 ```yaml
-# Fail CI if mutation score drops
+# Fail the scheduled run if the mutation score drops
 - name: Check mutation score
+  if: github.event_name != 'pull_request'
   run: |
     .Build/bin/infection \
       --threads=4 \
@@ -787,20 +848,44 @@ two options test the same number.
 3. **Focus on covered code** - The default since Infection 0.31 (which removed `--only-covered`); gate on `minCoveredMsi`
 4. **Prioritize escaped mutants** - These indicate weak tests
 5. **Exclude trivial code** - Skip getters/setters/DTOs in config
-6. **Run incrementally** - Use `--git-diff-filter=AM` for changed files only
+6. **Mutate the diff in PRs, everything on a schedule** - `--git-diff-lines` in pull requests, the full run with the MSI gate nightly or weekly (see [CI Integration](#ci-integration))
 7. **Document exclusions** - Explain why code is excluded from mutation testing
 
 ## Incremental Mutation Testing
 
-For large codebases, run mutation testing only on changed files:
+The pull-request half of the rule in [CI Integration](#ci-integration). Infection has two diff
+modes, and it refuses to combine them:
 
 ```bash
-# Only test files changed in current branch
+# Only the changed lines: the mutants the change itself introduced
+.Build/bin/infection \
+  --threads=4 \
+  --git-diff-lines \
+  --git-diff-base=origin/main
+
+# Every line of the added and modified files
 .Build/bin/infection \
   --threads=4 \
   --git-diff-filter=AM \
   --git-diff-base=origin/main
 ```
+
+- **Prefer `--git-diff-lines`.** `--git-diff-filter=AM` mutates whole files, so a one-line change
+  in a large class mutates all of it. Both options exist in Infection 0.32.7 and 0.35.12 (read
+  in the source); `--git-diff-lines` was added in 0.26.0.
+- **Pass the target branch; Infection finds the merge base.** It runs
+  `git merge-base <base> HEAD` and diffs against that commit, so what `main` gained after the
+  branch point does not count as the PR's change. In a shallow clone that command fails, and
+  Infection falls back to the base ref itself with only an info-level log line: the diff then
+  also contains everything `main` gained since the branch point. Fetch the full history
+  (`fetch-depth: 0` for `actions/checkout`, `GIT_DEPTH: 0` in GitLab CI). In a GitLab merge
+  request pipeline `$CI_MERGE_REQUEST_DIFF_BASE_SHA` is the merge base already.
+- **A PR without changed PHP source passes.** When no file or line of `source.directories`
+  changed, Infection prints a success message and exits 0 (0.32.7 and 0.35.12), so a
+  documentation-only PR needs no guard around the step.
+- **The score of a diff run is not the project's score.** Quote the MSI of the scheduled full
+  run; use the diff run to learn which mutants of the change escaped.
+
 
 ## Directory Structure
 
