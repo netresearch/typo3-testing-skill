@@ -745,8 +745,9 @@ every pull request. Split mutation testing by event:
    run time. The project's MSI thresholds (`minCoveredMsi`, see
    [Which Threshold Gates](#which-threshold-gates-mincoveredmsi-not-minmsi)) gate this run and
    only this run. The MSI of a diff run covers a few mutants of one change and is noise there:
-   the diff run passes no MSI threshold and **fails on any escaped mutant in the changed
-   lines** instead (see the example below).
+   the diff run passes no MSI threshold. It also mutates the changed lines no test executes
+   (`--with-uncovered`) and **fails on any escaped or not covered mutant in the changed
+   lines**, and when no test executed any line of the changed files (see the example below).
 3. **Codecov receives coverage, not mutation results.** Keep the mutation results in the job log
    or an Infection report artefact, and do not write that the mutation score is tracked in
    Codecov unless the project shows an upload of it there. In t3x-nr-llm below, Codecov gets the
@@ -813,20 +814,29 @@ jobs:
           .Build/bin/infection \
             --threads=4 \
             --git-diff-lines \
+            --with-uncovered \
             --git-diff-base="origin/$BASE_REF" \
             --min-msi=0 \
             --min-covered-msi=0 | tee infection-diff.out
           if [ ! -f "$LOG" ]; then
+            # No test executed any line of the changed files: a new class
+            # without a test, or a diff of declarations only (see below)
+            if grep -q 'No source code from the diff was executed' infection-diff.out; then
+              echo "::error::no test executed any line of the changed files"
+              exit 1
+            fi
             # Infection writes no log when the diff holds no source line to mutate
-            grep -qE 'Could not find any modified|No source code from the diff was executed|No source file found for the filter applied' infection-diff.out \
+            grep -qE 'Could not find any modified|No source file found for the filter applied' infection-diff.out \
               || { echo "::error::Infection wrote no log at $LOG"; exit 1; }
             exit 0
           fi
-          escaped=$(jq -r '.stats.escapedCount' "$LOG")
-          echo "generated: $(jq -r '.stats.totalMutantsCount' "$LOG"), escaped: $escaped"
-          if [ "$escaped" != 0 ]; then
-            jq -r '.escaped[]? | "\(.mutator.originalFilePath):\(.mutator.originalStartLine) \(.mutator.mutatorName)"' "$LOG"
-            echo "::error::$escaped mutant(s) escaped in the changed lines"
+          # -e: a missing field is an error, not a zero
+          escaped=$(jq -e '.stats.escapedCount' "$LOG")
+          not_covered=$(jq -e '.stats.notCoveredCount' "$LOG")
+          echo "generated: $(jq -r '.stats.totalMutantsCount' "$LOG"), escaped: $escaped, not covered: $not_covered"
+          if [ "$escaped" != 0 ] || [ "$not_covered" != 0 ]; then
+            jq -r '(.escaped[]?, .uncovered[]?) | "\(.mutator.originalFilePath):\(.mutator.originalStartLine) \(.mutator.mutatorName)"' "$LOG"
+            echo "::error::$escaped escaped and $not_covered not covered mutant(s) in the changed lines"
             exit 1
           fi
 
@@ -845,12 +855,27 @@ jobs:
           path: .Build/logs/infection.html
 ```
 
-The diff step fails on the escaped count, not on a percentage. `--min-msi=0 --min-covered-msi=0`
-overrides the thresholds from `infection.json5`, which would otherwise gate the diff run too:
-over a handful of mutants one escape moves the score by tens of points. `stats.escapedCount`
-of the JSON log (written by `logs.json`; `--logger-json` exists only from Infection
-0.35.11) then decides: any escaped mutant in the changed lines fails the job and is listed. A
-run without a log is accepted only when Infection said the diff held nothing to mutate.
+The diff step fails on the escaped and not covered counts, not on a percentage.
+`--min-msi=0 --min-covered-msi=0` overrides the thresholds from `infection.json5`, which would
+otherwise gate the diff run too: over a handful of mutants one escape moves the score by tens of
+points. `stats.escapedCount` and `stats.notCoveredCount` of the JSON log (written by
+`logs.json`, both fields since Infection 0.31; `--logger-json` exists only from Infection
+0.35.11) then decide: any escaped or not covered mutant in the changed lines fails the job and
+is listed.
+
+`--with-uncovered` is part of the gate. Without it Infection drops the nodes no test executes
+before it creates mutants: a method no test calls, added to a class that has tests, yields 0
+mutants and the step passes. With it, those mutants count in `notCoveredCount`.
+
+A run without a log is accepted only when Infection said the diff held nothing to mutate
+("Could not find any modified …", "No source file found for the filter applied …"). "No source
+code from the diff was executed …" also comes with exit 0 and no log, with or without
+`--with-uncovered`, but it means that no test executed any line of the changed files. A new
+class without a test produces it, so the step fails. A diff of declarations only (an interface,
+abstract method signatures, constants) has no executable line and produces the same message.
+Tell the two apart by reading the changed lines: a changed statement inside a function or method
+body means a test is missing; for a diff of signatures and declarations alone the gate cannot
+judge, and the reviewer confirms it.
 
 ### Quality Gate
 
@@ -958,8 +983,12 @@ creates, not only which survivors you read afterwards.
   changed, Infection prints a success message and exits 0 (0.32.7 and 0.35.12). A
   documentation-only PR needs no guard around the step; a test-only PR needs the wider
   selection above.
+- **A PR whose changed source no test executes fails.** Infection prints "No source code from
+  the diff was executed by the test framework." as a success and exits 0 (0.32.7 and 0.35.12),
+  with or without `--with-uncovered`; the example step above turns it into a failure.
 - **The score of a diff run is not the project's score.** Quote the MSI of the scheduled full
-  run. The diff run gates on its escaped count: any escaped mutant in the changed lines fails it.
+  run. The diff run gates on its escaped and not covered counts: any escaped or not covered mutant
+  in the changed lines fails it.
 
 ## Directory Structure
 
