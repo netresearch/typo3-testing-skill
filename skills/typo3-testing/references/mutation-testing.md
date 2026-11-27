@@ -742,8 +742,10 @@ every pull request. Split mutation testing by event:
    nightly or weekly, and when started by hand (`workflow_dispatch` on GitHub, a pipeline started
    from the web or the API on GitLab), in a job with a timeout of its own sized to the measured
    run time. The project's MSI thresholds (`minCoveredMsi`, see
-   [Which Threshold Gates](#which-threshold-gates-mincoveredmsi-not-minmsi)) gate this run. The
-   MSI of a diff run covers a few mutants of one change and is not the project's score.
+   [Which Threshold Gates](#which-threshold-gates-mincoveredmsi-not-minmsi)) gate this run and
+   only this run. The MSI of a diff run covers a few mutants of one change and is noise there:
+   the diff run passes no MSI threshold and **fails on any escaped mutant in the changed
+   lines** instead (see the example below).
 3. **Codecov receives coverage, not mutation results.** Keep the mutation results in the job log
    or an Infection report artefact, and do not write that the mutation score is tracked in
    Codecov unless the project shows an upload of it there. In t3x-nr-llm below, Codecov gets the
@@ -801,12 +803,29 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
+          # logs.json of infection.json5 (assets/infection.json5); removed first so a
+          # log of an earlier run cannot answer for this one
+          LOG=.Build/infection/infection.json
+          rm -f "$LOG"
           .Build/bin/infection \
             --threads=4 \
             --git-diff-lines \
             --git-diff-base="origin/$BASE_REF" \
             --min-msi=0 \
-            --min-covered-msi=0
+            --min-covered-msi=0 | tee infection-diff.out
+          if [ ! -f "$LOG" ]; then
+            # Infection writes no log when the diff holds no source line to mutate
+            grep -qE 'Could not find any modified|No source code from the diff was executed' infection-diff.out \
+              || { echo "::error::Infection wrote no log at $LOG"; exit 1; }
+            exit 0
+          fi
+          escaped=$(jq -r '.stats.escapedCount' "$LOG")
+          echo "generated: $(jq -r '.stats.totalMutantsCount' "$LOG"), escaped: $escaped"
+          if [ "$escaped" != 0 ]; then
+            jq -r '.escaped[]? | "\(.mutator.originalFilePath):\(.mutator.originalStartLine) \(.mutator.mutatorName)"' "$LOG"
+            echo "::error::$escaped mutant(s) escaped in the changed lines"
+            exit 1
+          fi
 
       - name: Full run with the MSI gate (schedule, manual)
         if: github.event_name != 'pull_request'
@@ -823,11 +842,12 @@ jobs:
           path: .Build/logs/infection.html
 ```
 
-`--min-msi=0 --min-covered-msi=0` on the diff step overrides the thresholds from
-`infection.json5`, which would otherwise gate the diff run too: over a handful of mutants one escape moves the score by
-tens of points. Read the escaped mutants of the diff run in the log instead. Making the PR fail
-on any escaped mutant in a changed line is a valid stricter choice; make it deliberately, not by
-inheriting the project threshold.
+The diff step fails on the escaped count, not on a percentage. `--min-msi=0 --min-covered-msi=0`
+overrides the thresholds from `infection.json5`, which would otherwise gate the diff run too:
+over a handful of mutants one escape moves the score by tens of points. `stats.escapedCount`
+of the JSON log (written by `logs.json`; `--logger-json` exists only from Infection
+0.35.11) then decides: any escaped mutant in the changed lines fails the job and is listed. A
+run without a log is accepted only when Infection said the diff held nothing to mutate.
 
 ### Quality Gate
 
@@ -936,7 +956,7 @@ creates, not only which survivors you read afterwards.
   documentation-only PR needs no guard around the step; a test-only PR needs the wider
   selection above.
 - **The score of a diff run is not the project's score.** Quote the MSI of the scheduled full
-  run; use the diff run to learn which mutants of the change escaped.
+  run. The diff run gates on its escaped count: any escaped mutant in the changed lines fails it.
 
 ## Directory Structure
 
