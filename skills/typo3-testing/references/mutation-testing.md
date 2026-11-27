@@ -733,7 +733,8 @@ A full Infection run over a mature extension takes an hour or more, so it does n
 every pull request. Split mutation testing by event:
 
 1. **Pull request / merge request: mutate the diff only.** Run Infection with
-   `--git-diff-lines` (changed lines) or `--git-diff-filter=AM` (added and modified files) and
+   `--git-diff-lines` (changed lines; the default for a change to production code) or a wider
+   selection where the change needs it (see [Generation Scope](#generation-scope-which-mutants-a-diff-run-creates)), and
    `--git-diff-base` set to the target branch; Infection resolves the merge base itself (see
    [Incremental Mutation Testing](#incremental-mutation-testing)). The PR pipeline stays short,
    and what it reports are the mutants of the change.
@@ -874,10 +875,54 @@ modes, and it refuses to combine them:
   --git-diff-base=origin/main
 ```
 
-- **Prefer `--git-diff-lines`.** `--git-diff-filter=AM` mutates whole files, so a one-line change
-  in a large class mutates all of it. Both options, their mutual exclusion and the merge-base
-  resolution below exist in Infection 0.32.7 and 0.35.12 (read in the source);
-  `--git-diff-lines` was added in 0.26.0.
+### Generation Scope: Which Mutants a Diff Run Creates
+
+State the generation scope of a diff run explicitly. It decides how many mutants the run
+creates, not only which survivors you read afterwards.
+
+- **A change to production code only: `--git-diff-lines`.** Infection keeps a mutant when the
+  line range of the mutated node overlaps a changed line range of the diff against the merge
+  base (`ChangedLinesRange::touches()` in 0.32.7 and 0.35.12). `--git-diff-filter=AM` selects
+  changed *files* and mutates every line in them. Measured in an internal project on a direct
+  one-line edit of production code: 25 mutants with file selection, 1 with line selection.
+- **A one-line edit must not mutate an unrelated expression in the same file.** In
+
+  ```php
+  public function discount(Cart $cart): int
+  {
+      $bonus = $this->config->bonus() * 2;          // unchanged
+      if ($cart->subtotal() >= $this->threshold) {  // the edit: > became >=
+          return 10 + $bonus;
+      }
+      return 0;
+  }
+  ```
+
+  a line-limited run generates the mutants of the `if` line only. A run that also mutates
+  `* 2` or the `return` statements was not limited to the change, whatever its survivors say.
+- **Wider selection is right where the effect of a change does not sit in changed source
+  lines:**
+  - *Test-only changes.* A changed or deleted test changes which mutants of unchanged code are
+    killed, but no source line changed: `--git-diff-lines` generates nothing and exits 0.
+    Mutate the classes the changed tests cover (`--filter=Classes/Service/Thing.php` or their
+    directory), or leave them to the scheduled full run and say so in the PR.
+  - *Shared fixtures and test configuration.* A changed fixture, base test case,
+    `UnitTests.xml` or `infection.json5` affects every test that uses it, and the diff holds no
+    source line at all. Run the affected directories or the full set.
+  - *Multiline expressions.* Only mutants whose own node touches a changed line are kept. An
+    edit to one line of a condition or call wrapped over several lines drops the mutants of the
+    other lines of the same expression, although the edit can change whether a test reaches or
+    tells them apart. Widen that file (`--filter=<file>`) for such a change.
+- **Count the generated mutants, not only the relevant survivors.** A file-wide run with no
+  survivor in the changed lines reads like a passing line-limited run. Read
+  `stats.totalMutantsCount` from the JSON log (`logs.json`, Infection 0.35.12) and compare it
+  with what the changed lines can produce: dozens of mutants for a one-line edit mean the run
+  was not limited to its lines.
+
+### Diff Mode in CI
+
+- Both diff options, their mutual exclusion and the merge-base resolution below exist in
+  Infection 0.32.7 and 0.35.12 (read in the source); `--git-diff-lines` was added in 0.26.0.
 - **Pass the target branch; Infection finds the merge base.** It runs
   `git merge-base <base> HEAD` and diffs against that commit, so what `main` gained after the
   branch point does not count as the PR's change. In a shallow clone that command fails, and
@@ -887,11 +932,11 @@ modes, and it refuses to combine them:
   `actions/checkout`, `GIT_DEPTH: 0` in GitLab CI). In a GitLab merge request pipeline, pass
   `$CI_MERGE_REQUEST_DIFF_BASE_SHA`, the base SHA of the merge request's diff.
 - **A PR without changed PHP source passes.** When no file or line of `source.directories`
-  changed, Infection prints a success message and exits 0 (0.32.7 and 0.35.12), so a
-  documentation-only PR needs no guard around the step.
+  changed, Infection prints a success message and exits 0 (0.32.7 and 0.35.12). A
+  documentation-only PR needs no guard around the step; a test-only PR needs the wider
+  selection above.
 - **The score of a diff run is not the project's score.** Quote the MSI of the scheduled full
   run; use the diff run to learn which mutants of the change escaped.
-
 
 ## Directory Structure
 
