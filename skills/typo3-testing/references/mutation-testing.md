@@ -911,15 +911,18 @@ modes, and it refuses to combine them:
 
 ```bash
 # Only the changed lines: the mutants the change itself introduced
+# (--with-uncovered: changed lines no test executes count as not covered)
 .Build/bin/infection \
   --threads=4 \
   --git-diff-lines \
+  --with-uncovered \
   --git-diff-base=origin/main
 
 # Every line of the added and modified files
 .Build/bin/infection \
   --threads=4 \
   --git-diff-filter=AM \
+  --with-uncovered \
   --git-diff-base=origin/main
 ```
 
