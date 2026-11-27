@@ -404,7 +404,7 @@ $this->save($entity);
             ".Build/bin/infection --threads=4"
         ],
         "ci:test:mutation:quick": [
-            ".Build/bin/infection --threads=4 --min-covered-msi=80"
+            ".Build/bin/infection --threads=4"
         ]
     }
 }
@@ -747,7 +747,8 @@ every pull request. Split mutation testing by event:
    only this run. The MSI of a diff run covers a few mutants of one change and is noise there:
    the diff run passes no MSI threshold. It also mutates the changed lines no test executes
    (`--with-uncovered`) and **fails on any escaped or not covered mutant in the changed
-   lines**, and when no test executed any line of the changed files (see the example below).
+   lines**, and when no test executed any line of the changed files or the run generated no
+   mutant (see the example below).
 3. **Codecov receives coverage, not mutation results.** Keep the mutation results in the job log
    or an Infection report artefact, and do not write that the mutation score is tracked in
    Codecov unless the project shows an upload of it there. In t3x-nr-llm below, Codecov gets the
@@ -839,13 +840,18 @@ jobs:
             echo "::error::$escaped escaped and $not_covered not covered mutant(s) in the changed lines"
             exit 1
           fi
+          # 0 mutants: nothing in the changed lines was judged (see below)
+          if [ "$(jq -e '.stats.totalMutantsCount' "$LOG")" = 0 ]; then
+            echo "::error::no mutant generated from the changed lines"
+            exit 1
+          fi
 
       - name: Full run with the MSI gate (schedule, manual)
         if: github.event_name != 'pull_request'
+        # minCoveredMsi from infection.json5 gates; a CLI value would override it
         run: |
           .Build/bin/infection \
-            --threads=4 \
-            --min-covered-msi=80
+            --threads=4
 
       - name: Upload mutation report
         if: always()
@@ -880,6 +886,13 @@ confirms that the changed lines hold declarations only and merges past the red j
 mutation job out of the required status checks, so that this merge needs no branch-protection
 bypass; the reviewer's written confirmation in the pull request is the record.
 
+A log with 0 generated mutants fails as well. The changed lines then hold nothing Infection
+mutates: it skips abstract method signatures and interface methods (`AbstractMethodIgnorer`,
+`InterfaceIgnorer` in 0.35.12), and comments or constants give no mutant either. "No source code
+from the diff was executed" does not appear when other, tested lines of the same file ran, so
+this is how a declarations-only change in a tested class shows up. It is handled the same way:
+the job stays red and a reviewer confirms it.
+
 ### Quality Gate
 
 The MSI gate belongs to the full run on the default branch (schedule and manual dispatch):
@@ -888,10 +901,11 @@ The MSI gate belongs to the full run on the default branch (schedule and manual 
 # Fail the scheduled run if the mutation score drops
 - name: Check mutation score
   if: github.event_name != 'pull_request'
+  # The threshold is minCoveredMsi in infection.json5; --min-covered-msi on the
+  # command line would override the project's value
   run: |
     .Build/bin/infection \
-      --threads=4 \
-      --min-covered-msi=80
+      --threads=4
 ```
 
 With `--with-uncovered` added, `--min-msi` becomes a second, independent gate; without it the
@@ -913,22 +927,29 @@ The pull-request half of the rule in [CI Integration](#ci-integration). Infectio
 modes, and it refuses to combine them:
 
 ```bash
+# Both commands zero the MSI thresholds; run them through the count checks of
+# the pull-request step in CI Integration, which decide the gate.
+
 # Only the changed lines: the mutants the change itself introduced
 # (--with-uncovered: changed lines no test executes count as not covered)
 .Build/bin/infection \
   --threads=4 \
   --git-diff-lines \
   --with-uncovered \
-  --git-diff-base=origin/main
+  --git-diff-base=origin/main \
+  --min-msi=0 \
+  --min-covered-msi=0
 
 # Every line of the added and modified files (no --with-uncovered: with the
 # not-covered gate, a one-line change to a partly tested legacy file would fail
-# on untested lines it never touched; escaped mutants on untouched covered
-# lines still fail this run)
+# on untested lines it never touched; under the escaped-count check, escaped
+# mutants on untouched covered lines still fail this run)
 .Build/bin/infection \
   --threads=4 \
   --git-diff-filter=AM \
-  --git-diff-base=origin/main
+  --git-diff-base=origin/main \
+  --min-msi=0 \
+  --min-covered-msi=0
 ```
 
 ### Generation Scope: Which Mutants a Diff Run Creates
@@ -996,7 +1017,7 @@ creates, not only which survivors you read afterwards.
   with or without `--with-uncovered`; the example step above turns it into a failure.
 - **The score of a diff run is not the project's score.** Quote the MSI of the scheduled full
   run. The diff run gates on its escaped and not covered counts: any escaped or not covered mutant
-  in the changed lines fails it.
+  in the changed lines fails it, and so does a run that generates no mutant.
 
 ## Directory Structure
 
