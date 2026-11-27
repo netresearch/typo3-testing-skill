@@ -859,8 +859,8 @@ The diff step fails on the escaped and not covered counts, not on a percentage.
 `--min-msi=0 --min-covered-msi=0` overrides the thresholds from `infection.json5`, which would
 otherwise gate the diff run too: over a handful of mutants one escape moves the score by tens of
 points. `stats.escapedCount` and `stats.notCoveredCount` of the JSON log (written by
-`logs.json`, both fields since Infection 0.31; `--logger-json` exists only from Infection
-0.35.11) then decide: any escaped or not covered mutant in the changed lines fails the job and
+`logs.json`; both fields exist at this skill's floor 0.32.0; `--logger-json` exists only from
+Infection 0.35.11) then decide: any escaped or not covered mutant in the changed lines fails the job and
 is listed.
 
 `--with-uncovered` is part of the gate. Without it Infection drops the nodes no test executes
@@ -875,7 +875,8 @@ class without a test produces it, so the step fails. A diff of declarations only
 abstract method signatures, constants) has no executable line and produces the same message.
 Tell the two apart by reading the changed lines: a changed statement inside a function or method
 body means a test is missing; for a diff of signatures and declarations alone the gate cannot
-judge, and the reviewer confirms it.
+judge. The job stays red for such a diff and nothing passes it automatically: a reviewer
+confirms that the changed lines hold declarations only and merges past the red job.
 
 ### Quality Gate
 
@@ -918,11 +919,12 @@ modes, and it refuses to combine them:
   --with-uncovered \
   --git-diff-base=origin/main
 
-# Every line of the added and modified files
+# Every line of the added and modified files (no --with-uncovered: with the
+# not-covered gate, a one-line change to an untested legacy file would fail on
+# lines it never touched)
 .Build/bin/infection \
   --threads=4 \
   --git-diff-filter=AM \
-  --with-uncovered \
   --git-diff-base=origin/main
 ```
 
