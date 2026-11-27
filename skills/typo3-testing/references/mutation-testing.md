@@ -743,18 +743,20 @@ every pull request. Split mutation testing by event:
    run time. The project's MSI thresholds (`minCoveredMsi`, see
    [Which Threshold Gates](#which-threshold-gates-mincoveredmsi-not-minmsi)) gate this run. The
    MSI of a diff run covers a few mutants of one change and is not the project's score.
-3. **Codecov receives coverage, not mutation results.** In the projects below, Codecov gets the
-   PHPUnit coverage reports and no step uploads Infection output; the mutation results are the
-   job log and the Infection report artefact. Do not write that the mutation score is tracked in
-   Codecov unless the project shows an upload of it there.
+3. **Codecov receives coverage, not mutation results.** Keep the mutation results in the job log
+   or an Infection report artefact, and do not write that the mutation score is tracked in
+   Codecov unless the project shows an upload of it there. In t3x-nr-llm below, Codecov gets the
+   PHPUnit coverage reports and no step uploads Infection output.
 
-Two projects follow this split:
+Two projects show the split. In both, a pull request either mutates its diff or runs no mutation
+at all; neither runs the full set of mutants per pull request.
 
 - **netresearch/t3x-nr-llm**
   ([`.github/workflows/ci.yml` lines 208-231](https://github.com/netresearch/t3x-nr-llm/blob/7ac10ccfec2af15791da1643001dc525486aaaf8/.github/workflows/ci.yml#L208-L231))
   calls the `fuzz.yml` reusable of `netresearch/typo3-ci-workflows` with `run-mutation-tests`
   true only for `schedule` (weekly) and `workflow_dispatch`, and with
-  `mutation-timeout-minutes: 90`. Its pull requests run no mutation job, not even a diff run.
+  `mutation-timeout-minutes: 90`. Its pull requests run no mutation job: the reusable's
+  Infection call passes no diff option, so a diff run would need a job of its own.
   Coverage goes to Codecov through the `ci.yml` reusable (`upload-coverage: true`). Its MSI
   thresholds do not block yet: the reusable's Infection step is `continue-on-error: true`, and
   the caller calls the job report-only.
@@ -762,7 +764,8 @@ Two projects follow this split:
   request changes, against the merge request's diff base (`$CI_MERGE_REQUEST_DIFF_BASE_SHA`),
   and runs every mutant on `main` from a nightly pipeline schedule and in pipelines started by
   hand or through the API. It selects the changed lines with a script of its own rather than
-  with `--git-diff-lines`; the split is the same.
+  with `--git-diff-lines`, and reports coverage to GitLab rather than to Codecov; the split is
+  the same.
 
 ### GitHub Actions
 
@@ -783,7 +786,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Infection computes the merge base; in a shallow clone it falls back to the branch tip
+          # Infection computes the merge base; in a shallow clone it falls back to the base ref
           fetch-depth: 0
       - uses: shivammathur/setup-php@v2
         with:
@@ -801,6 +804,7 @@ jobs:
             --threads=4 \
             --git-diff-lines \
             --git-diff-base="origin/$BASE_REF" \
+            --min-msi=0 \
             --min-covered-msi=0
 
       - name: Full run with the MSI gate (schedule, manual)
@@ -818,8 +822,8 @@ jobs:
           path: .Build/logs/infection.html
 ```
 
-`--min-covered-msi=0` on the diff step overrides a `minCoveredMsi` from `infection.json5`, which
-would otherwise gate the diff run too: over a handful of mutants one escape moves the score by
+`--min-msi=0 --min-covered-msi=0` on the diff step overrides the thresholds from
+`infection.json5`, which would otherwise gate the diff run too: over a handful of mutants one escape moves the score by
 tens of points. Read the escaped mutants of the diff run in the log instead. Making the PR fail
 on any escaped mutant in a changed line is a valid stricter choice; make it deliberately, not by
 inheriting the project threshold.
@@ -871,15 +875,17 @@ modes, and it refuses to combine them:
 ```
 
 - **Prefer `--git-diff-lines`.** `--git-diff-filter=AM` mutates whole files, so a one-line change
-  in a large class mutates all of it. Both options exist in Infection 0.32.7 and 0.35.12 (read
-  in the source); `--git-diff-lines` was added in 0.26.0.
+  in a large class mutates all of it. Both options, their mutual exclusion and the merge-base
+  resolution below exist in Infection 0.32.7 and 0.35.12 (read in the source);
+  `--git-diff-lines` was added in 0.26.0.
 - **Pass the target branch; Infection finds the merge base.** It runs
   `git merge-base <base> HEAD` and diffs against that commit, so what `main` gained after the
   branch point does not count as the PR's change. In a shallow clone that command fails, and
-  Infection falls back to the base ref itself with only an info-level log line: the diff then
-  also contains everything `main` gained since the branch point. Fetch the full history
-  (`fetch-depth: 0` for `actions/checkout`, `GIT_DEPTH: 0` in GitLab CI). In a GitLab merge
-  request pipeline `$CI_MERGE_REQUEST_DIFF_BASE_SHA` is the merge base already.
+  Infection falls back to the base ref itself with only an info-level log line; it then runs
+  `git diff <base>` against the tip of the target branch, so what `main` changed after the
+  branch point shows up as a change of the PR. Fetch the full history (`fetch-depth: 0` for
+  `actions/checkout`, `GIT_DEPTH: 0` in GitLab CI). In a GitLab merge request pipeline, pass
+  `$CI_MERGE_REQUEST_DIFF_BASE_SHA`, the base SHA of the merge request's diff.
 - **A PR without changed PHP source passes.** When no file or line of `source.directories`
   changed, Infection prints a success message and exits 0 (0.32.7 and 0.35.12), so a
   documentation-only PR needs no guard around the step.
