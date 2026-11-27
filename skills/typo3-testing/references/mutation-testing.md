@@ -293,6 +293,7 @@ Create `infection.json5` in project root.
     },
     "logs": {
         "html": ".Build/logs/infection.html",
+        "json": ".Build/logs/infection.json",   // read by the PR diff gate
         "text": ".Build/logs/infection.log",
         "summary": ".Build/logs/infection-summary.log"
     },
@@ -803,9 +804,11 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          # logs.json of infection.json5 (assets/infection.json5); removed first so a
-          # log of an earlier run cannot answer for this one
-          LOG=.Build/infection/infection.json
+          set -o pipefail
+          # logs.json of the infection.json5 under Configuration (with
+          # assets/infection.json5 it is .Build/infection/infection.json); removed
+          # first so a log of an earlier run cannot answer for this one
+          LOG=.Build/logs/infection.json
           rm -f "$LOG"
           .Build/bin/infection \
             --threads=4 \
@@ -815,7 +818,7 @@ jobs:
             --min-covered-msi=0 | tee infection-diff.out
           if [ ! -f "$LOG" ]; then
             # Infection writes no log when the diff holds no source line to mutate
-            grep -qE 'Could not find any modified|No source code from the diff was executed' infection-diff.out \
+            grep -qE 'Could not find any modified|No source code from the diff was executed|No source file found for the filter applied' infection-diff.out \
               || { echo "::error::Infection wrote no log at $LOG"; exit 1; }
             exit 0
           fi
