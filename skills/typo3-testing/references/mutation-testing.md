@@ -876,7 +876,9 @@ abstract method signatures, constants) has no executable line and produces the s
 Tell the two apart by reading the changed lines: a changed statement inside a function or method
 body means a test is missing; for a diff of signatures and declarations alone the gate cannot
 judge. The job stays red for such a diff and nothing passes it automatically: a reviewer
-confirms that the changed lines hold declarations only and merges past the red job.
+confirms that the changed lines hold declarations only and merges past the red job. Keep the
+mutation job out of the required status checks, so that this merge needs no branch-protection
+bypass; the reviewer's written confirmation in the pull request is the record.
 
 ### Quality Gate
 
@@ -920,8 +922,9 @@ modes, and it refuses to combine them:
   --git-diff-base=origin/main
 
 # Every line of the added and modified files (no --with-uncovered: with the
-# not-covered gate, a one-line change to an untested legacy file would fail on
-# lines it never touched)
+# not-covered gate, a one-line change to a partly tested legacy file would fail
+# on untested lines it never touched; escaped mutants on untouched covered
+# lines still fail this run)
 .Build/bin/infection \
   --threads=4 \
   --git-diff-filter=AM \
