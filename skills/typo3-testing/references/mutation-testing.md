@@ -293,6 +293,7 @@ Create `infection.json5` in project root.
     },
     "logs": {
         "html": ".Build/logs/infection.html",
+        "json": ".Build/logs/infection.json",   // read by the PR diff gate
         "text": ".Build/logs/infection.log",
         "summary": ".Build/logs/infection-summary.log"
     },
@@ -403,7 +404,7 @@ $this->save($entity);
             ".Build/bin/infection --threads=4"
         ],
         "ci:test:mutation:quick": [
-            ".Build/bin/infection --threads=4 --min-covered-msi=80"
+            ".Build/bin/infection --threads=4"
         ]
     }
 }
@@ -727,54 +728,184 @@ self::assertSame('nrllm_providers', $failingCheck->fixRoute);
 
 ## CI Integration
 
+### The Rule: The Diff in a Pull Request, the Full Run on a Schedule
+
+A full Infection run over a mature extension takes an hour or more, so it does not belong in
+every pull request. Split mutation testing by event:
+
+1. **Pull request / merge request: mutate the diff only.** Run Infection with
+   `--git-diff-lines` (changed lines; the default for a change to production code) or a wider
+   selection where the change needs it (see [Generation Scope](#generation-scope-which-mutants-a-diff-run-creates)), and
+   `--git-diff-base` set to the target branch; Infection resolves the merge base itself (see
+   [Incremental Mutation Testing](#incremental-mutation-testing)). The PR pipeline stays short,
+   and what it reports are the mutants of the change.
+2. **Default branch: the full run on a schedule and on manual dispatch.** Run every mutant
+   nightly or weekly, and when started by hand (`workflow_dispatch` on GitHub, a pipeline started
+   from the web or the API on GitLab), in a job with a timeout of its own sized to the measured
+   run time. The project's MSI thresholds (`minCoveredMsi`, see
+   [Which Threshold Gates](#which-threshold-gates-mincoveredmsi-not-minmsi)) gate this run and
+   only this run. The MSI of a diff run covers a few mutants of one change and is noise there:
+   the diff run passes no MSI threshold. It also mutates the changed lines no test executes
+   (`--with-uncovered`) and **fails on any escaped or not covered mutant in the changed
+   lines**, and when no test executed any line of the changed files or the run generated no
+   mutant (see the example below).
+3. **Codecov receives coverage, not mutation results.** Keep the mutation results in the job log
+   or an Infection report artefact, and do not write that the mutation score is tracked in
+   Codecov unless the project shows an upload of it there. In t3x-nr-llm below, Codecov gets the
+   PHPUnit coverage reports and no step uploads Infection output.
+
+Two projects show the split. In both, a pull request either mutates its diff or runs no mutation
+at all; neither runs the full set of mutants per pull request.
+
+- **netresearch/t3x-nr-llm**
+  ([`.github/workflows/ci.yml` lines 208-231](https://github.com/netresearch/t3x-nr-llm/blob/7ac10ccfec2af15791da1643001dc525486aaaf8/.github/workflows/ci.yml#L208-L231))
+  calls the `fuzz.yml` reusable of `netresearch/typo3-ci-workflows` with `run-mutation-tests`
+  true only for `schedule` (weekly) and `workflow_dispatch`, and with
+  `mutation-timeout-minutes: 90`. Its pull requests run no mutation job: the reusable's
+  Infection call passes no diff option, so a diff run would need a job of its own.
+  Coverage goes to Codecov through the `ci.yml` reusable (`upload-coverage: true`). Its MSI
+  thresholds do not block yet: the reusable's Infection step is `continue-on-error: true`, and
+  the caller calls the job report-only.
+- **software-factory/factory** (an internal TYPO3 project) mutates only the lines a merge
+  request changes, against the merge request's diff base (`$CI_MERGE_REQUEST_DIFF_BASE_SHA`),
+  and runs every mutant on `main` from a nightly pipeline schedule and in pipelines started by
+  hand or through the API. It selects the changed lines with a script of its own rather than
+  with `--git-diff-lines`, and reports coverage to GitLab rather than to Codecov; the split is
+  the same.
+
 ### GitHub Actions
 
 ```yaml
-# .github/workflows/tests.yml
-mutation:
-  name: Mutation Testing
-  runs-on: ubuntu-latest
-  needs: [unit]  # Run after unit tests pass
-  steps:
-    - uses: actions/checkout@v4
-    - uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.2'
-        coverage: xdebug
+# .github/workflows/mutation.yml
+on:
+  pull_request:
+  schedule:
+    - cron: '0 3 * * 1'  # weekly full run
+  workflow_dispatch:
 
-    - run: composer install
+jobs:
+  mutation:
+    name: Mutation Testing
+    runs-on: ubuntu-latest
+    # The diff run is short; the full run gets the limit its measured run time needs
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 20 || 90 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Infection computes the merge base; in a shallow clone it falls back to the base ref
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: xdebug
 
-    - name: Run unit tests with coverage
-      run: |
-        .Build/bin/phpunit -c Build/phpunit/UnitTests.xml \
-          --coverage-xml=.Build/logs/coverage-xml \
-          --log-junit=.Build/logs/phpunit.xml
+      - run: composer install
 
-    - name: Run mutation testing
-      run: |
-        .Build/bin/infection \
-          --threads=4 \
-          --coverage=.Build/logs/coverage-xml \
-          --min-covered-msi=80 \
-          --skip-initial-tests
+      - name: Mutate the changed lines (pull request)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -o pipefail
+          # logs.json of the infection.json5 under Configuration (with
+          # assets/infection.json5 it is .Build/infection/infection.json); removed
+          # first so a log of an earlier run cannot answer for this one
+          LOG=.Build/logs/infection.json
+          rm -f "$LOG"
+          .Build/bin/infection \
+            --threads=4 \
+            --git-diff-lines \
+            --with-uncovered \
+            --git-diff-base="origin/$BASE_REF" \
+            --min-msi=0 \
+            --min-covered-msi=0 | tee infection-diff.out
+          if [ ! -f "$LOG" ]; then
+            # No test executed any line of the changed files: a new class
+            # without a test, or a diff of declarations only (see below)
+            if grep -q 'No source code from the diff was executed' infection-diff.out; then
+              echo "::error::no test executed any line of the changed files"
+              exit 1
+            fi
+            # Infection writes no log when the diff holds no source line to mutate
+            grep -qE 'Could not find any modified|No source file found for the filter applied' infection-diff.out \
+              || { echo "::error::Infection wrote no log at $LOG"; exit 1; }
+            exit 0
+          fi
+          # -e: a missing field is an error, not a zero
+          escaped=$(jq -e '.stats.escapedCount' "$LOG")
+          not_covered=$(jq -e '.stats.notCoveredCount' "$LOG")
+          echo "generated: $(jq -r '.stats.totalMutantsCount' "$LOG"), escaped: $escaped, not covered: $not_covered"
+          if [ "$escaped" != 0 ] || [ "$not_covered" != 0 ]; then
+            jq -r '(.escaped[]?, .uncovered[]?) | "\(.mutator.originalFilePath):\(.mutator.originalStartLine) \(.mutator.mutatorName)"' "$LOG"
+            echo "::error::$escaped escaped and $not_covered not covered mutant(s) in the changed lines"
+            exit 1
+          fi
+          # 0 mutants: nothing in the changed lines was judged (see below)
+          if [ "$(jq -e '.stats.totalMutantsCount' "$LOG")" = 0 ]; then
+            echo "::error::no mutant generated from the changed lines"
+            exit 1
+          fi
 
-    - name: Upload mutation report
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: mutation-report
-        path: .Build/logs/infection.html
+      - name: Full run with the MSI gate (schedule, manual)
+        if: github.event_name != 'pull_request'
+        # minCoveredMsi from infection.json5 gates; a CLI value would override it
+        run: |
+          .Build/bin/infection \
+            --threads=4
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: .Build/logs/infection.html
 ```
+
+The diff step fails on the escaped and not covered counts, not on a percentage.
+`--min-msi=0 --min-covered-msi=0` overrides the thresholds from `infection.json5`, which would
+otherwise gate the diff run too: over a handful of mutants one escape moves the score by tens of
+points. `stats.escapedCount` and `stats.notCoveredCount` of the JSON log (written by
+`logs.json`; both fields exist at this skill's floor 0.32.0; `--logger-json` exists only from
+Infection 0.35.11) then decide: any escaped or not covered mutant in the changed lines fails the job and
+is listed.
+
+`--with-uncovered` is part of the gate. Without it Infection drops the nodes no test executes
+before it creates mutants: a method no test calls, added to a class that has tests, yields 0
+mutants and the step passes. With it, those mutants count in `notCoveredCount`.
+
+A run without a log is accepted only when Infection said the diff held nothing to mutate
+("Could not find any modified …", "No source file found for the filter applied …"). "No source
+code from the diff was executed …" also comes with exit 0 and no log, with or without
+`--with-uncovered`, but it means that no test executed any line of the changed files. A new
+class without a test produces it, so the step fails. A diff of declarations only (an interface,
+abstract method signatures, constants) has no executable line and produces the same message.
+Tell the two apart by reading the changed lines: a changed statement inside a function or method
+body means a test is missing; for a diff of signatures and declarations alone the gate cannot
+judge. The job stays red for such a diff and nothing passes it automatically: a reviewer
+confirms that the changed lines hold declarations only and merges past the red job. Keep the
+mutation job out of the required status checks, so that this merge needs no branch-protection
+bypass; the reviewer's written confirmation in the pull request is the record.
+
+A log with 0 generated mutants fails as well. The changed lines then hold nothing Infection
+mutates: it skips abstract method signatures and interface methods (`AbstractMethodIgnorer`,
+`InterfaceIgnorer` in 0.35.12), and comments or constants give no mutant either. "No source code
+from the diff was executed" does not appear when other, tested lines of the same file ran, so
+this is how a declarations-only change in a tested class shows up. It is handled the same way:
+the job stays red and a reviewer confirms it.
 
 ### Quality Gate
 
+The MSI gate belongs to the full run on the default branch (schedule and manual dispatch):
+
 ```yaml
-# Fail CI if mutation score drops
+# Fail the scheduled run if the mutation score drops
 - name: Check mutation score
+  if: github.event_name != 'pull_request'
+  # The threshold is minCoveredMsi in infection.json5; --min-covered-msi on the
+  # command line would override the project's value
   run: |
     .Build/bin/infection \
-      --threads=4 \
-      --min-covered-msi=80
+      --threads=4
 ```
 
 With `--with-uncovered` added, `--min-msi` becomes a second, independent gate; without it the
@@ -787,20 +918,106 @@ two options test the same number.
 3. **Focus on covered code** - The default since Infection 0.31 (which removed `--only-covered`); gate on `minCoveredMsi`
 4. **Prioritize escaped mutants** - These indicate weak tests
 5. **Exclude trivial code** - Skip getters/setters/DTOs in config
-6. **Run incrementally** - Use `--git-diff-filter=AM` for changed files only
+6. **Mutate the diff in PRs, everything on a schedule** - `--git-diff-lines` in pull requests, the full run with the MSI gate nightly or weekly (see [CI Integration](#ci-integration))
 7. **Document exclusions** - Explain why code is excluded from mutation testing
 
 ## Incremental Mutation Testing
 
-For large codebases, run mutation testing only on changed files:
+The pull-request half of the rule in [CI Integration](#ci-integration). Infection has two diff
+modes, and it refuses to combine them:
 
 ```bash
-# Only test files changed in current branch
+# Both commands zero the MSI thresholds; run them through the count checks of
+# the pull-request step in CI Integration, which decide the gate.
+
+# Only the changed lines: the mutants the change itself introduced
+# (--with-uncovered: changed lines no test executes count as not covered)
+.Build/bin/infection \
+  --threads=4 \
+  --git-diff-lines \
+  --with-uncovered \
+  --git-diff-base=origin/main \
+  --min-msi=0 \
+  --min-covered-msi=0
+
+# Every line of the added and modified files (no --with-uncovered: with the
+# not-covered gate, a one-line change to a partly tested legacy file would fail
+# on untested lines it never touched; under the escaped-count check, escaped
+# mutants on untouched covered lines still fail this run)
 .Build/bin/infection \
   --threads=4 \
   --git-diff-filter=AM \
-  --git-diff-base=origin/main
+  --git-diff-base=origin/main \
+  --min-msi=0 \
+  --min-covered-msi=0
 ```
+
+### Generation Scope: Which Mutants a Diff Run Creates
+
+State the generation scope of a diff run explicitly. It decides how many mutants the run
+creates, not only which survivors you read afterwards.
+
+- **A change to production code only: `--git-diff-lines`.** Infection keeps a mutant when the
+  line range of the mutated node overlaps a changed line range of the diff against the merge
+  base (`ChangedLinesRange::touches()` in 0.32.7 and 0.35.12). `--git-diff-filter=AM` selects
+  changed *files* and mutates every line in them. Measured in an internal project on a direct
+  one-line edit of production code: 25 mutants with file selection, 1 with line selection.
+- **A one-line edit must not mutate an unrelated expression in the same file.** In
+
+  ```php
+  public function discount(Cart $cart): int
+  {
+      $bonus = $this->config->bonus() * 2;          // unchanged
+      if ($cart->subtotal() >= $this->threshold) {  // the edit: > became >=
+          return 10 + $bonus;
+      }
+      return 0;
+  }
+  ```
+
+  a line-limited run generates the mutants of the `if` line only. A run that also mutates
+  `* 2` or the `return` statements was not limited to the change, whatever its survivors say.
+- **Wider selection is right where the effect of a change does not sit in changed source
+  lines:**
+  - *Test-only changes.* A changed or deleted test changes which mutants of unchanged code are
+    killed, but no source line changed: `--git-diff-lines` generates nothing and exits 0.
+    Mutate the classes the changed tests cover (`--filter=Classes/Service/Thing.php` or their
+    directory), or leave them to the scheduled full run and say so in the PR.
+  - *Shared fixtures and test configuration.* A changed fixture, base test case,
+    `UnitTests.xml` or `infection.json5` affects every test that uses it, and the diff holds no
+    source line at all. Run the affected directories or the full set.
+  - *Multiline expressions.* Only mutants whose own node touches a changed line are kept. An
+    edit to one line of a condition or call wrapped over several lines drops the mutants of the
+    other lines of the same expression, although the edit can change whether a test reaches or
+    tells them apart. Widen that file (`--filter=<file>`) for such a change.
+- **Count the generated mutants, not only the relevant survivors.** A file-wide run with no
+  survivor in the changed lines reads like a passing line-limited run. Read
+  `stats.totalMutantsCount` from the JSON log (`logs.json`, Infection 0.35.12) and compare it
+  with what the changed lines can produce: dozens of mutants for a one-line edit mean the run
+  was not limited to its lines.
+
+### Diff Mode in CI
+
+- Both diff options, their mutual exclusion and the merge-base resolution below exist in
+  Infection 0.32.7 and 0.35.12 (read in the source); `--git-diff-lines` was added in 0.26.0.
+- **Pass the target branch; Infection finds the merge base.** It runs
+  `git merge-base <base> HEAD` and diffs against that commit, so what `main` gained after the
+  branch point does not count as the PR's change. In a shallow clone that command fails, and
+  Infection falls back to the base ref itself with only an info-level log line; it then runs
+  `git diff <base>` against the tip of the target branch, so what `main` changed after the
+  branch point shows up as a change of the PR. Fetch the full history (`fetch-depth: 0` for
+  `actions/checkout`, `GIT_DEPTH: 0` in GitLab CI). In a GitLab merge request pipeline, pass
+  `$CI_MERGE_REQUEST_DIFF_BASE_SHA`, the base SHA of the merge request's diff.
+- **A PR without changed PHP source passes.** When no file or line of `source.directories`
+  changed, Infection prints a success message and exits 0 (0.32.7 and 0.35.12). A
+  documentation-only PR needs no guard around the step; a test-only PR needs the wider
+  selection above.
+- **A PR whose changed source no test executes fails.** Infection prints "No source code from
+  the diff was executed by the test framework." as a success and exits 0 (0.32.7 and 0.35.12),
+  with or without `--with-uncovered`; the example step above turns it into a failure.
+- **The score of a diff run is not the project's score.** Quote the MSI of the scheduled full
+  run. The diff run gates on its escaped and not covered counts: any escaped or not covered mutant
+  in the changed lines fails it, and so does a run that generates no mutant.
 
 ## Directory Structure
 
